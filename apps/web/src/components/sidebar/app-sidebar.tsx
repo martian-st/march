@@ -1,5 +1,5 @@
 "use client";
-import { Calendar, Inbox, Bot } from "lucide-react";
+import { Calendar, Inbox, Database } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -86,22 +86,24 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild className={noHoverStyles}>
               <Link
-                href="/agent"
+                href="/objects"
                 className={cn(
-                  "flex items-center text-sm w-full text-[#6E6E6E] rounded-md",
+                  "flex items-center text-sm rounded-md",
                   isCollapsed
-                    ? "justify-center py-3 px-0 mx-auto"
+                    ? "justify-center py-3 px-0 mx-auto w-full"
                     : "gap-3 px-4 py-2.5",
-                  pathname === "/agent" ? "text-black" : "text-[#6E6E6E]"
+                  pathname === "/objects"
+                    ? "text-black font-medium"
+                    : "text-[#6E6E6E]"
                 )}
               >
-                <Bot
+                <Database
                   className={cn(
-                    pathname === "/agent" ? "text-black" : "text-[#6E6E6E]",
+                    pathname === "/objects" ? "text-black" : "text-[#6E6E6E]",
                     isCollapsed ? "h-7 w-7" : "h-5 w-5"
                   )}
                 />
-                {!isCollapsed && <span>Agent</span>}
+                {!isCollapsed && <span>All Objects</span>}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
