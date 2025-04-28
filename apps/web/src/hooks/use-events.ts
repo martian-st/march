@@ -25,8 +25,13 @@ export function useEvents(date: string) {
     error,
   } = useQuery({
     queryKey: QUERY_KEYS.EVENTS(date),
-    queryFn: () => getEventsByDate(date),
-    enabled: isCalendarConnected,
+    queryFn: async () => {
+      if (!isCalendarConnected) {
+        return [];
+      }
+      return getEventsByDate(date);
+    },
+    enabled: !!date,
     select: (data) => data.map(transformGoogleEventToCalendarEvent),
   });
 

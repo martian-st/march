@@ -8,6 +8,7 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
+import { MarkdownText } from "../assistant-ui/markdown-text";
 import * as Avatar from "@radix-ui/react-avatar";
 import {
   ArrowUpIcon,
@@ -142,7 +143,7 @@ const AssistantMessage: FC = () => {
 
       <div className="pt-1">
         <div className="text-foreground">
-          <MessagePrimitive.Content />
+          <MessagePrimitive.Content components={{ Text: MarkdownText }} />
         </div>
 
         <div className="flex pt-2">
