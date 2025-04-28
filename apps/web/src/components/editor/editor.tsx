@@ -53,11 +53,11 @@ const Editor = ({ initialValue, onChange }: EditorProps) => {
         immediatelyRender={false}
         initialContent={initialValue}
         extensions={extensions}
-        className="min-h-96 max-w-[450px] sm:max-w-[600px]"
+        className="min-h-96 w-full"
         editorProps={{
           attributes: {
             class:
-              "prose prose-lg dark:prose-invert prose-headings:font-title font-default focus:outline-none max-w-full",
+              "prose prose-lg dark:prose-invert prose-headings:font-title font-default focus:outline-none w-full",
           },
         }}
         onUpdate={({ editor }) => {
