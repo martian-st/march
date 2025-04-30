@@ -46,17 +46,19 @@ export function JournalPage() {
     }
   };
 
+  const [todayJournal, setTodayJournal] = useState<Journal | null>(null);
+
   const fetchTodayJournal = async () => {
     try {
       const data = await apiClient.get<JournalResponse>('/api/journals/today/');
       if (data.journal) {
-        setSelectedJournal(data.journal);
+        setTodayJournal(data.journal);
       } else {
-        setSelectedJournal(null);
+        setTodayJournal(null);
       }
     } catch (error) {
       console.error('Error fetching today\'s journal:', error);
-      setSelectedJournal(null);
+      setTodayJournal(null);
     }
   };
 
@@ -103,25 +105,42 @@ export function JournalPage() {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="entry">Journal Entry</TabsTrigger>
-        </TabsList>
+      <div className="flex space-x-2 mb-4">
+        <Button 
+          variant={activeTab === 'today' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('today')}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          Today
+        </Button>
+        <Button 
+          variant={activeTab === 'history' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('history')}
+        >
+          <BookOpen className="mr-2 h-4 w-4" />
+          History
+        </Button>
+        <Button 
+          variant={activeTab === 'entry' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('entry')}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Journal Entry
+        </Button>
+      </div>
         
-        <TabsContent value="today" className="mt-6">
-          {selectedJournal ? (
-            <JournalEntry 
-              initialDate={new Date(selectedJournal.date)} 
-              initialContent={selectedJournal.content} 
+        {activeTab === 'today' && (
+          <div className="space-y-4">
+            <JournalEntry
+              initialDate={new Date()}
+              initialContent={todayJournal?.content || ''}
+              onSave={fetchJournals}
             />
-          ) : (
-            <JournalEntry initialDate={new Date()} />
-          )}
-        </TabsContent>
-        
-        <TabsContent value="history" className="mt-6">
+          </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {isLoading ? (
               <p className="col-span-full text-center py-10">Loading journal entries...</p>
@@ -161,10 +180,11 @@ export function JournalPage() {
               ))
             )}
           </div>
+        </div>
         )}
 
         {activeTab === 'entry' && (
-          <div className="space-y-4">
+          <div className="mt-6">
             <JournalEntry 
               initialDate={selectedJournal ? new Date(selectedJournal.date) : new Date()} 
               initialContent={selectedJournal?.content || ''} 
@@ -172,7 +192,6 @@ export function JournalPage() {
             />
           </div>
         )}
-      </div>
     </div>
   );
 }

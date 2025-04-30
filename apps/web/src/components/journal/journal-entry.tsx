@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, Save, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -33,7 +32,6 @@ export function JournalEntry({ initialDate, initialContent = '', onSave }: Journ
   const [date, setDate] = useState<Date>(initialDate || new Date());
   const [content, setContent] = useState(initialContent);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   // Using sonner toast directly
 
   useEffect(() => {
@@ -76,34 +74,22 @@ export function JournalEntry({ initialDate, initialContent = '', onSave }: Journ
   return (
     <Card className="w-full max-w-3xl mx-auto">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xl font-medium">Journal Entry</CardTitle>
-        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-[240px] justify-start text-left font-normal",
-                !date && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, 'PPP') : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              mode="single"
-              selected={date}
-              onSelect={(newDate) => {
-                if (newDate) {
-                  setDate(newDate);
-                  setIsCalendarOpen(false);
+        <div className="flex justify-between items-center">
+          <CardTitle>Journal Entry</CardTitle>
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <Input
+              type="date"
+              value={format(date, "yyyy-MM-dd")}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setDate(new Date(e.target.value));
                 }
               }}
-              initialFocus
+              className="w-[180px]"
             />
-          </PopoverContent>
-        </Popover>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Textarea
