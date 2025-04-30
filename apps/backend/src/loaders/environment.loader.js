@@ -33,7 +33,7 @@ export const environment = {
     GITHUB_APP_CLIENT_ID: process.env.GITHUB_APP_CLIENT_ID,
     GITHUB_APP_CLIENT_SECRET: process.env.GITHUB_APP_CLIENT_SECRET,
     NGROK_AUTH_TOKEN: process.env.NGROK_AUTH_TOKEN,
-    REDIS_DB_NAME: process.env.REDIS_HOST,
+    REDIS_DB_NAME: process.env.REDIS_DB_NAME,
     REDIS_HOST: process.env.REDIS_HOST,
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_DB_USER: process.env.REDIS_DB_USER,

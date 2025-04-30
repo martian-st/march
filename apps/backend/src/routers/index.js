@@ -29,7 +29,7 @@ const initRoutes = (app) => {
     app.use('/ai', JWTMiddleware, AiRoute);
     app.get("/", async (req, res) => {
         res.json({
-            "message": "Welcome to emptyarray Developers Portal"
+            "message": "Welcome to  sage "
         })
     })
 
