@@ -233,10 +233,7 @@ export class SearchHandler {
     async searchContent (query, userId, parameters) {
         // Check cache for identical searches
         const cacheKey = this.getCacheKey(query, userId, parameters);
-
-        // Skip cache for list_all queries to always get fresh data
-        const isListAllQuery = parameters.metadata?.listAll === true;
-        if (!isListAllQuery && this.cacheEnabled && this.cache.has(cacheKey)) {
+        if (this.cacheEnabled && this.cache.has(cacheKey)) {
             return this.cache.get(cacheKey);
         }
 
@@ -246,31 +243,18 @@ export class SearchHandler {
         // const filter = { userId, ...parameters.filters };
 
         try {
-            let searchResults;
-
-            // Check if this is a "list all" type query
-            if (parameters.metadata?.listAll) {
-                // For "list all" queries, fetch all matching objects without vector search
-                // This ensures we get ALL matching objects regardless of semantic similarity
-                searchResults = await this.pineconeIndex.query({
-                    filter,
-                    topK: parameters.limit || 100, // Increase limit for list all queries
-                    includeMetadata: true
-                });
-            } else {
-                // For normal semantic searches, use vector similarity
-                const queryEmbedding = await generateEnhancedEmbedding(query, {
-                    userId,
-                    ...parameters.filters
-                });
-
-                searchResults = await this.pineconeIndex.query({
-                    vector: queryEmbedding,
-                    filter,
-                    topK: parameters.limit || 10,
-                    includeMetadata: true
-                });
-            }
+            // Generate embedding for semantic search
+            const queryEmbedding = await generateEnhancedEmbedding(query, {
+                userId,
+                ...parameters.filters
+            });
+            // Perform vector search with metadata filtering...
+            const searchResults = await this.pineconeIndex.query({
+                vector: queryEmbedding,
+                filter,
+                topK: parameters.limit || 10,
+                includeMetadata: true
+            });
             // console.log("seaech result:", searchResults)
             // Apply post-processing and sorting
             // const processedResults = this.processSearchResults(
