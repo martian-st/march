@@ -103,10 +103,11 @@ export function AppSidebar() {
                     isCollapsed ? "h-7 w-7" : "h-5 w-5"
                   )}
                 />
-                {!isCollapsed && <span>All Objects</span>}
+                {!isCollapsed && <span>Objects</span>}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-4">

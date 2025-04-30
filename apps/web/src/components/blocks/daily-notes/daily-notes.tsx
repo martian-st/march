@@ -4,10 +4,36 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Editor from "@/components/editor/editor";
 import { JSONContent } from "novel";
 import { format } from "date-fns";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
 
 interface DailyNotesProps {
   date?: Date;
 }
+
+interface JournalResponse {
+  journal: {
+    _id: string;
+    date: string;
+    content: string;
+    user: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+// Convert plain text to JSONContent
+const createContentFromText = (text: string): JSONContent => {
+  const paragraphs = text.split('\n').map(line => ({
+    type: "paragraph",
+    content: line.trim() ? [{ type: "text", text: line }] : []
+  }));
+  
+  return {
+    type: "doc",
+    content: paragraphs.length > 0 ? paragraphs : [{ type: "paragraph", content: [] }]
+  };
+};
 
 // Create default content outside the component to avoid recreating it on each render
 const createDefaultContent = (formattedDate: string): JSONContent => ({
@@ -48,18 +74,76 @@ export function DailyNotes({ date = new Date() }: DailyNotesProps) {
   // Content change handler - memoize to avoid recreating on each render
   const handleContentChange = useCallback((newContent: string) => {
     try {
+      // Save to localStorage as a backup
       localStorage.setItem(`daily-notes-${dateKey.current}`, newContent);
+      
+      // Save to API
+      const saveToAPI = async () => {
+        try {
+          const contentObj = JSON.parse(newContent);
+          let plainText = "";
+          
+          // Extract plain text from the JSON content
+          if (contentObj.content) {
+            plainText = contentObj.content
+              .map((block: any) => {
+                if (block.content) {
+                  return block.content
+                    .map((item: any) => item.text || "")
+                    .join("");
+                }
+                return "";
+              })
+              .join("\n");
+          }
+          
+          // Only save if there's actual content
+          if (plainText.trim()) {
+            await apiClient.post('/api/journals/create-update/', {
+              date: dateKey.current,
+              content: plainText
+            });
+          }
+        } catch (err) {
+          console.error("Error saving to API:", err);
+        }
+      };
+      
+      // Debounce the API call to avoid too many requests
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(saveToAPI, 1000);
     } catch (e) {
       console.error("Error saving content:", e);
     }
   }, []);
 
-  // Load content only once on component mount
+  // Reference for the save timeout
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load content from API or localStorage
   useEffect(() => {
-    const loadContent = () => {
+    const loadContent = async () => {
       try {
-        const savedContent = localStorage.getItem(`daily-notes-${dateKey.current}`);
+        // Try to load from API first
+        try {
+          const response = await apiClient.get<JournalResponse>(`/api/journals/date/${dateKey.current}`);
+          if (response.journal && response.journal.content) {
+            // Convert plain text to JSON content
+            const jsonContent = createContentFromText(response.journal.content);
+            setContent(jsonContent);
+            // Also save to localStorage as backup
+            localStorage.setItem(`daily-notes-${dateKey.current}`, JSON.stringify(jsonContent));
+            setIsLoaded(true);
+            return;
+          }
+        } catch (apiError) {
+          console.log("Could not load from API, falling back to localStorage");
+        }
         
+        // Fall back to localStorage if API fails
+        const savedContent = localStorage.getItem(`daily-notes-${dateKey.current}`);
         if (savedContent) {
           setContent(JSON.parse(savedContent));
         } else {
@@ -74,6 +158,13 @@ export function DailyNotes({ date = new Date() }: DailyNotesProps) {
     };
     
     loadContent();
+    
+    // Clean up timeout on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, []); // Empty dependency array - only run once on mount
 
   // Show loading state until content is loaded
