@@ -6,6 +6,7 @@ import {
   List,
   ListOrdered,
   Text,
+  CheckSquare,
 } from 'lucide-react'
 import { createSuggestionItems } from 'novel'
 import { Command, renderItems } from 'novel'
@@ -84,6 +85,15 @@ export const suggestionItems = createSuggestionItems([
     icon: React.createElement(ListOrdered, { size: 18 }),
     command: ({ editor, range } ) => {
       editor.chain().focus().deleteRange(range).toggleOrderedList().run()
+    }
+  },
+  {
+    title: 'Todo List',
+    description: 'Create a todo list with checkboxes.',
+    searchTerms: ['todo', 'task', 'checkbox', 'check', 'done'],
+    icon: React.createElement(CheckSquare, { size: 18 }),
+    command: ({ editor, range } ) => {
+      editor.chain().focus().deleteRange(range).toggleTaskList().run()
     }
   }
 ])

@@ -48,8 +48,24 @@ const createDefaultContent = (formattedDate: string): JSONContent => ({
       content: []
     },
     {
-      type: "paragraph",
-      content: [{ type: "text", text: "I woke up, ate, took a nap, ate, and slept." }]
+      type: "taskList",
+      content: [
+        {
+          type: "taskItem",
+          attrs: { checked: false },
+          content: [{ type: "text", text: "Add your first task here" }]
+        },
+        {
+          type: "taskItem",
+          attrs: { checked: false },
+          content: [{ type: "text", text: "Add another task" }]
+        },
+        {
+          type: "taskItem",
+          attrs: { checked: true },
+          content: [{ type: "text", text: "This task is already completed" }]
+        }
+      ]
     },
     {
       type: "paragraph",
