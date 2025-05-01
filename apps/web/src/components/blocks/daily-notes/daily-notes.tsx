@@ -94,10 +94,10 @@ function CalendarGrid({ currentDate, onSelectDate }: CalendarGridProps) {
           key={index}
           onClick={() => onSelectDate(day.date)}
           className={`
-            w-8 h-8 flex items-center justify-center rounded-full text-xs
+            w-10 h-10 flex items-center justify-center text-sm
             ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
-            ${day.isToday ? 'bg-blue-100 font-bold text-blue-600' : 'hover:bg-gray-100'}
-            ${format(currentDate, 'yyyy-MM-dd') === format(day.date, 'yyyy-MM-dd') ? 'bg-blue-500 text-white hover:bg-blue-600' : ''}
+            ${day.isToday ? 'font-bold text-blue-600' : 'hover:bg-gray-100'}
+            ${format(currentDate, 'yyyy-MM-dd') === format(day.date, 'yyyy-MM-dd') ? 'bg-blue-500 text-white rounded-full' : ''}
           `}
         >
           {day.dayOfMonth}
@@ -106,19 +106,6 @@ function CalendarGrid({ currentDate, onSelectDate }: CalendarGridProps) {
     </div>
   );
 }
-
-// Convert plain text to JSONContent
-const createContentFromText = (text: string): JSONContent => {
-  const paragraphs = text.split('\n').map(line => ({
-    type: "paragraph",
-    content: line.trim() ? [{ type: "text", text: line }] : []
-  }));
-  
-  return {
-    type: "doc",
-    content: paragraphs.length > 0 ? paragraphs : [{ type: "paragraph", content: [] }]
-  };
-};
 
 // Create empty content for new journal entries
 const createEmptyContent = (): JSONContent => ({
@@ -198,6 +185,19 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
     } finally {
       setIsLoaded(true);
     }
+  };
+
+  // Convert plain text to JSONContent
+  const createContentFromText = (text: string): JSONContent => {
+    const paragraphs = text.split('\n').map(line => ({
+      type: "paragraph",
+      content: line.trim() ? [{ type: "text", text: line }] : []
+    }));
+    
+    return {
+      type: "doc",
+      content: paragraphs.length > 0 ? paragraphs : [{ type: "paragraph", content: [] }]
+    };
   };
 
   // Content change handler - memoize to avoid recreating on each render
@@ -302,13 +302,66 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content 
-              className="bg-white p-2 rounded-md shadow-lg border border-gray-200 w-[280px] z-50" 
+              className="bg-white p-4 rounded-md shadow-lg w-[300px] z-50" 
               sideOffset={5}
               align="start"
             >
               <div className="calendar-wrapper">
-                <div className="flex justify-between items-center mb-2 px-1">
-                  <h3 className="text-sm font-medium">{format(currentDate, 'MMMM yyyy')}</h3>
+                <div className="flex justify-between items-center mb-4 px-1">
+                  <div className="flex items-center gap-2">
+                    {/* Month selector - styled as a dropdown button */}
+                    <div className="relative inline-block">
+                      <select
+                        value={currentDate.getMonth()}
+                        onChange={(e) => {
+                          const newDate = new Date(currentDate);
+                          newDate.setMonth(parseInt(e.target.value));
+                          setCurrentDate(newDate);
+                        }}
+                        className="appearance-none bg-transparent border-none text-base font-medium text-gray-800 pr-8 py-1 cursor-pointer focus:outline-none"
+                        aria-label="Select month"
+                      >
+                        {[
+                          "January", "February", "March", "April", "May", "June",
+                          "July", "August", "September", "October", "November", "December"
+                        ].map((month, index) => (
+                          <option key={month} value={index}>{month}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
+                        <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    {/* Year selector - styled as a dropdown button */}
+                    <div className="relative inline-block">
+                      <select
+                        value={currentDate.getFullYear()}
+                        onChange={(e) => {
+                          const newDate = new Date(currentDate);
+                          newDate.setFullYear(parseInt(e.target.value));
+                          setCurrentDate(newDate);
+                        }}
+                        className="appearance-none bg-transparent border-none text-base font-medium text-gray-800 pr-8 py-1 cursor-pointer focus:outline-none"
+                        aria-label="Select year"
+                      >
+                        {Array.from({ length: 21 }, (_, i) => {
+                          const year = new Date().getFullYear() - 10 + i;
+                          return (
+                            <option key={year} value={year}>{year}</option>
+                          );
+                        })}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center">
+                        <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="flex gap-1">
                     <button 
                       onClick={() => {
@@ -339,7 +392,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500">
+                <div className="grid grid-cols-7 gap-1 text-center text-sm font-medium text-gray-500 mb-2">
                   {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                     <div key={i} className="p-1">{day}</div>
                   ))}
@@ -354,25 +407,16 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
                   }} 
                 />
                 
-                <div className="flex justify-between mt-2 pt-2 border-t border-gray-100">
+                <div className="flex justify-end mt-3">
                   <button 
                     onClick={() => {
                       setCurrentDate(new Date());
                       // Close the popover after selection
                       document.body.click();
                     }}
-                    className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1"
+                    className="text-sm text-blue-600 hover:text-blue-800 px-3 py-1"
                   >
                     Today
-                  </button>
-                  <button 
-                    onClick={() => {
-                      // Close the popover
-                      document.body.click();
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1"
-                  >
-                    Close
                   </button>
                 </div>
               </div>
