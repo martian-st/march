@@ -4,15 +4,22 @@ import { apiClient } from "@/lib/api";
 import { CreateEventResponse, Event, EventResponse } from "@/types/calendar";
 
 export async function getEventsByDate(date: string) {
-  const response = await apiClient.get<EventResponse>(
-    `/calendar/events/${date}/`
-  );
+  try {
+    const response = await apiClient.get<EventResponse>(
+      `/calendar/events/${date}/`
+    );
 
-  if (!response) {
-    throw new Error("Failed to fetch events");
+    if (!response) {
+      console.error("No response from calendar API");
+      return [];
+    }
+
+    return response.events;
+  } catch (error) {
+    console.error("Error fetching calendar events:", error);
+    // Return empty array instead of throwing error to prevent blocking the app
+    return [];
   }
-
-  return response.events;
 }
 
 export async function createEvent(event: Partial<Event>) {
