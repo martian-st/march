@@ -24,13 +24,18 @@ interface JournalResponse {
   };
 }
 
+interface JournalDatesResponse {
+  dates: string[];
+}
+
 interface CalendarGridProps {
   currentDate: Date;
   onSelectDate: (date: Date) => void;
+  datesWithEntries: string[];
 }
 
 // Calendar grid component to display days of the month
-function CalendarGrid({ currentDate, onSelectDate }: CalendarGridProps) {
+function CalendarGrid({ currentDate, onSelectDate, datesWithEntries }: CalendarGridProps) {
   // Get the first day of the month
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
   // Get the last day of the month
@@ -94,13 +99,16 @@ function CalendarGrid({ currentDate, onSelectDate }: CalendarGridProps) {
           key={index}
           onClick={() => onSelectDate(day.date)}
           className={`
-            w-10 h-10 flex items-center justify-center text-sm
+            w-10 h-10 flex flex-col items-center justify-center text-sm relative
             ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
             ${day.isToday ? 'font-bold text-blue-600' : 'hover:bg-gray-100'}
             ${format(currentDate, 'yyyy-MM-dd') === format(day.date, 'yyyy-MM-dd') ? 'bg-blue-500 text-white rounded-full' : ''}
           `}
         >
           {day.dayOfMonth}
+          {datesWithEntries.includes(format(day.date, 'yyyy-MM-dd')) && (
+            <div className="absolute bottom-0.5 w-2 h-2 bg-blue-500 rounded-full"></div>
+          )}
         </button>
       ))}
     </div>
@@ -130,6 +138,10 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
   // Initialize state with null, will be populated in useEffect
   const [content, setContent] = useState<JSONContent | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  
+  // Track dates with journal entries
+  const [datesWithEntries, setDatesWithEntries] = useState<string[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Reference for the save timeout
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -151,6 +163,58 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
   // Navigate to today
   const goToToday = () => {
     setCurrentDate(new Date());
+  };
+  
+  // Fetch dates with journal entries
+  const fetchDatesWithEntries = async () => {
+    try {
+      // Get the current month and year for filtering
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
+      
+      // Try to fetch from API first
+      try {
+        // Include query parameters in the URL since apiClient.get only accepts one parameter
+        const response = await apiClient.get<JournalDatesResponse>(`/api/journals/dates?year=${year}&month=${month}`);
+        
+        if (response && response.dates && Array.isArray(response.dates)) {
+          setDatesWithEntries(response.dates);
+          return;
+        }
+      } catch (apiError) {
+        console.log("API endpoint for journal dates not available, using localStorage");
+      }
+      
+      // Fallback to checking localStorage
+      const dates = [];
+      // Get all localStorage keys
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        // Check if it's a daily notes entry
+        if (key && key.startsWith('daily-notes-')) {
+          const dateStr = key.replace('daily-notes-', '');
+          // Check if the date is valid and in the current month/year
+          try {
+            const entryDate = new Date(dateStr);
+            if (
+              entryDate.getFullYear() === year &&
+              entryDate.getMonth() === month - 1
+            ) {
+              dates.push(dateStr);
+            }
+          } catch (e) {
+            // Skip invalid dates
+          }
+        }
+      }
+      
+      console.log("Found dates with entries:", dates);
+      setDatesWithEntries(dates);
+    } catch (error) {
+      console.error('Error fetching dates with entries:', error);
+      // Fallback to empty array if both API and localStorage checks fail
+      setDatesWithEntries([]);
+    }
   };
 
   // Load content from API or localStorage
@@ -263,8 +327,13 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
     // Load content for the new date
     loadContent();
     
+    // If calendar is open, refresh the dates with entries
+    if (isCalendarOpen) {
+      fetchDatesWithEntries();
+    }
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDate]);
+  }, [currentDate, isCalendarOpen]);
   
   // Initial setup and cleanup
   useEffect(() => {
@@ -290,7 +359,13 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
   return (
     <div className="daily-notes bg-white p-6 mb-6">
       <div className="flex justify-between items-center mb-4">
-        <Popover.Root>
+        <Popover.Root onOpenChange={(open) => {
+            setIsCalendarOpen(open);
+            if (open) {
+              // Fetch dates with entries when calendar opens
+              setTimeout(() => fetchDatesWithEntries(), 0);
+            }
+          }}>
           <Popover.Trigger asChild>
             <button 
               className="flex items-center text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded-md transition-colors"
@@ -400,6 +475,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
                 
                 <CalendarGrid 
                   currentDate={currentDate} 
+                  datesWithEntries={datesWithEntries}
                   onSelectDate={(date) => {
                     setCurrentDate(date);
                     // Close the popover after selection

@@ -61,7 +61,8 @@ const taskItem = TaskItem.configure({
     class: cx("flex items-start my-4"),
   },
   nested: true,
-  onReadOnlyChecked: true,
+  // Fix: onReadOnlyChecked should be a function, not a boolean
+  onReadOnlyChecked: (node, checked) => checked,
 });
 
 const horizontalRule = HorizontalRule.configure({
