@@ -24,6 +24,10 @@ interface JournalResponse {
   };
 }
 
+interface JournalDatesResponse {
+  dates: string[];
+}
+
 interface CalendarGridProps {
   currentDate: Date;
   onSelectDate: (date: Date) => void;
@@ -170,11 +174,10 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
       
       // Try to fetch from API first
       try {
-        const response = await apiClient.get('/api/journals/dates', {
-          params: { year, month }
-        });
+        // Include query parameters in the URL since apiClient.get only accepts one parameter
+        const response = await apiClient.get<JournalDatesResponse>(`/api/journals/dates?year=${year}&month=${month}`);
         
-        if (response.dates && Array.isArray(response.dates)) {
+        if (response && response.dates && Array.isArray(response.dates)) {
           setDatesWithEntries(response.dates);
           return;
         }
