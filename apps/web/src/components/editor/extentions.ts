@@ -61,6 +61,7 @@ const taskItem = TaskItem.configure({
     class: cx("flex items-start my-4"),
   },
   nested: true,
+  onReadOnlyChecked: true,
 });
 
 const horizontalRule = HorizontalRule.configure({
