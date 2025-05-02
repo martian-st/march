@@ -14,7 +14,8 @@ export async function getEventsByDate(date: string) {
       return [];
     }
 
-    return response.events;
+    // Make sure we return something even if events are undefined
+    return response.events || [];
   } catch (error) {
     console.error("Error fetching calendar events:", error);
     // Return empty array instead of throwing error to prevent blocking the app
