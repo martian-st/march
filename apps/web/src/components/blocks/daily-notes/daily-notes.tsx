@@ -24,14 +24,18 @@ interface JournalResponse {
 
 // Convert plain text to JSONContent
 const createContentFromText = (text: string): JSONContent => {
+  // Ensure we have valid content structure
   const paragraphs = text.split('\n').map(line => ({
     type: "paragraph",
     content: line.trim() ? [{ type: "text", text: line }] : []
   }));
   
+  // Make sure we always have at least one paragraph, even if empty
+  const validContent = paragraphs.length > 0 ? paragraphs : [{ type: "paragraph", content: [] }];
+  
   return {
     type: "doc",
-    content: paragraphs.length > 0 ? paragraphs : [{ type: "paragraph", content: [] }]
+    content: validContent
   };
 };
 
@@ -90,22 +94,28 @@ export function DailyNotes({ date = new Date() }: DailyNotesProps) {
   // Content change handler - memoize to avoid recreating on each render
   const handleContentChange = useCallback((newContent: string) => {
     try {
+      // Validate JSON content before saving
+      const contentObj = JSON.parse(newContent);
+      if (!contentObj || !contentObj.type || contentObj.type !== "doc" || !Array.isArray(contentObj.content)) {
+        console.error("Invalid content structure");
+        return;
+      }
+      
       // Save to localStorage as a backup
       localStorage.setItem(`daily-notes-${dateKey.current}`, newContent);
       
       // Save to API
       const saveToAPI = async () => {
         try {
-          const contentObj = JSON.parse(newContent);
           let plainText = "";
           
-          // Extract plain text from the JSON content
-          if (contentObj.content) {
+          // Extract plain text from the JSON content with safer traversal
+          if (contentObj.content && Array.isArray(contentObj.content)) {
             plainText = contentObj.content
               .map((block: any) => {
-                if (block.content) {
+                if (block && block.content && Array.isArray(block.content)) {
                   return block.content
-                    .map((item: any) => item.text || "")
+                    .map((item: any) => (item && typeof item.text === 'string') ? item.text : "")
                     .join("");
                 }
                 return "";
@@ -161,7 +171,20 @@ export function DailyNotes({ date = new Date() }: DailyNotesProps) {
         // Fall back to localStorage if API fails
         const savedContent = localStorage.getItem(`daily-notes-${dateKey.current}`);
         if (savedContent) {
-          setContent(JSON.parse(savedContent));
+          try {
+            const parsedContent = JSON.parse(savedContent);
+            // Validate the content structure
+            if (parsedContent && parsedContent.type === "doc" && Array.isArray(parsedContent.content)) {
+              setContent(parsedContent);
+            } else {
+              // If invalid structure, create new default content
+              console.warn("Invalid content structure in localStorage, using default");
+              setContent(createDefaultContent(formattedDate.current));
+            }
+          } catch (parseError) {
+            console.error("Error parsing saved content:", parseError);
+            setContent(createDefaultContent(formattedDate.current));
+          }
         } else {
           setContent(createDefaultContent(formattedDate.current));
         }

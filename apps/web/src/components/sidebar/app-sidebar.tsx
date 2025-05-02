@@ -1,7 +1,8 @@
 "use client";
-import { Calendar, Inbox, Database } from "lucide-react";
+import { Calendar, Inbox, Database, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useCommandPalette } from "@/components/provider/command-palette-provider";
 
 import {
   Sidebar,
@@ -22,6 +23,7 @@ const noHoverStyles =
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { openCommandPalette } = useCommandPalette();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -34,6 +36,34 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="mt-2">
         <SidebarMenu>
+          {/* Search Button */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              className={cn(
+                noHoverStyles,
+                "flex items-center gap-3 w-full p-2 rounded-md"
+              )}
+              onClick={openCommandPalette}
+            >
+              <div className="flex items-center gap-3 w-full">
+                <Search
+                  className={cn(
+                    "text-gray-800",
+                    isCollapsed ? "h-7 w-7" : "h-5 w-5"
+                  )}
+                />
+                {!isCollapsed && (
+                  <div className="flex justify-between w-full">
+                    <span>Search</span>
+                    <kbd className="flex h-5 items-center gap-1 rounded border bg-gray-50 px-1.5 text-[10px] font-medium text-gray-500">
+                      <span className="text-xs">⌘</span>K
+                    </kbd>
+                  </div>
+                )}
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
           <SidebarMenuItem>
             <SidebarMenuButton asChild className={noHoverStyles}>
               <Link
