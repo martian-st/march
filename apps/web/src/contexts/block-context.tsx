@@ -16,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface BlockContextType {
   items: Objects[];
+  overdueItems: Objects[];
   events: CalendarEvent[];
   handleDragEnd: (event: DragEndEvent) => void;
   handleInternalListSort: (event: DragEndEvent) => void;
@@ -33,12 +34,34 @@ interface BlockProviderProps {
 }
 
 export function BlockProvider({ children, arrayType }: BlockProviderProps) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const query = arrayType === "inbox" ? useInboxObjects() : useTodayObjects();
+  // Based on the arrayType, use the appropriate hook
+  const inboxQuery = arrayType === "inbox" ? useInboxObjects() : { data: [], isLoading: false, error: null };
+  const todayQuery = arrayType === "today" ? useTodayObjects() : { data: undefined, isLoading: false, error: null };
+  
   const { mutate: updateOrder } = useOrderObject();
   const queryClient = useQueryClient();
 
-  const { data: items = [], isLoading, error } = query;
+  // Extract items depending on array type
+  let items: Objects[] = [];
+  let overdueItems: Objects[] = [];
+  let isLoading = false;
+  let error: any = null;
+  
+  if (arrayType === "inbox") {
+    // For inbox, we just get a plain array of objects
+    items = Array.isArray(inboxQuery.data) ? inboxQuery.data : [];
+    isLoading = inboxQuery.isLoading;
+    error = inboxQuery.error;
+  } else {
+    // For today, we get an object with todayObjects and overdueObjects
+    const todayData = todayQuery.data as { todayObjects: Objects[], overdueObjects: Objects[] } | undefined;
+    items = Array.isArray(todayData?.todayObjects) ? todayData.todayObjects : [];
+    overdueItems = Array.isArray(todayData?.overdueObjects) ? todayData.overdueObjects : [];
+    isLoading = todayQuery.isLoading;
+    error = todayQuery.error;
+  }
+  
+
 
   const today = moment().format("YYYY-MM-DD");
   const { data: events = [], addEvent, delEvent } = useEvents(today);
@@ -148,19 +171,22 @@ export function BlockProvider({ children, arrayType }: BlockProviderProps) {
     delEvent(eventId);
   };
 
-  const value = {
-    items,
-    events,
-    isLoading,
-    error,
-    handleDragEnd,
-    handleInternalListSort,
-    handleCalendarDrop,
-    handleDeleteEvent,
-  };
-
   return (
-    <BlockContext.Provider value={value}>{children}</BlockContext.Provider>
+    <BlockContext.Provider
+      value={{
+        items,
+        overdueItems,
+        events,
+        handleDragEnd,
+        handleInternalListSort,
+        handleCalendarDrop,
+        handleDeleteEvent,
+        isLoading,
+        error: error as Error,
+      }}
+    >
+      {children}
+    </BlockContext.Provider>
   );
 }
 
