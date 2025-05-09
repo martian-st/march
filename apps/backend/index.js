@@ -5,8 +5,8 @@ import { initializeWebSocket } from "./src/loaders/websocket.loader.js";
 
 (async function init () {
     const server = createServer(app);
-    server.listen(environment.PORT, () => {
-        console.log(`Server listening on port ${environment.PORT}`);
+    server.listen(environment.PORT, '0.0.0.0', () => {
+        console.log(`Server listening on port ${environment.PORT} on all interfaces`);
     });
 
     initializeWebSocket(server);
@@ -23,8 +23,8 @@ import { initializeWebSocket } from "./src/loaders/websocket.loader.js";
 
 // (async function init () {
 //     const server = createServer(app);
-//     server.listen(environment.PORT, async () => {
-//         console.log(`Server listening on port ${environment.PORT}`);
+//     server.listen(environment.PORT, '0.0.0.0', async () => {
+//         console.log(`Server listening on port ${environment.PORT} on all interfaces`);
 //         // Await ngrok forwarding outside the listen callback
 //         listener = await ngrok.forward({ addr: `http://localhost:${environment.PORT}`, authtoken: environment.NGROK_AUTH_TOKEN });
 //         console.log(`Ingress established at: ${listener.url()}`);
