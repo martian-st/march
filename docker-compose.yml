@@ -5,17 +5,24 @@ services:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
+      args:
+        - NODE_ENV=production
     ports:
-      - "3000:3000"
+      - "8080:8080"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - MONGO_URL=mongodb://mongodb:27017/march
-      - PORT=3000
+      - PORT=8080
     depends_on:
-      - mongodb
-    volumes:
-      - ./apps/backend:/app
-      - /app/node_modules
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
 
   mongodb:
     image: mongo:latest
@@ -23,6 +30,14 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   mongodb_data:
+    driver: local
