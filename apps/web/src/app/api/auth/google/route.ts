@@ -35,13 +35,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     res = data as GoogleAuthResponse;
   } catch (error) {
     const e = error as AxiosError;
-
+    console.error("google auth error - full error object:", e);
     if (e.response?.status === 401) {
-      console.error("google auth error", e.response?.data);
+      console.error("google auth error - response data:", e.response?.data);
     } else {
-      console.error("google auth error", e.cause);
+      console.error("google auth error - cause:", e.cause);
     }
-
     return NextResponse.redirect(new URL("/signin", redirectUrl));
   }
 
