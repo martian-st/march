@@ -1,12 +1,12 @@
 {
-  "name": "@emptyarray/backend",
+  "name": "@march/backend",
   "version": "0.0.1",
   "description": "productivity without tedious templates",
-  "author": "emptyarray inc",
+  "author": "march inc",
   "private": true,
   "main": "index.js",
   "type": "module",
-  "repository": "https://github.com/emptyarrayhq/emptyarray",
+  "repository": "https://github.com/marchhq/march",
   "license": "MIT",
   "scripts": {
     "dev": "nodemon index.js",
