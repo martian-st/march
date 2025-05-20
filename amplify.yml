@@ -1,23 +1,21 @@
 version: 1
-applications:
-  - frontend:
-      phases:
-        preBuild:
-          commands:
-            - npm install -g npm@latest
-            - npm install -g bun
-            - cd apps/web
-            - npm install --legacy-peer-deps
-        build:
-          commands:
-            - cd apps/web
-            - npm run build
-      artifacts:
-        baseDirectory: apps/web/.next
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - node_modules/**/*
-          - apps/web/node_modules/**/*
-    appRoot: .
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm install -g npm@latest
+        - npm install -g bun
+        - cd apps/web
+        - npm ci
+    build:
+      commands:
+        - cd apps/web
+        - npm run build
+  artifacts:
+    baseDirectory: apps/web/.next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - apps/web/node_modules/**/*
