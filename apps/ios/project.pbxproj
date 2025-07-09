@@ -1,0 +1,205 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 002 /* ContentView.swift */; };
+		003 /* MarchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004 /* MarchApp.swift */; };
+		005 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006 /* Models.swift */; };
+		007 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008 /* APIClient.swift */; };
+		009 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010 /* AuthManager.swift */; };
+		011 /* QuickAddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012 /* QuickAddView.swift */; };
+		013 /* InboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014 /* InboxView.swift */; };
+		015 /* InboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 016 /* InboxViewModel.swift */; };
+		017 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018 /* ShareViewController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		001 /* March.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = March.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		004 /* MarchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarchApp.swift; sourceTree = "<group>"; };
+		006 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		008 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		010 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		012 /* QuickAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
+		014 /* InboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxView.swift; sourceTree = "<group>"; };
+		016 /* InboxViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxViewModel.swift; sourceTree = "<group>"; };
+		018 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		019 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		020 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		021 = {
+			isa = PBXGroup;
+			children = (
+				022 /* March */,
+				023 /* ShareExtension */,
+				024 /* Shared */,
+				025 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		022 /* March */ = {
+			isa = PBXGroup;
+			children = (
+				004 /* MarchApp.swift */,
+				002 /* ContentView.swift */,
+				026 /* Views */,
+				027 /* ViewModels */,
+				020 /* Info.plist */,
+			);
+			path = March;
+			sourceTree = "<group>";
+		};
+		023 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				018 /* ShareViewController.swift */,
+				020 /* Info.plist */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
+		024 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				006 /* Models.swift */,
+				008 /* APIClient.swift */,
+				010 /* AuthManager.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		025 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				001 /* March.app */,
+				019 /* ShareExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		026 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				012 /* QuickAddView.swift */,
+				014 /* InboxView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		027 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				016 /* InboxViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		028 /* March */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 029;
+			buildPhases = (
+				030 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = March;
+			productName = March;
+			productReference = 001 /* March.app */;
+			productType = "com.apple.product-type.application";
+		};
+		031 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 032;
+			buildPhases = (
+				033 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExtension;
+			productName = ShareExtension;
+			productReference = 019 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		034 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					028 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					031 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 035;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 021;
+			productRefGroup = 025 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				028 /* March */,
+				031 /* ShareExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		030 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				003 /* MarchApp.swift in Sources */,
+				001 /* ContentView.swift in Sources */,
+				005 /* Models.swift in Sources */,
+				007 /* APIClient.swift in Sources */,
+				009 /* AuthManager.swift in Sources */,
+				011 /* QuickAddView.swift in Sources */,
+				013 /* InboxView.swift in Sources */,
+				015 /* InboxViewModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		033 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				017 /* ShareViewController.swift in Sources */,
+				005 /* Models.swift in Sources */,
+				007 /* APIClient.swift in Sources */,
+				009 /* AuthManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+	};
+	rootObject = 034 /* Project object */;
+} 
