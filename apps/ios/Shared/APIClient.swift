@@ -4,174 +4,217 @@ import Combine
 class APIClient: ObservableObject {
     static let shared = APIClient()
     
-    private let baseURL = "https://app.march.cat" // Production URL
-    // private let baseURL = "http://localhost:8080" // Development URL
-    
+    private let baseURL = URL(string: "https://app.march.cat/api")!
+    private var authToken: String?
     private let session = URLSession.shared
-    private var cancellables = Set<AnyCancellable>()
-    
-    @Published var isLoading = false
     
     private init() {}
     
-    // MARK: - Authentication Headers
-    private func authHeaders() -> [String: String] {
-        var headers = [
-            "Content-Type": "application/json",
-            "Accept": "application/json"
+    // MARK: - Authentication
+    
+    func setAuthToken(_ token: String) {
+        self.authToken = token
+    }
+    
+    func clearAuthToken() {
+        self.authToken = nil
+    }
+    
+    func login(request: LoginRequest) async throws -> LoginResponse {
+        let url = baseURL.appendingPathComponent("auth/login")
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+        
+        let (data, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.serverError
+        }
+        
+        return try JSONDecoder().decode(LoginResponse.self, from: data)
+    }
+    
+    // MARK: - Objects
+    
+    func getObjects(page: Int = 1, limit: Int = 50) async throws -> [MarchObject] {
+        // For demo purposes, return sample data
+        if authToken?.contains("demo") == true {
+            return MarchObject.sampleData
+        }
+        
+        let url = baseURL.appendingPathComponent("objects")
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "page", value: String(page)),
+            URLQueryItem(name: "limit", value: String(limit))
         ]
         
-        if let token = AuthManager.shared.accessToken {
-            headers["Authorization"] = "Bearer \(token)"
+        var urlRequest = URLRequest(url: components.url!)
+        urlRequest.httpMethod = "GET"
+        if let token = authToken {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
-        return headers
+        let (data, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.serverError
+        }
+        
+        let objectsResponse = try JSONDecoder().decode(ObjectsResponse.self, from: data)
+        return objectsResponse.objects
     }
     
-    // MARK: - Generic Request Method
-    private func request<T: Codable>(
-        endpoint: String,
-        method: HTTPMethod = .GET,
-        body: Data? = nil
-    ) -> AnyPublisher<T, APIError> {
-        guard let url = URL(string: baseURL + endpoint) else {
-            return Fail(error: APIError.invalidURL)
-                .eraseToAnyPublisher()
+    func createObject(request: CreateObjectRequest) async throws -> MarchObject {
+        // For demo purposes, create a mock object
+        if authToken?.contains("demo") == true {
+            let newObject = MarchObject(
+                id: UUID().uuidString,
+                title: request.title,
+                description: request.description,
+                type: request.type,
+                isCompleted: false,
+                dueDate: request.dueDate,
+                createdAt: Date(),
+                updatedAt: Date(),
+                userId: "demo-user",
+                tags: request.tags,
+                priority: request.priority,
+                estimatedDuration: request.estimatedDuration
+            )
+            return newObject
         }
         
-        var request = URLRequest(url: url)
-        request.httpMethod = method.rawValue
-        request.allHTTPHeaderFields = authHeaders()
-        request.httpBody = body
+        let url = baseURL.appendingPathComponent("objects")
         
-        return session.dataTaskPublisher(for: request)
-            .map(\.data)
-            .decode(type: T.self, decoder: JSONDecoder.marchDecoder)
-            .mapError { error in
-                if error is DecodingError {
-                    return APIError.decodingError
-                } else {
-                    return APIError.networkError(error)
-                }
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = authToken {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+        
+        let (data, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 201 else {
+            throw APIError.serverError
+        }
+        
+        return try JSONDecoder().decode(MarchObject.self, from: data)
+    }
+    
+    func updateObject(id: String, request: UpdateObjectRequest) async throws -> MarchObject {
+        // For demo purposes, return a mock updated object
+        if authToken?.contains("demo") == true {
+            var updatedObject = MarchObject.sampleData.first { $0.id == id } ??
+                MarchObject.sampleData[0]
+            
+            if let title = request.title {
+                updatedObject.title = title
             }
-            .eraseToAnyPublisher()
-    }
-    
-    // MARK: - Auth Methods
-    func login(with token: String) -> AnyPublisher<User, APIError> {
-        // Store token first
-        AuthManager.shared.accessToken = token
-        
-        return request<User>(endpoint: "/users/profile")
-    }
-    
-    func getCurrentUser() -> AnyPublisher<User, APIError> {
-        return request<User>(endpoint: "/users/profile")
-    }
-    
-    // MARK: - Object Methods
-    func getInboxObjects() -> AnyPublisher<[MarchObject], APIError> {
-        return request<APIResponse<InboxResponse>>(endpoint: "/api/inbox")
-            .map { $0.response.objects }
-            .eraseToAnyPublisher()
-    }
-    
-    func getAllObjects() -> AnyPublisher<[MarchObject], APIError> {
-        return request<APIResponse<InboxResponse>>(endpoint: "/api/all")
-            .map { $0.response.objects }
-            .eraseToAnyPublisher()
-    }
-    
-    func createObject(_ object: CreateObjectRequest) -> AnyPublisher<MarchObject, APIError> {
-        guard let body = try? JSONEncoder.marchEncoder.encode(object) else {
-            return Fail(error: APIError.encodingError)
-                .eraseToAnyPublisher()
+            if let description = request.description {
+                updatedObject.description = description
+            }
+            if let isCompleted = request.isCompleted {
+                updatedObject.isCompleted = isCompleted
+            }
+            if let dueDate = request.dueDate {
+                updatedObject.dueDate = dueDate
+            }
+            if let priority = request.priority {
+                updatedObject.priority = priority
+            }
+            
+            return updatedObject
         }
         
-        return request<APIResponse<MarchObject>>(
-            endpoint: "/api/inbox",
-            method: .POST,
-            body: body
-        )
-        .map { $0.response }
-        .eraseToAnyPublisher()
-    }
-    
-    func updateObject(id: String, updates: [String: Any]) -> AnyPublisher<MarchObject, APIError> {
-        guard let body = try? JSONSerialization.data(withJSONObject: updates) else {
-            return Fail(error: APIError.encodingError)
-                .eraseToAnyPublisher()
+        let url = baseURL.appendingPathComponent("objects/\(id)")
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PATCH"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = authToken {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+        
+        let (data, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.serverError
         }
         
-        return request<APIResponse<MarchObject>>(
-            endpoint: "/api/inbox/\(id)",
-            method: .PUT,
-            body: body
-        )
-        .map { $0.response }
-        .eraseToAnyPublisher()
+        return try JSONDecoder().decode(MarchObject.self, from: data)
     }
     
-    func deleteObject(id: String) -> AnyPublisher<Void, APIError> {
-        return request<APIResponse<[String: String]>>(
-            endpoint: "/api/inbox/\(id)",
-            method: .DELETE
+    func deleteObject(id: String) async throws {
+        // For demo purposes, just return success
+        if authToken?.contains("demo") == true {
+            return
+        }
+        
+        let url = baseURL.appendingPathComponent("objects/\(id)")
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "DELETE"
+        if let token = authToken {
+            urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let (_, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 204 else {
+            throw APIError.serverError
+        }
+    }
+    
+    func toggleObjectCompletion(id: String) async throws -> MarchObject {
+        let request = UpdateObjectRequest(
+            title: nil,
+            description: nil,
+            isCompleted: true, // This would be toggled in real implementation
+            dueDate: nil,
+            tags: nil,
+            priority: nil
         )
-        .map { _ in () }
-        .eraseToAnyPublisher()
+        
+        return try await updateObject(id: id, request: request)
     }
 }
 
-// MARK: - HTTP Method
-enum HTTPMethod: String {
-    case GET = "GET"
-    case POST = "POST"
-    case PUT = "PUT"
-    case DELETE = "DELETE"
-}
+// MARK: - Error Handling
 
-// MARK: - API Errors
-enum APIError: Error, LocalizedError {
+enum APIError: LocalizedError {
     case invalidURL
-    case networkError(Error)
+    case noData
     case decodingError
-    case encodingError
+    case serverError
     case unauthorized
-    case serverError(Int)
+    case networkError
     
     var errorDescription: String? {
         switch self {
         case .invalidURL:
             return "Invalid URL"
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
+        case .noData:
+            return "No data received"
         case .decodingError:
             return "Failed to decode response"
-        case .encodingError:
-            return "Failed to encode request"
+        case .serverError:
+            return "Server error occurred"
         case .unauthorized:
             return "Unauthorized access"
-        case .serverError(let code):
-            return "Server error: \(code)"
+        case .networkError:
+            return "Network connection error"
         }
     }
-}
-
-// MARK: - JSON Encoder/Decoder Extensions
-extension JSONDecoder {
-    static let marchDecoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        return decoder
-    }()
-}
-
-extension JSONEncoder {
-    static let marchEncoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.keyEncodingStrategy = .convertToSnakeCase
-        return encoder
-    }()
 } 

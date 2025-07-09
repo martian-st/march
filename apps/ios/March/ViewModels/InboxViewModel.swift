@@ -7,171 +7,107 @@ class InboxViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private var cancellables = Set<AnyCancellable>()
     private let apiClient = APIClient.shared
+    private var cancellables = Set<AnyCancellable>()
     
     init() {
-        // Auto-refresh when app becomes active
-        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in
-                Task {
-                    await self?.refreshObjects()
-                }
+        // Auto-load objects when authenticated
+        if AuthManager.shared.isAuthenticated {
+            Task {
+                await loadObjects()
             }
-            .store(in: &cancellables)
+        }
     }
     
     func loadObjects() async {
-        guard !isLoading else { return }
-        
         isLoading = true
         errorMessage = nil
         
-        apiClient.getInboxObjects()
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.isLoading = false
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        self?.errorMessage = error.localizedDescription
-                    }
-                },
-                receiveValue: { [weak self] objects in
-                    self?.objects = objects
-                }
-            )
-            .store(in: &cancellables)
+        do {
+            let fetchedObjects = try await apiClient.getObjects()
+            self.objects = fetchedObjects.sorted { $0.createdAt > $1.createdAt }
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+        
+        isLoading = false
     }
     
     func refreshObjects() async {
         await loadObjects()
     }
     
-    func toggleCompletion(for object: MarchObject) {
-        guard let index = objects.firstIndex(where: { $0.id == object.id }) else { return }
+    func toggleComplete(_ object: MarchObject) {
+        // Optimistic update
+        if let index = objects.firstIndex(where: { $0.id == object.id }) {
+            objects[index].isCompleted.toggle()
+            objects[index].completedAt = objects[index].isCompleted ? Date() : nil
+        }
         
-        // Optimistically update UI
-        objects[index].isCompleted.toggle()
-        objects[index].status = objects[index].isCompleted ? .done : .todo
-        
-        let newStatus = objects[index].status
-        let updates: [String: Any] = [
-            "status": newStatus.rawValue,
-            "isCompleted": objects[index].isCompleted
-        ]
-        
-        apiClient.updateObject(id: object.id, updates: updates)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        // Revert optimistic update
-                        if let index = self?.objects.firstIndex(where: { $0.id == object.id }) {
-                            self?.objects[index].isCompleted.toggle()
-                            self?.objects[index].status = object.status
-                        }
-                        self?.errorMessage = "Failed to update object: \(error.localizedDescription)"
-                    }
-                },
-                receiveValue: { [weak self] updatedObject in
-                    // Update with server response
-                    if let index = self?.objects.firstIndex(where: { $0.id == object.id }) {
-                        self?.objects[index] = updatedObject
-                    }
+        Task {
+            do {
+                let updatedObject = try await apiClient.toggleObjectCompletion(id: object.id)
+                
+                // Update with server response
+                if let index = objects.firstIndex(where: { $0.id == object.id }) {
+                    objects[index] = updatedObject
                 }
-            )
-            .store(in: &cancellables)
+            } catch {
+                // Revert optimistic update on error
+                if let index = objects.firstIndex(where: { $0.id == object.id }) {
+                    objects[index].isCompleted.toggle()
+                    objects[index].completedAt = objects[index].isCompleted ? Date() : nil
+                }
+                self.errorMessage = error.localizedDescription
+            }
+        }
     }
     
     func deleteObject(_ object: MarchObject) {
-        // Optimistically remove from UI
+        // Optimistic update
         objects.removeAll { $0.id == object.id }
         
-        apiClient.deleteObject(id: object.id)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        // Revert optimistic delete
-                        self?.objects.append(object)
-                        self?.errorMessage = "Failed to delete object: \(error.localizedDescription)"
-                    }
-                },
-                receiveValue: { _ in
-                    // Successfully deleted
-                }
-            )
-            .store(in: &cancellables)
+        Task {
+            do {
+                try await apiClient.deleteObject(id: object.id)
+            } catch {
+                // Revert optimistic update on error
+                objects.append(object)
+                objects.sort { $0.createdAt > $1.createdAt }
+                self.errorMessage = error.localizedDescription
+            }
+        }
     }
     
-    func archiveObject(_ object: MarchObject) {
-        guard let index = objects.firstIndex(where: { $0.id == object.id }) else { return }
-        
-        // Optimistically update UI
-        objects[index].isArchived = true
-        objects[index].status = .archive
-        
-        let updates: [String: Any] = [
-            "isArchived": true,
-            "status": ObjectStatus.archive.rawValue
-        ]
-        
-        apiClient.updateObject(id: object.id, updates: updates)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        // Revert optimistic update
-                        if let index = self?.objects.firstIndex(where: { $0.id == object.id }) {
-                            self?.objects[index].isArchived = false
-                            self?.objects[index].status = object.status
-                        }
-                        self?.errorMessage = "Failed to archive object: \(error.localizedDescription)"
-                    }
-                },
-                receiveValue: { [weak self] updatedObject in
-                    // Update with server response
-                    if let index = self?.objects.firstIndex(where: { $0.id == object.id }) {
-                        self?.objects[index] = updatedObject
-                    }
-                }
-            )
-            .store(in: &cancellables)
+    func addObject(_ newObject: MarchObject) {
+        // Optimistic update
+        objects.insert(newObject, at: 0)
     }
     
-    func createObject(_ request: CreateObjectRequest) async {
-        apiClient.createObject(request)
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        self?.errorMessage = "Failed to create object: \(error.localizedDescription)"
-                    }
-                },
-                receiveValue: { [weak self] newObject in
-                    // Add to beginning of list
-                    self?.objects.insert(newObject, at: 0)
-                }
-            )
-            .store(in: &cancellables)
+    func updateObject(_ updatedObject: MarchObject) {
+        if let index = objects.firstIndex(where: { $0.id == updatedObject.id }) {
+            objects[index] = updatedObject
+        }
     }
     
-    func clearError() {
-        errorMessage = nil
+    // Utility methods for filtering
+    func objects(of type: ObjectType) -> [MarchObject] {
+        return objects.filter { $0.type == type }
+    }
+    
+    func completedObjects() -> [MarchObject] {
+        return objects.filter { $0.isCompleted }
+    }
+    
+    func pendingObjects() -> [MarchObject] {
+        return objects.filter { !$0.isCompleted }
+    }
+    
+    func overDueObjects() -> [MarchObject] {
+        let now = Date()
+        return objects.filter { object in
+            guard let dueDate = object.dueDate else { return false }
+            return dueDate < now && !object.isCompleted
+        }
     }
 } 

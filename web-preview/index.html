@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>March iOS App Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .phone-container {
+            width: 320px;
+            height: 640px;
+            background: #000;
+            border-radius: 24px;
+            overflow: hidden;
+            margin: 20px auto;
+            position: relative;
+            border: 2px solid #333;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+        }
+
+        .status-bar {
+            height: 44px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+            background: #000;
+        }
+
+        .app-content {
+            height: calc(100% - 44px);
+            position: relative;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-content {
+            height: 100%;
+            display: none;
+            flex-direction: column;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .header {
+            padding: 0 24px 4px;
+            background: #000;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            margin: 0;
+        }
+
+        h1 .count {
+            color: #666;
+            font-weight: 400;
+            font-size: 18px;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .refresh-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.03);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 12px 0 16px;
+            gap: 8px;
+        }
+
+        .search-bar input {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.6);
+            flex: 1;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .search-bar input::placeholder {
+            color: rgba(255,255,255,0.4);
+            font-weight: 400;
+        }
+
+        .search-icon {
+            color: rgba(255,255,255,0.4);
+            font-size: 14px;
+        }
+
+        /* iOS-style icons */
+        .ios-icon {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .icon-tray {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"><path d="M2 6h20v2H2zm0 5h20v7a1 1 0 01-1 1H3a1 1 0 01-1-1zm8 4h4v2h-4z"/></svg>');
+        }
+
+        .icon-person {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>');
+        }
+
+        .icon-search {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>');
+        }
+
+        .icon-refresh {
+            background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>');
+        }
+
+        .section-header {
+            padding: 20px 24px 12px;
+            color: #fff;
+            font-size: 24px;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-count {
+            color: rgba(255,255,255,0.5);
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+        }
+
+        .bottom-action-bar {
+            height: 60px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-top: 0.5px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .object-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 16px 24px;
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+            gap: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .object-item:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .completion-btn {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
+            background: transparent;
+            cursor: pointer;
+            margin-top: 2px;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .completion-btn.completed {
+            background: #fff;
+            border-color: #fff;
+        }
+
+        .completion-btn.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #000;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .object-content {
+            flex: 1;
+        }
+
+        .object-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .object-title.completed {
+            color: #666;
+            text-decoration: line-through;
+        }
+
+        .object-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .object-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .object-type {
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.1);
+            padding: 2px 8px;
+            border-radius: 8px;
+        }
+
+        .object-time {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            margin-left: auto;
+        }
+
+        .custom-tab-bar {
+            display: none;
+        }
+
+        .floating-add-btn {
+            width: 44px;
+            height: 44px;
+            background: transparent;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 200;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .floating-add-btn:hover {
+            background: rgba(255,255,255,0.1);
+            transform: scale(1.05);
+        }
+
+        .header {
+            padding: 4px 24px 4px;
+            background: #000;
+            flex-shrink: 0;
+        }
+
+        .search-container {
+            padding: 8px 24px 4px;
+            background: #000;
+            flex-shrink: 0;
+        }
+
+        /* Login Screen */
+        .login-screen {
+            height: 100%;
+            background: linear-gradient(135deg, #000 0%, rgba(128,128,128,0.8) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 32px;
+            text-align: center;
+        }
+
+        .login-screen.hidden {
+            display: none;
+        }
+
+        .app-branding {
+            margin-bottom: 40px;
+        }
+
+        .app-title {
+            font-size: 48px;
+            font-weight: 300;
+            color: #fff;
+            letter-spacing: 2px;
+            margin-bottom: 16px;
+        }
+
+        .app-subtitle {
+            font-size: 16px;
+            color: #666;
+        }
+
+        .login-form {
+            width: 100%;
+            max-width: 300px;
+            margin: 40px 0;
+        }
+
+        .minimal-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            font-size: 16px;
+            padding: 16px 0;
+            margin-bottom: 16px;
+            outline: none;
+        }
+
+        .minimal-input::placeholder {
+            color: #666;
+        }
+
+        .login-btn {
+            width: 100%;
+            height: 50px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .login-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .demo-hint {
+            font-size: 13px;
+            color: rgba(255,255,255,0.4);
+            margin-top: 40px;
+        }
+
+        /* Quick Add Screen */
+        .form-section {
+            padding: 32px 24px;
+        }
+
+        .form-group {
+            margin-bottom: 32px;
+        }
+
+        .form-label {
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 500;
+            padding: 0 0 8px 0;
+            outline: none;
+        }
+
+        .form-textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            font-size: 16px;
+            padding: 0 0 8px 0;
+            outline: none;
+            resize: none;
+            min-height: 60px;
+        }
+
+        .type-selector {
+            display: flex;
+            gap: 12px;
+        }
+
+        .type-button {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .type-button.selected {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        .type-icon {
+            font-size: 20px;
+        }
+
+        .type-name {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .create-button {
+            position: absolute;
+            bottom: 90px;
+            left: 0;
+            right: 0;
+            border-top: 0.5px solid rgba(255,255,255,0.2);
+            background: #000;
+            padding: 16px 24px;
+        }
+
+        .create-btn {
+            width: 100%;
+            height: 50px;
+            background: #fff;
+            color: #000;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .create-btn:disabled {
+            background: rgba(255,255,255,0.3);
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            color: rgba(255,255,255,0.3);
+            margin-bottom: 24px;
+        }
+
+        .empty-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .empty-subtitle {
+            font-size: 16px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span>9:41</span>
+            <span>📶 📶 📶 🔋</span>
+        </div>
+
+        <!-- Login Screen -->
+        <div class="login-screen" id="loginScreen">
+            <div class="app-branding">
+                <div class="app-title">march</div>
+                <div class="app-subtitle">Your AI-powered second brain</div>
+            </div>
+
+            <div class="login-form">
+                <input type="email" class="minimal-input" id="emailInput" placeholder="Email" value="demo@march.com">
+                <input type="password" class="minimal-input" id="passwordInput" placeholder="Password">
+                <button class="login-btn" id="loginBtn">Continue</button>
+            </div>
+
+            <div class="demo-hint">Demo: demo@march.com + any password</div>
+        </div>
+
+        <!-- Main App -->
+        <div class="app-content" id="appContent" style="display: none;">
+            <!-- Search at top -->
+            <div class="search-container">
+                <div class="search-bar">
+                    <span class="ios-icon icon-search search-icon"></span>
+                    <input type="text" placeholder="Find objects, notes, etc." id="searchInput">
+                </div>
+            </div>
+
+            <!-- Inbox Tab -->
+            <div class="tab-content active" id="inboxTab">
+                <div class="header">
+                    <div class="header-actions">
+                        <h1 id="inboxTitle">Inbox <span class="count">${objects.length}</span></h1>
+                        <button class="refresh-btn" onclick="refreshInbox()">
+                            <span class="ios-icon icon-refresh"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="content-area" id="objectsList">
+                    <!-- Objects will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Quick Add Tab -->
+            <div class="tab-content" id="addTab">
+                <div class="header">
+                    <div class="header-actions">
+                        <h1>Add</h1>
+                        <button class="refresh-btn" onclick="clearForm()" style="display: none;" id="clearBtn">Clear</button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-group">
+                        <label class="form-label">What needs to be done?</label>
+                        <input type="text" class="form-input" id="titleInput" placeholder="">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Add details</label>
+                        <textarea class="form-textarea" id="descriptionInput" placeholder=""></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Type</label>
+                        <div class="type-selector">
+                            <button class="type-button selected" data-type="todo">
+                                <span class="type-icon">✓</span>
+                                <span class="type-name">Todo</span>
+                            </button>
+                            <button class="type-button" data-type="note">
+                                <span class="type-icon">📝</span>
+                                <span class="type-name">Note</span>
+                            </button>
+                            <button class="type-button" data-type="bookmark">
+                                <span class="type-icon">🔖</span>
+                                <span class="type-name">Bookmark</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="create-button">
+                    <button class="create-btn" id="createBtn" disabled>Add to inbox</button>
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            <div class="tab-content" id="profileTab">
+                <div class="empty-state">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1)); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 500; margin-bottom: 20px;">DU</div>
+                    <div class="empty-title">Demo User</div>
+                    <div class="empty-subtitle">demo@march.com</div>
+                    <button style="margin-top: 40px; padding: 12px 24px; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: #666; cursor: pointer;" onclick="logout()">Sign out</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <div class="bottom-action-bar">
+            <button class="floating-add-btn" onclick="switchTab('add')">+</button>
+        </div>
+    </div>
+
+    <script>
+        // Sample data
+        let objects = [
+            {
+                id: '1',
+                title: 'Review Linear mobile design',
+                description: 'Study their minimal UI patterns and interaction design for our March app',
+                type: 'todo',
+                isCompleted: false,
+                createdAt: new Date(Date.now() - 3600000), // 1 hour ago
+                tags: ['design', 'mobile']
+            },
+            {
+                id: '2',
+                title: 'Meeting notes: Product strategy Q1',
+                description: 'Key takeaways from our product roadmap discussion:\n\n- Focus on mobile-first experience\n- AI integration for smart suggestions\n- Cross-platform sync improvements',
+                type: 'note',
+                isCompleted: false,
+                createdAt: new Date(Date.now() - 7200000), // 2 hours ago
+                tags: ['meeting', 'strategy']
+            },
+            {
+                id: '3',
+                title: 'Neuecast - Minimal podcast app inspiration',
+                description: 'https://neuecast.app/ - Beautiful example of minimalist design principles',
+                type: 'bookmark',
+                isCompleted: false,
+                createdAt: new Date(Date.now() - 86400000), // 1 day ago
+                tags: ['design', 'inspiration']
+            },
+            {
+                id: '4',
+                title: 'Call with design team about mobile flows',
+                description: 'Discuss user journey and interaction patterns for the iOS app',
+                type: 'todo',
+                isCompleted: true,
+                createdAt: new Date(Date.now() - 172800000), // 2 days ago
+                tags: ['meeting', 'design']
+            },
+            {
+                id: '5',
+                title: 'Research on minimal UI patterns',
+                description: 'Collection of references from top mobile apps like Linear, Neuecast, and others',
+                type: 'note',
+                isCompleted: false,
+                createdAt: new Date(Date.now() - 604800000), // 1 week ago
+                tags: ['research', 'design']
+            }
+        ];
+
+        let selectedType = 'todo';
+
+        // Login functionality
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            const email = document.getElementById('emailInput').value;
+            if (email.includes('demo') || email === 'demo@march.com') {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContent').style.display = 'flex';
+                renderObjects();
+            }
+        });
+
+        function switchTab(tab) {
+            if (tab === 'add') {
+                // Toggle between inbox and add view
+                const inboxTab = document.getElementById('inboxTab');
+                const addTab = document.getElementById('addTab');
+                
+                if (addTab.classList.contains('active')) {
+                    // Currently on add, go back to inbox
+                    addTab.classList.remove('active');
+                    inboxTab.classList.add('active');
+                } else {
+                    // Currently on inbox, go to add
+                    inboxTab.classList.remove('active');
+                    addTab.classList.add('active');
+                }
+            }
+        }
+
+        function renderObjects() {
+            const container = document.getElementById('objectsList');
+            const inboxTitle = document.getElementById('inboxTitle');
+            
+            // Update inbox title with count
+            inboxTitle.innerHTML = `Inbox <span class="count">${objects.length}</span>`;
+            
+            let html = '';
+
+            // Render all objects in a single list
+            objects.forEach(obj => {
+                html += renderObjectItem(obj);
+            });
+
+            if (html === '') {
+                html = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📥</div>
+                        <div class="empty-title">All clear</div>
+                        <div class="empty-subtitle">Nothing in your inbox right now</div>
+                    </div>
+                `;
+                inboxTitle.textContent = 'Inbox';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderObjectItem(obj) {
+            return `
+                <div class="object-item" data-id="${obj.id}">
+                    <button class="completion-btn ${obj.isCompleted ? 'completed' : ''}" onclick="toggleComplete('${obj.id}')"></button>
+                    <div class="object-content">
+                        <div class="object-title ${obj.isCompleted ? 'completed' : ''}">${obj.title}</div>
+                        ${obj.description ? `<div class="object-description">${obj.description}</div>` : ''}
+                        <div class="object-meta">
+                            <span class="object-type">${obj.type}</span>
+                            <span class="object-time">${formatTime(obj.createdAt)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleComplete(id) {
+            const object = objects.find(obj => obj.id === id);
+            if (object) {
+                object.isCompleted = !object.isCompleted;
+                renderObjects();
+            }
+        }
+
+        function formatTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            if (hours < 1) return 'now';
+            if (hours < 24) return `${hours}h`;
+            const days = Math.floor(hours / 24);
+            return `${days}d`;
+        }
+
+        function refreshInbox() {
+            renderObjects();
+        }
+
+        function logout() {
+            document.getElementById('appContent').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('emailInput').value = 'demo@march.com';
+            document.getElementById('passwordInput').value = '';
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const objectItems = document.querySelectorAll('.object-item');
+            
+            objectItems.forEach(item => {
+                const title = item.querySelector('.object-title').textContent.toLowerCase();
+                const description = item.querySelector('.object-description')?.textContent.toLowerCase() || '';
+                const matches = title.includes(query) || description.includes(query);
+                item.style.display = matches ? 'flex' : 'none';
+            });
+        });
+
+        // Initialize
+        renderObjects();
+    </script>
+</body>
+</html> 
