@@ -73,7 +73,7 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
             index={index}
             onDragStateChange={onDragStateChange}
           >
-            <div className="flex items-center justify-between w-full group py-1">
+            <div className="flex items-center justify-between w-full group py-1 pl-2">
               <div className="flex items-center gap-2 w-full">
                 <div
                   className="flex items-center justify-center"

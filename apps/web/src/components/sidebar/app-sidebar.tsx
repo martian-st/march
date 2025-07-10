@@ -28,8 +28,8 @@ export function AppSidebar() {
           {/* Empty header space for better spacing */}
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-3">
-        <SidebarMenu className="space-y-1">
+      <SidebarContent className="px-2">
+        <SidebarMenu className="space-y-0">
           <SidebarMenuItem>
             <SidebarMenuButton 
               asChild 
