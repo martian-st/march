@@ -8,10 +8,34 @@ import {
 } from "./lib/constants";
 import { TokenVerificationResponse } from "./types/auth";
 
+// Cache for token verification results
+interface TokenCache {
+  [token: string]: {
+    valid: boolean;
+    timestamp: number;
+  };
+}
+
+// In-memory cache (will be reset on server restart)
+const tokenVerificationCache: TokenCache = {};
+
+// Cache expiration time in milliseconds (5 minutes)
+const CACHE_EXPIRATION = 5 * 60 * 1000;
+
 const PUBLIC_PATH_ARRAY = [PUBLIC_PATHS.HOME, PUBLIC_PATHS.SIGNIN] as const;
 
-// Token verification
+// Token verification with caching
 async function verifyToken(token: string): Promise<boolean> {
+  // Check cache first
+  const cachedResult = tokenVerificationCache[token];
+  const now = Date.now();
+  
+  if (cachedResult && (now - cachedResult.timestamp) < CACHE_EXPIRATION) {
+    // Use cached result if it's still valid
+    return cachedResult.valid;
+  }
+  
+  // If not in cache or expired, verify with backend
   try {
     const response = await fetch(`${BACKEND_URL}/auth/user-verification/`, {
       method: "GET",
@@ -26,7 +50,15 @@ async function verifyToken(token: string): Promise<boolean> {
     }
 
     const data = (await response.json()) as TokenVerificationResponse;
-    return data.isValidUser;
+    const isValid = data.isValidUser;
+    
+    // Update cache
+    tokenVerificationCache[token] = {
+      valid: isValid,
+      timestamp: now
+    };
+    
+    return isValid;
   } catch (error) {
     console.error(
       "Token verification failed:",
