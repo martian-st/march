@@ -1,21 +1,19 @@
 import { Objects } from "@/types/objects";
-import {
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "../ui/sheet";
 import Editor from "../editor/editor";
 import React from "react";
 import { useDeleteObject, useUpdateObject } from "@/hooks/use-objects";
 import { debounce } from "lodash";
 import { TitleTextarea } from "./title-textarea";
 import { Button } from "../ui/button";
-import { Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { JSONContent } from "novel";
-import { Separator } from "../ui/separator";
 
-export default function ExpandedView({ item }: { item: Objects }) {
+interface ExpandedViewProps {
+  item: Objects;
+  onClose: () => void;
+}
+
+export default function ExpandedView({ item, onClose }: ExpandedViewProps) {
   const { mutate: updateObject } = useUpdateObject();
   const { mutate: deleteObject } = useDeleteObject();
 
@@ -58,47 +56,61 @@ export default function ExpandedView({ item }: { item: Objects }) {
     }
   };
 
+  const handleDelete = () => {
+    deleteObject({ _id: item._id });
+    onClose();
+  };
+
   return (
-    <SheetContent
-      side="right"
-      className="sm:max-w-md md:max-w-xl lg:max-w-2xl xl:max-w-3xl w-full flex flex-col h-full"
-    >
-      <div className="relative">
-        <div className="fixed top-2 right-4 z-50">
+    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="h-3 w-3 shrink-0 hover:text-red-500 hover:bg-transparent"
-            onClick={() => {
-              deleteObject({ _id: item._id });
-            }}
+            onClick={onClose}
+            className="h-8 w-8 hover:bg-gray-100"
           >
-            <Trash2 className="h-3 w-3" />
-            <span className="sr-only">Delete</span>
+            <ArrowLeft className="h-4 w-4" />
           </Button>
+          <span className="text-sm text-gray-500">Back to inbox</span>
         </div>
-        <SheetHeader className="flex flex-row items-center justify-between pb-2">
-          <SheetTitle className="flex-1">
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleDelete}
+          className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          {/* Title */}
+          <div className="mb-8">
             <TitleTextarea
               title={item.title}
               setTitle={(title) => {
                 updateObject({ _id: item._id, title });
               }}
             />
-          </SheetTitle>
-        </SheetHeader>
+          </div>
+
+          {/* Editor */}
+          <div className="prose prose-lg max-w-none">
+            <Editor
+              initialValue={getInitialContent()}
+              onChange={debouncedSave}
+              placeholder="Start writing..."
+            />
+          </div>
+        </div>
       </div>
-      <SheetDescription>
-        <Separator />
-      </SheetDescription>
-      <div className="flex-1 overflow-y-auto">
-        <Editor
-          initialValue={getInitialContent()}
-          onChange={debouncedSave}
-          placeholder="write something..."
-        />
-      </div>
-    </SheetContent>
+    </div>
   );
 }
 
