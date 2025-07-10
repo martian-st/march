@@ -31,18 +31,17 @@ export default function Hero() {
         viewport={{ once: true }}
       >
         <motion.h1
-          className="max-w-2xl text-pretty text-4xl !leading-tight md:text-6xl dark:text-white"
+          className="max-w-2xl text-pretty text-3xl !leading-tight md:text-4xl dark:text-white"
           variants={itemVariants}
         >
-          <span className="text-black dark:text-black">second brain for people living</span>{" "}
-          <span className="dark:text-polar-500 text-gray-400">on mars</span>
+          <span className="text-black dark:text-black">ai second brain, opinionatedly designed for the</span>{" "}
+          <span className="dark:text-polar-500 text-gray-400">rest of us</span>
         </motion.h1>
         <motion.p
           className="text-pretty text-sm leading-relaxed"
           variants={itemVariants}
         >
-          write, plan or capture action items from connected tools in a simple
-          clean interface.
+          no more tedious templates, features or ai, just building blocks for your own productivity space.
         </motion.p>
         <motion.div
           className="flex flex-row items-center gap-x-4"
