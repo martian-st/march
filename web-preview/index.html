@@ -31,15 +31,17 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.8);
         }
 
+        /* Status Bar */
         .status-bar {
             height: 44px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            font-size: 14px;
-            font-weight: 600;
             background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 24px;
+            font-size: 17px;
+            font-weight: 600;
+            color: #fff;
         }
 
         .app-content {
@@ -67,7 +69,7 @@
         }
 
         .header h1 {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 600;
             color: #fff;
             margin: 0;
@@ -94,15 +96,54 @@
             padding: 8px;
         }
 
+        /* Content Filters */
+        .content-filters {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            padding-bottom: 8px;
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 6px 0;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .filter-btn:hover {
+            color: #999;
+        }
+
+        .filter-btn.active {
+            color: #fff;
+        }
+
+        .filter-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #fff;
+        }
+
         .search-bar {
             display: flex;
             align-items: center;
             background: rgba(255,255,255,0.03);
             border: none;
             border-radius: 8px;
-            padding: 8px 12px;
-            margin: 12px 0 16px;
+            padding: 6px 12px;
+            margin: 0;
             gap: 8px;
+            width: 100%;
         }
 
         .search-bar input {
@@ -110,17 +151,20 @@
             border: none;
             color: rgba(255,255,255,0.6);
             flex: 1;
-            font-size: 15px;
+            font-size: 13px;
             outline: none;
+            text-align: left;
+            padding-left: 0;
         }
 
         .search-bar input::placeholder {
             color: rgba(255,255,255,0.4);
             font-weight: 400;
+            font-size: 13px;
         }
 
         .search-icon {
-            color: rgba(255,255,255,0.4);
+            color: #666;
             font-size: 14px;
         }
 
@@ -178,8 +222,15 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border-top: 0.5px solid rgba(255,255,255,0.1);
+            gap: 16px;
             flex-shrink: 0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0 20px;
+            box-sizing: border-box;
         }
 
         .object-item {
@@ -229,7 +280,7 @@
         }
 
         .object-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 500;
             color: #fff;
             margin-bottom: 6px;
@@ -241,7 +292,7 @@
         }
 
         .object-description {
-            font-size: 14px;
+            font-size: 12px;
             color: #666;
             line-height: 1.4;
             margin-bottom: 8px;
@@ -272,25 +323,59 @@
             display: none;
         }
 
-        .floating-add-btn {
+        .floating-add-btn, .floating-ask-btn {
             width: 44px;
             height: 44px;
             background: transparent;
-            color: #fff;
+            color: #666;
             border: none;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            font-weight: 200;
             cursor: pointer;
             transition: all 0.2s;
+            flex-shrink: 0;
+            position: relative;
+            vertical-align: middle;
         }
 
-        .floating-add-btn:hover {
-            background: rgba(255,255,255,0.1);
+        .floating-add-btn {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        .floating-add-btn:hover, .floating-ask-btn:hover {
+            color: #999;
             transform: scale(1.05);
+        }
+
+        .voice-lines {
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 2px;
+            height: 14px;
+            margin: auto;
+        }
+
+        .line {
+            width: 2px;
+            background-color: currentColor;
+            border-radius: 1px;
+            align-self: end;
+        }
+
+        .line1 {
+            height: 8px;
+        }
+
+        .line2 {
+            height: 14px;
+        }
+
+        .line3 {
+            height: 10px;
         }
 
         .header {
@@ -307,153 +392,156 @@
 
         /* Login Screen */
         .login-screen {
-            height: 100%;
-            background: linear-gradient(135deg, #000 0%, rgba(128,128,128,0.8) 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 32px;
-            text-align: center;
+            height: calc(100% - 60px);
+            background: #000;
+            padding: 0 40px;
+            position: relative;
         }
 
         .login-screen.hidden {
             display: none;
         }
 
-        .app-branding {
-            margin-bottom: 40px;
-        }
-
-        .app-title {
-            font-size: 48px;
-            font-weight: 300;
-            color: #fff;
-            letter-spacing: 2px;
-            margin-bottom: 16px;
-        }
-
-        .app-subtitle {
-            font-size: 16px;
-            color: #666;
-        }
-
         .login-form {
             width: 100%;
-            max-width: 300px;
-            margin: 40px 0;
+            max-width: 280px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
-        .minimal-input {
+        .auth-button {
             width: 100%;
+            padding: 16px 20px;
+            margin-bottom: 8px;
             background: transparent;
             border: none;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
             color: #fff;
-            font-size: 16px;
-            padding: 16px 0;
-            margin-bottom: 16px;
-            outline: none;
-        }
-
-        .minimal-input::placeholder {
-            color: #666;
-        }
-
-        .login-btn {
-            width: 100%;
-            height: 50px;
-            background: #fff;
-            color: #000;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 500;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
         }
 
-        .login-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .auth-button:hover {
+            opacity: 0.7;
         }
 
-        .demo-hint {
-            font-size: 13px;
-            color: rgba(255,255,255,0.4);
-            margin-top: 40px;
+        .auth-button:active {
+            transform: scale(0.98);
         }
 
-        /* Quick Add Screen */
+        .auth-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        /* Header */
+        .header {
+        }
+
+        /* Form Styles */
         .form-section {
-            padding: 32px 24px;
+            padding: 20px 24px;
+            flex: 1;
         }
 
         .form-group {
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
 
         .form-label {
-            font-size: 16px;
-            font-weight: 500;
-            color: #666;
-            margin-bottom: 12px;
             display: block;
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
         }
 
         .form-input {
             width: 100%;
             background: transparent;
             border: none;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             color: #fff;
-            font-size: 20px;
-            font-weight: 500;
-            padding: 0 0 8px 0;
+            font-size: 16px;
+            padding: 12px 0;
             outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            border-bottom-color: rgba(255,255,255,0.3);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255,255,255,0.4);
         }
 
         .form-textarea {
             width: 100%;
             background: transparent;
             border: none;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             color: #fff;
             font-size: 16px;
-            padding: 0 0 8px 0;
+            padding: 12px 0;
             outline: none;
-            resize: none;
+            resize: vertical;
             min-height: 60px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-textarea:focus {
+            border-bottom-color: rgba(255,255,255,0.3);
+        }
+
+        .form-textarea::placeholder {
+            color: rgba(255,255,255,0.4);
         }
 
         .type-selector {
             display: flex;
-            gap: 12px;
+            gap: 8px;
         }
 
         .type-button {
             flex: 1;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #666;
+            padding: 12px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
-            padding: 16px;
-            background: transparent;
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 12px;
-            color: #666;
-            cursor: pointer;
-            transition: all 0.2s;
+            gap: 4px;
+        }
+
+        .type-button:hover {
+            border-color: rgba(255,255,255,0.2);
         }
 
         .type-button.selected {
-            background: #fff;
-            color: #000;
-            border-color: #fff;
+            border-color: rgba(255,255,255,0.3);
+            color: #fff;
         }
 
         .type-icon {
-            font-size: 20px;
+            font-size: 16px;
         }
 
         .type-name {
@@ -462,59 +550,185 @@
         }
 
         .create-button {
-            position: absolute;
-            bottom: 90px;
-            left: 0;
-            right: 0;
-            border-top: 0.5px solid rgba(255,255,255,0.2);
-            background: #000;
-            padding: 16px 24px;
+            padding: 20px 24px;
+            border-top: 1px solid rgba(255,255,255,0.1);
         }
 
         .create-btn {
             width: 100%;
-            height: 50px;
             background: #fff;
             color: #000;
             border: none;
+            border-radius: 8px;
+            padding: 16px;
             font-size: 16px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
         }
 
+        .create-btn:hover:not(:disabled) {
+            background: rgba(255,255,255,0.9);
+        }
+
         .create-btn:disabled {
-            background: rgba(255,255,255,0.3);
-            color: #666;
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.3);
             cursor: not-allowed;
         }
 
-        .empty-state {
+        /* Chat Screen Styles */
+        .chat-screen {
+            height: calc(100% - 60px);
             display: flex;
             flex-direction: column;
+            background: #000;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 24px;
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+            background: #000;
+            flex-shrink: 0;
+            gap: 12px;
+        }
+
+        .chat-header h2 {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .back-btn {
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
             align-items: center;
             justify-content: center;
-            height: 100%;
-            text-align: center;
-            padding: 40px;
+            transition: all 0.2s;
         }
 
-        .empty-icon {
-            font-size: 48px;
-            color: rgba(255,255,255,0.3);
-            margin-bottom: 24px;
+        .back-btn:hover {
+            color: #999;
+            transform: scale(1.05);
         }
 
-        .empty-title {
-            font-size: 20px;
-            font-weight: 500;
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+        }
+
+        .ai-message {
+            align-self: flex-start;
+        }
+
+        .user-message {
+            align-self: flex-end;
+        }
+
+        .message-content {
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .ai-message .message-content {
+            background: rgba(255,255,255,0.1);
             color: #fff;
-            margin-bottom: 8px;
         }
 
-        .empty-subtitle {
-            font-size: 16px;
-            color: #666;
+        .user-message .message-content {
+            background: #007AFF;
+            color: #fff;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 4px;
+            padding: 0 16px;
+        }
+
+        .chat-input-container {
+            padding: 16px 24px 20px;
+            background: #000;
+            border-top: 0.5px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .chat-input-bar {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 12px 16px;
+            gap: 8px;
+            min-height: 20px;
+        }
+
+        .chat-input-bar input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+            padding: 4px 0;
+        }
+
+        .chat-input-bar input::placeholder {
+            color: rgba(255,255,255,0.5);
+            font-weight: 400;
+        }
+
+        .send-btn {
+            background: #007AFF;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            background: #0056CC;
+        }
+
+        .send-btn:disabled {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.3);
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -522,33 +736,67 @@
     <div class="phone-container">
         <!-- Status Bar -->
         <div class="status-bar">
-            <span>9:41</span>
-            <span>📶 📶 📶 🔋</span>
+            <div class="search-bar">
+                <span class="ios-icon icon-search search-icon"></span>
+                <input type="text" placeholder="Find bookmarks, notes etc" id="searchInput">
+            </div>
         </div>
 
         <!-- Login Screen -->
         <div class="login-screen" id="loginScreen">
-            <div class="app-branding">
-                <div class="app-title">march</div>
-                <div class="app-subtitle">Your AI-powered second brain</div>
-            </div>
-
             <div class="login-form">
-                <input type="email" class="minimal-input" id="emailInput" placeholder="Email" value="demo@march.com">
-                <input type="password" class="minimal-input" id="passwordInput" placeholder="Password">
-                <button class="login-btn" id="loginBtn">Continue</button>
+                <button class="auth-button" onclick="loginWithGoogle()">
+                    <svg class="auth-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Continue with Google
+                </button>
+                
+                <button class="auth-button" onclick="loginWithGitHub()">
+                    <svg class="auth-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    Continue with GitHub
+                </button>
             </div>
-
-            <div class="demo-hint">Demo: demo@march.com + any password</div>
         </div>
 
         <!-- Main App -->
         <div class="app-content" id="appContent" style="display: none;">
-            <!-- Search at top -->
-            <div class="search-container">
-                <div class="search-bar">
-                    <span class="ios-icon icon-search search-icon"></span>
-                    <input type="text" placeholder="Find objects, notes, etc." id="searchInput">
+
+            <!-- Chat Screen -->
+            <div class="chat-screen" id="chatScreen" style="display: none;">
+                <div class="chat-header">
+                    <button class="back-btn" onclick="closeChatScreen()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.42-1.41L7.83 13H20v-2z"/>
+                        </svg>
+                    </button>
+                    <h2>AI Assistant</h2>
+                </div>
+                
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai-message">
+                        <div class="message-content">
+                            Hi! I'm your AI assistant. I can help you with tasks, calendar events, emails, and more. What can I do for you today?
+                        </div>
+                        <div class="message-time">just now</div>
+                    </div>
+                </div>
+                
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="chatInput" class="chat-input" placeholder="Message">
+                        <button id="sendButton" class="send-button" disabled>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -556,10 +804,17 @@
             <div class="tab-content active" id="inboxTab">
                 <div class="header">
                     <div class="header-actions">
-                        <h1 id="inboxTitle">Inbox <span class="count">${objects.length}</span></h1>
+                        <h1 id="inboxTitle">Today <span class="count">${objects.length}</span></h1>
                         <button class="refresh-btn" onclick="refreshInbox()">
                             <span class="ios-icon icon-refresh"></span>
                         </button>
+                    </div>
+                    
+                    <!-- Content Filters -->
+                    <div class="content-filters">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="archived">Archived</button>
+                        <button class="filter-btn" data-filter="recommended">Recommended</button>
                     </div>
                 </div>
 
@@ -626,6 +881,13 @@
         <!-- Bottom Action Bar -->
         <div class="bottom-action-bar">
             <button class="floating-add-btn" onclick="switchTab('add')">+</button>
+            <button class="floating-ask-btn" onclick="openAskAgent()">
+                <div class="voice-lines">
+                    <span class="line line1"></span>
+                    <span class="line line2"></span>
+                    <span class="line line3"></span>
+                </div>
+            </button>
         </div>
     </div>
 
@@ -682,14 +944,29 @@
         let selectedType = 'todo';
 
         // Login functionality
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            const email = document.getElementById('emailInput').value;
-            if (email.includes('demo') || email === 'demo@march.com') {
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContent').style.display = 'flex';
-                renderObjects();
-            }
-        });
+        function loginWithGoogle() {
+            // In real app, this would use Google OAuth
+            console.log('Login with Google');
+            // Simulate OAuth redirect/popup
+            setTimeout(() => {
+                login();
+            }, 500);
+        }
+
+        function loginWithGitHub() {
+            // In real app, this would use GitHub OAuth
+            console.log('Login with GitHub');
+            // Simulate OAuth redirect/popup
+            setTimeout(() => {
+                login();
+            }, 500);
+        }
+
+        function login() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContent').style.display = 'flex';
+            renderObjects();
+        }
 
         function switchTab(tab) {
             if (tab === 'add') {
@@ -713,13 +990,16 @@
             const container = document.getElementById('objectsList');
             const inboxTitle = document.getElementById('inboxTitle');
             
+            // Get filtered objects
+            const filteredObjects = getFilteredObjects();
+            
             // Update inbox title with count
-            inboxTitle.innerHTML = `Inbox <span class="count">${objects.length}</span>`;
+            inboxTitle.innerHTML = `Today <span class="count">${filteredObjects.length}</span>`;
             
             let html = '';
 
-            // Render all objects in a single list
-            objects.forEach(obj => {
+            // Render filtered objects
+            filteredObjects.forEach(obj => {
                 html += renderObjectItem(obj);
             });
 
@@ -728,10 +1008,10 @@
                     <div class="empty-state">
                         <div class="empty-icon">📥</div>
                         <div class="empty-title">All clear</div>
-                        <div class="empty-subtitle">Nothing in your inbox right now</div>
+                        <div class="empty-subtitle">Nothing for today right now</div>
                     </div>
                 `;
-                inboxTitle.textContent = 'Inbox';
+                inboxTitle.textContent = 'Today';
             }
 
             container.innerHTML = html;
@@ -795,8 +1075,189 @@
             });
         });
 
+        // Form functionality
+        function setupFormListeners() {
+            const titleInput = document.getElementById('titleInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+            const createBtn = document.getElementById('createBtn');
+            const typeButtons = document.querySelectorAll('.type-button');
+
+            // Enable/disable create button based on title input
+            function updateCreateBtn() {
+                const hasTitle = titleInput.value.trim().length > 0;
+                createBtn.disabled = !hasTitle;
+            }
+
+            titleInput.addEventListener('input', updateCreateBtn);
+
+            // Type selection
+            typeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    typeButtons.forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    selectedType = btn.dataset.type;
+                });
+            });
+
+            // Create new object
+            createBtn.addEventListener('click', () => {
+                const title = titleInput.value.trim();
+                const description = descriptionInput.value.trim();
+                
+                if (title) {
+                    const newObject = {
+                        id: Date.now().toString(),
+                        title: title,
+                        description: description,
+                        type: selectedType,
+                        isCompleted: false,
+                        createdAt: new Date(),
+                        tags: []
+                    };
+                    
+                    objects.unshift(newObject); // Add to beginning
+                    clearForm();
+                    switchTab('inbox'); // Go back to inbox
+                    renderObjects();
+                }
+            });
+        }
+
+        function clearForm() {
+            document.getElementById('titleInput').value = '';
+            document.getElementById('descriptionInput').value = '';
+            document.getElementById('createBtn').disabled = true;
+            
+            // Reset type selection to todo
+            document.querySelectorAll('.type-button').forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.dataset.type === 'todo') {
+                    btn.classList.add('selected');
+                }
+            });
+            selectedType = 'todo';
+        }
+
+        // Filter functionality
+        let currentFilter = 'all';
+
+        function setupFilterListeners() {
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Update active state
+                    filterButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Update current filter
+                    currentFilter = btn.dataset.filter;
+                    
+                    // Re-render objects with filter
+                    renderObjects();
+                });
+            });
+        }
+
+        function getFilteredObjects() {
+            switch(currentFilter) {
+                case 'archived':
+                    // For demo, show completed items as "archived"
+                    return objects.filter(obj => obj.isCompleted);
+                case 'recommended':
+                    // For demo, show recent items as "recommended"
+                    return objects.filter(obj => {
+                        const hoursSinceCreated = (new Date() - obj.createdAt) / (1000 * 60 * 60);
+                        return hoursSinceCreated < 48; // Last 48 hours
+                    });
+                default:
+                    return objects.filter(obj => !obj.isCompleted); // Show only non-completed for "All"
+            }
+        }
+
+        // Chat functionality
+        function openAskAgent() {
+            // Hide inbox and show chat screen
+            document.getElementById('inboxTab').style.display = 'none';
+            document.getElementById('chatScreen').style.display = 'flex';
+        }
+
+        function closeChatScreen() {
+            // Hide chat screen and show inbox
+            document.getElementById('chatScreen').style.display = 'none';
+            document.getElementById('inboxTab').style.display = 'flex';
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (message) {
+                // Add user message
+                addMessage(message, 'user');
+                input.value = '';
+                
+                // Simulate AI response after short delay
+                setTimeout(() => {
+                    const responses = [
+                        "I've created a new task: '" + message + "' and added it to your inbox.",
+                        "Task completed! I've scheduled this for you in your calendar.",
+                        "I've sent an email regarding: '" + message + "' to the relevant contacts.",
+                        "I've found 3 related items in your calendar and notes. Would you like me to show them?",
+                        "Great! I've updated your Linear workspace with this information.",
+                        "I've created a bookmark for this and organized it in your March workspace."
+                    ];
+                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                    addMessage(randomResponse, 'ai');
+                }, 1000);
+            }
+        }
+
+        function addMessage(content, type) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">${content}</div>
+                <div class="message-time">${timeString}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Enter key to send message and input handling
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            if (chatInput && sendBtn) {
+                // Enter key to send
+                chatInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                });
+                
+                // Enable/disable send button based on input
+                chatInput.addEventListener('input', function() {
+                    const hasText = chatInput.value.trim().length > 0;
+                    sendBtn.disabled = !hasText;
+                });
+                
+                // Initialize send button as disabled
+                sendBtn.disabled = true;
+            }
+        });
+
         // Initialize
         renderObjects();
+        setupFormListeners();
+        setupFilterListeners();
     </script>
 </body>
 </html> 

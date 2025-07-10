@@ -34,13 +34,22 @@ export default function IntegrationMenu() {
           isCollapsed ? "justify-center py-3 px-0 mx-auto" : "gap-3 px-4 py-2.5"
         )}
       >
-        <Image
-          src={userAvatar ?? ""}
-          alt="avatar"
-          width={isCollapsed ? 28 : 20}
-          height={isCollapsed ? 28 : 20}
-          className="rounded-full"
-        />
+        {userAvatar ? (
+          <Image
+            src={userAvatar}
+            alt="avatar"
+            width={isCollapsed ? 28 : 20}
+            height={isCollapsed ? 28 : 20}
+            className="rounded-full"
+          />
+        ) : (
+          <UserCircle
+            className={cn(
+              "text-[#6E6E6E]",
+              isCollapsed ? "h-7 w-7" : "h-5 w-5"
+            )}
+          />
+        )}
         {!isCollapsed && <span>{userName}</span>}
       </button>
     );

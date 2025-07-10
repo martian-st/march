@@ -1,19 +1,48 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var inboxViewModel = InboxViewModel()
+    @State private var showingAddView = false
+    @State private var isLoggedIn = false
     
     var body: some View {
-        Group {
-            if authManager.isAuthenticated {
-                MainTabView()
-            } else {
-                LoginView()
+        if isLoggedIn {
+            NavigationView {
+                VStack(spacing: 0) {
+                    // Main content
+                    InboxView(viewModel: inboxViewModel)
+                    
+                    // Bottom Action Bar
+                    HStack {
+                        Spacer()
+                        Button(action: { showingAddView = true }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 24, weight: .light))
+                                .foregroundColor(.white)
+                                .frame(width: 44, height: 44)
+                        }
+                        Spacer()
+                    }
+                    .frame(height: 60)
+                    .background(Color.black)
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 0.5)
+                            .foregroundColor(Color.white.opacity(0.1)),
+                        alignment: .top
+                    )
+                }
+                .background(Color.black)
             }
-        }
-        .preferredColorScheme(.dark)
-        .onAppear {
-            authManager.checkAuthStatus()
+            .sheet(isPresented: $showingAddView) {
+                QuickAddView(onObjectCreated: { object in
+                    inboxViewModel.addObject(object)
+                })
+            }
+        } else {
+            LoginView(onLogin: {
+                isLoggedIn = true
+            })
         }
     }
 }
