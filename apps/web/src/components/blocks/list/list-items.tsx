@@ -13,6 +13,7 @@ import { useUpdateObject } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
+import { Calendar } from "lucide-react";
 
 interface ListItemsProps {
   onDragStateChange?: (isDragging: boolean) => void;
@@ -73,7 +74,7 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
             index={index}
             onDragStateChange={onDragStateChange}
           >
-            <div className="flex items-center justify-between w-full group py-1 pl-2">
+            <div className="flex items-center justify-between w-full group py-1 pl-2 relative">
               <div className="flex items-center gap-2 w-full">
                 <div
                   className="flex items-center justify-center"
@@ -97,26 +98,43 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                     }}
                   />
                 </div>
-                <div 
-                  onClick={() => handleItemClick(item)}
-                  className={cn(
-                    "text-sm cursor-pointer select-none",
-                    item.isCompleted
-                      ? "text-gray-400 line-through"
-                      : "text-gray-700",
-                  )}
-                >
-                  {item.title}
+                <div className="flex items-center gap-2 flex-1">
+                  <div 
+                    onClick={() => handleItemClick(item)}
+                    className={cn(
+                      "text-sm cursor-pointer select-none",
+                      item.isCompleted
+                        ? "text-gray-400 line-through"
+                        : "text-gray-700",
+                    )}
+                  >
+                    {item.title}
+                  </div>
+                  
+                  {/* Floating calendar icon - UI only */}
+                  <button
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // TODO: Add date picker functionality
+                    }}
+                  >
+                    <Calendar className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+                  </button>
                 </div>
-                <span onClick={(e) => e.stopPropagation()}>
-                  {item.source ? (
-                    <a href={item.metadata?.url} target="_blank">
-                      {item.source !== "march" && renderIcon(item.source)}
-                    </a>
-                  ) : (
-                    <div></div>
-                  )}
-                </span>
+                
+                <div className="flex items-center gap-2">
+                  {/* Source icon */}
+                  <span onClick={(e) => e.stopPropagation()}>
+                    {item.source ? (
+                      <a href={item.metadata?.url} target="_blank">
+                        {item.source !== "march" && renderIcon(item.source)}
+                      </a>
+                    ) : (
+                      <div></div>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
             <Separator className="last:hidden opacity-20 my-0" />
