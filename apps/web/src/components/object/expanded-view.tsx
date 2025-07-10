@@ -64,18 +64,15 @@ export default function ExpandedView({ item, onClose }: ExpandedViewProps) {
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-8 w-8 hover:bg-gray-100"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-gray-500">Back to inbox</span>
-        </div>
+      <div className="flex items-center justify-between px-6 py-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="h-8 w-8 hover:bg-gray-100"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         
         <Button
           variant="ghost"
@@ -91,7 +88,7 @@ export default function ExpandedView({ item, onClose }: ExpandedViewProps) {
       <div className="flex-1 overflow-auto">
         <div className="max-w-4xl mx-auto px-6 py-8">
           {/* Title */}
-          <div className="mb-8">
+          <div className="mb-6">
             <TitleTextarea
               title={item.title}
               setTitle={(title) => {
