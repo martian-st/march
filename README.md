@@ -1,7 +1,7 @@
 # ![march](https://your-logo-url.com/logo.png)
 
 ```txt
-ai second brain, opinionatedly designed for makers.
+ai second brain, opinionatedly designed for the rest of us.
 ```
 
 ## About
@@ -11,7 +11,7 @@ march is a notion alternative for getting things done—the tool we wished exist
 - **Simple Object-Based System:** Everything—meetings, bookmarks, Linear issues—is treated as an object with a type. You can customize views based on object types.
 - **Dynamic Interface:** Build your own productivity page/ space with blocks, you decide how your action items should look like.
 - **Smart Organization:** No tedious templates—March organizes your data dynamically based on behavior and object types.
-- **AI-Powered Productivity:** Plan your day, perform actions in connected apps, and stay accountable. march pushes you to get things done—or take breaks when needed.
+- **AI-Powered only where it needed:** march can perform actions in connected apps and reminds you what you should consume ( i.e the twitter bookmark you saved but never opened) 
 
 March is currently **free and open source**, maintained by **[@oliursahin](https://github.com/oliursahin)** and **[@sajdakabir](https://github.com/sajdakabir)**. If you love using it, consider [buying us a coffee](https://buymeacoffee.com/oliursahin)—it helps us keep the servers running.
 
