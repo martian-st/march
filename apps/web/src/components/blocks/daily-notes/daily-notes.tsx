@@ -133,7 +133,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
   
   // Derive these values from the current date
   const dateKey = useRef(format(currentDate, "yyyy-MM-dd"));
-  const formattedDate = useRef(format(currentDate, "EEEE, MMMM d, yyyy"));
+  const formattedDate = useRef(format(currentDate, "EEEE, MMMM d"));
   
   // Initialize state with null, will be populated in useEffect
   const [content, setContent] = useState<JSONContent | null>(null);
@@ -315,7 +315,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
   // Update derived values when currentDate changes
   useEffect(() => {
     dateKey.current = format(currentDate, "yyyy-MM-dd");
-    formattedDate.current = format(currentDate, "EEEE, MMMM d, yyyy");
+    formattedDate.current = format(currentDate, "EEEE, MMMM d");
     
     // Check if the current date is today
     setIsToday(isDateToday(currentDate));
@@ -358,7 +358,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
 
   return (
     <div className="daily-notes bg-white p-6 mb-6">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-6 -mt-2">
         <Popover.Root onOpenChange={(open) => {
             setIsCalendarOpen(open);
             if (open) {
@@ -368,11 +368,10 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
           }}>
           <Popover.Trigger asChild>
             <button 
-              className="flex items-center text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 px-2 py-1 rounded-md transition-colors"
+              className="flex items-center text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 px-2 py-1 rounded-md transition-colors"
               aria-label="Select date"
             >
               <span>{formattedDate.current}</span>
-              <CalendarIcon className="ml-2 h-4 w-4" />
             </button>
           </Popover.Trigger>
           <Popover.Portal>
@@ -504,7 +503,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
         <div className="flex items-center space-x-2">
           <button 
             onClick={goToPreviousDay}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-50"
             aria-label="Previous day"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -515,7 +514,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
           <button 
             onClick={goToToday}
             disabled={isToday}
-            className={`text-xs px-2 py-1 rounded ${isToday ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-50'}`}
+            className={`text-xs px-2 py-1 rounded ${isToday ? 'text-gray-400 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
             aria-label="Go to today"
           >
             Today
@@ -523,7 +522,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
           
           <button 
             onClick={goToNextDay}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+            className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-50"
             aria-label="Next day"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
