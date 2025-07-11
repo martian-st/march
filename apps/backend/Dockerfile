@@ -5,10 +5,9 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json .
-COPY bun.lockb .
 
-# Install dependencies
-RUN bun install --frozen-lockfile
+# Install dependencies without lockfile (since we don't have bun.lockb in backend dir)
+RUN bun install
 
 # Copy the rest of the application
 COPY . .
@@ -32,7 +31,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:8080/health || exit 1
+  CMD curl -f http://localhost:8080/ || exit 1
 
 # Start the application
 CMD ["bun", "run", "start"]

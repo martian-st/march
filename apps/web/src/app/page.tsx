@@ -1,9 +1,19 @@
-import { redirect } from 'next/navigation';
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-  // Redirect to the landing page
-  redirect('/signin');
-  
-  // This won't be rendered due to the redirect
-  return null;
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to signin page for unauthenticated users
+    router.push("/signin");
+  }, [router]);
+
+  return (
+    <div style={{ padding: '20px', textAlign: 'center' }}>
+      <p>Redirecting...</p>
+    </div>
+  );
 }

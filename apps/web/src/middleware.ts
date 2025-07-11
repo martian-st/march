@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import {
-  ACCESS_TOKEN,
-  BACKEND_URL,
-  PUBLIC_PATHS,
-  REDIRECT_PATHS,
-} from "./lib/constants";
-import { TokenVerificationResponse } from "./types/auth";
 
-// Cache for token verification results
+import { ACCESS_TOKEN, BACKEND_URL, PUBLIC_PATHS } from "@/lib/constants";
+
+interface TokenVerificationResponse {
+  isValidUser: boolean;
+}
+
 interface TokenCache {
   [token: string]: {
     valid: boolean;
@@ -37,13 +35,20 @@ async function verifyToken(token: string): Promise<boolean> {
   
   // If not in cache or expired, verify with backend
   try {
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     const response = await fetch(`${BACKEND_URL}/auth/user-verification/`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -64,59 +69,52 @@ async function verifyToken(token: string): Promise<boolean> {
       "Token verification failed:",
       error instanceof Error ? error.message : "Unknown error"
     );
+    // Cache the failure to avoid repeated calls
+    tokenVerificationCache[token] = {
+      valid: false,
+      timestamp: now
+    };
     return false;
   }
 }
 
-// Route protection helpers
-function isPublicPath(path: string): boolean {
-  return PUBLIC_PATH_ARRAY.includes(path as (typeof PUBLIC_PATH_ARRAY)[number]);
-}
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-function createRedirectResponse(
-  request: NextRequest,
-  redirectPath: string
-): NextResponse {
-  return NextResponse.redirect(new URL(redirectPath, request.url));
-}
-
-// Middleware handler
-export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const token = request.cookies.get(ACCESS_TOKEN)?.value;
-  const path = request.nextUrl.pathname;
-
-  // Handle public paths
-  if (isPublicPath(path)) {
-    if (token) {
-      const isValidToken = await verifyToken(token);
-
-      if (isValidToken && path === PUBLIC_PATHS.HOME) {
-        return createRedirectResponse(
-          request,
-          REDIRECT_PATHS.AUTHENTICATED_HOME
-        );
-      }
-    }
+  // Allow public paths without authentication
+  if (PUBLIC_PATH_ARRAY.includes(pathname as any)) {
     return NextResponse.next();
   }
 
-  // Handle protected paths
+  // Get the token from cookies
+  const token = request.cookies.get(ACCESS_TOKEN)?.value;
+
   if (!token) {
-    return createRedirectResponse(request, REDIRECT_PATHS.UNAUTHENTICATED_HOME);
+    // No token, redirect to signin
+    return NextResponse.redirect(new URL("/signin", request.url));
   }
 
-  const isValidToken = await verifyToken(token);
-  if (!isValidToken) {
-    return createRedirectResponse(request, REDIRECT_PATHS.UNAUTHENTICATED_HOME);
+  // Verify the token
+  const isValid = await verifyToken(token);
+
+  if (!isValid) {
+    // Invalid token, redirect to signin
+    return NextResponse.redirect(new URL("/signin", request.url));
   }
 
+  // Token is valid, allow the request to proceed
   return NextResponse.next();
 }
 
-// Matcher configuration
 export const config = {
   matcher: [
-    // Match all paths except static files, API routes, and auth routes
-    "/((?!api|auth|_next/static|_next/image|favicon.ico).*)",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

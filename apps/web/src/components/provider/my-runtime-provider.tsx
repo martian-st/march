@@ -21,33 +21,50 @@ const createModelAdapter = (
   config: MyModelAdapterConfig
 ): ChatModelAdapter => ({
   async run({ messages, abortSignal }) {
-    // Get the last message and extract its text content
-    const lastMessage = messages[messages.length - 1];
-    const textContent =
-      lastMessage.content.find(
-        (part): part is TextContentPart => part.type === "text"
-      )?.text || "";
+    try {
+      // Get the last message and extract its text content
+      const lastMessage = messages[messages.length - 1];
+      const textContent =
+        lastMessage.content.find(
+          (part): part is TextContentPart => part.type === "text"
+        )?.text || "";
 
-    const data = await axios.get(
-      `${BACKEND_URL}/ai/ask?query=${encodeURIComponent(textContent)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${config.session}`,
-        },
-        signal: abortSignal,
+      if (!config.session) {
+        throw new Error("No session available");
       }
-    );
 
-    const text = extractMessageData(data);
-
-    return {
-      content: [
+      const data = await axios.get(
+        `${BACKEND_URL}/ai/ask?query=${encodeURIComponent(textContent)}`,
         {
-          type: "text",
-          text: text,
-        },
-      ],
-    };
+          headers: {
+            Authorization: `Bearer ${config.session}`,
+          },
+          signal: abortSignal,
+          timeout: 10000, // 10 second timeout
+        }
+      );
+
+      const text = extractMessageData(data);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: text,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error("AI request failed:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: "Sorry, I'm unable to process your request right now. Please try again later.",
+          },
+        ],
+      };
+    }
   },
 });
 
@@ -56,13 +73,30 @@ export function MyRuntimeProvider({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const { session } = useAuth();
-  const modelAdapter = createModelAdapter({ session });
-  const runtime = useLocalRuntime(modelAdapter);
+  const { session, loading } = useAuth();
+  
+  // Don't render the AI runtime if we're still loading or have no session
+  if (loading) {
+    return <>{children}</>;
+  }
+  
+  // If no session, render children without AI runtime
+  if (!session) {
+    return <>{children}</>;
+  }
+  
+  try {
+    const modelAdapter = createModelAdapter({ session });
+    const runtime = useLocalRuntime(modelAdapter);
 
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
-  );
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        {children}
+      </AssistantRuntimeProvider>
+    );
+  } catch (error) {
+    console.error("Error initializing AI runtime:", error);
+    // Fallback: render children without AI runtime
+    return <>{children}</>;
+  }
 }
