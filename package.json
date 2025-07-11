@@ -13,7 +13,9 @@
     "start": "turbo run start",
     "lint": "turbo run lint",
     "clean": "turbo run clean",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "ios:dev": "cd apps/ios && bun run dev",
+    "ios:build": "cd apps/ios && bun run build"
   },
   "devDependencies": {
     "prettier": "^3.2.5",

@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'march',
-  description: 'ai second brain, opinionatedly designed for makers',
+  description: 'ai second brain, opinionatedly designed for the rest of us',
   icons: {
     icon: '/favicon.ico',
   },

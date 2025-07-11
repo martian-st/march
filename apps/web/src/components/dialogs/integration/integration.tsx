@@ -30,18 +30,27 @@ export default function IntegrationMenu() {
     return (
       <button
         className={cn(
-          "flex items-center text-sm w-full rounded-md transition-colors",
-          isCollapsed ? "justify-center py-3 px-0 mx-auto" : "gap-3 px-4 py-2.5"
+          "flex items-center text-sm w-full py-3 px-3 rounded-lg transition-colors duration-200",
+          isCollapsed ? "justify-center" : "gap-3"
         )}
       >
-        <Image
-          src={userAvatar ?? ""}
-          alt="avatar"
-          width={isCollapsed ? 28 : 20}
-          height={isCollapsed ? 28 : 20}
-          className="rounded-full"
-        />
-        {!isCollapsed && <span>{userName}</span>}
+        {userAvatar ? (
+          <Image
+            src={userAvatar}
+            alt="avatar"
+            width={isCollapsed ? 24 : 20}
+            height={isCollapsed ? 24 : 20}
+            className="rounded-full"
+          />
+        ) : (
+          <UserCircle
+            className={cn(
+              "text-gray-500",
+              isCollapsed ? "h-6 w-6" : "h-5 w-5"
+            )}
+          />
+        )}
+        {!isCollapsed && <span className="text-gray-700 font-medium">{userName}</span>}
       </button>
     );
   }
@@ -52,40 +61,38 @@ export default function IntegrationMenu() {
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              "flex items-center text-sm w-full hover:bg-accent hover:text-accent-foreground rounded-md transition-colors",
-              isCollapsed
-                ? "justify-center py-3 px-0 mx-auto"
-                : "gap-3 px-4 py-2.5"
+              "flex items-center text-sm w-full py-3 px-3 rounded-lg transition-colors duration-200 hover:bg-gray-50",
+              isCollapsed ? "justify-center" : "gap-3"
             )}
           >
             {user?.avatar ? (
               <Image
                 src={user.avatar}
                 alt="avatar"
-                width={isCollapsed ? 28 : 20}
-                height={isCollapsed ? 28 : 20}
+                width={isCollapsed ? 24 : 20}
+                height={isCollapsed ? 24 : 20}
                 className="rounded-full"
               />
             ) : (
               <UserCircle
                 className={cn(
-                  "text-[#6E6E6E]",
-                  isCollapsed ? "h-7 w-7" : "h-5 w-5"
+                  "text-gray-500",
+                  isCollapsed ? "h-6 w-6" : "h-5 w-5"
                 )}
               />
             )}
-            {!isCollapsed && <span>{user?.fullName ?? userName}</span>}
+            {!isCollapsed && <span className="text-gray-700 font-medium">{user?.fullName ?? userName}</span>}
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuItem onSelect={() => setIntegrationsOpen(true)}>
-            <Settings className="mr-2 h-4 w-4 text-foreground/70" />
-            <span>Integrations</span>
+        <DropdownMenuContent align="start" className="w-48 border-gray-200">
+          <DropdownMenuItem onSelect={() => setIntegrationsOpen(true)} className="hover:bg-gray-50">
+            <Settings className="mr-2 h-4 w-4 text-gray-500" />
+            <span className="text-gray-700">Integrations</span>
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => signOut()}>
-            <LogOut className="mr-2 h-4 w-4 text-foreground/70" />
-            <Button variant={"ghost"}>Log out</Button>
+          <DropdownMenuSeparator className="bg-gray-200" />
+          <DropdownMenuItem onSelect={() => signOut()} className="hover:bg-gray-50">
+            <LogOut className="mr-2 h-4 w-4 text-gray-500" />
+            <span className="text-gray-700">Log out</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

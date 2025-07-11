@@ -2,7 +2,7 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useState } from "react";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -10,9 +10,10 @@ import {
 import { SortableItem } from "./sortable-item";
 import { useBlock } from "@/contexts/block-context";
 import { useUpdateObject } from "@/hooks/use-objects";
-import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
+import { Objects } from "@/types/objects";
+import { Calendar } from "lucide-react";
 
 interface ListItemsProps {
   onDragStateChange?: (isDragging: boolean) => void;
@@ -20,43 +21,40 @@ interface ListItemsProps {
 
 export function ListItems({ onDragStateChange }: ListItemsProps) {
   const { items } = useBlock();
-
   const { mutate: updateObject } = useUpdateObject();
+  const [expandedItem, setExpandedItem] = useState<Objects | null>(null);
 
-  // Sort items by order property
-  const sortedItems = [...items].sort((a, b) => b.order - a.order);
+  const sortedItems = React.useMemo(() => {
+    return [...items].sort((a, b) => a.order - b.order);
+  }, [items]);
 
-  if (sortedItems.length === 0) {
+  const renderIcon = (source: string) => {
+    const IconComponent = Icons[source as keyof typeof Icons];
+    return IconComponent ? (
+      <IconComponent className="w-3 h-3 opacity-50" />
+    ) : null;
+  };
+
+  const handleItemClick = (item: Objects) => {
+    setExpandedItem(item);
+  };
+
+  const handleCloseExpanded = () => {
+    setExpandedItem(null);
+  };
+
+  if (expandedItem) {
     return (
-      <div className="py-4 text-center text-gray-500 text-sm">
-        No items yet. Add one above.
-      </div>
+      <ExpandedView 
+        item={expandedItem} 
+        onClose={handleCloseExpanded}
+      />
     );
   }
 
-  const renderIcon = (source: string) => {
-    // Map source to icon name in Icons component
-    const iconMap: { [key: string]: keyof typeof Icons } = {
-      gmail: "gmail",
-      linear: "linear",
-      github: "gitHub",
-      calendar: "calendar",
-      twitter: "twitter",
-    };
-
-    const iconName = iconMap[source.toLowerCase()];
-    if (!iconName) return null;
-
-    const Icon = Icons[iconName];
-    return <Icon className="h-3 w-3 ml-2 inline-block text-gray-500" />;
-  };
-
   return (
-    <SortableContext
-      items={sortedItems.map((item) => item._id)}
-      strategy={verticalListSortingStrategy}
-    >
-      <div className="space-y-0.5">
+    <div className="w-full">
+      <SortableContext items={sortedItems.map(item => item._id)} strategy={verticalListSortingStrategy}>
         {sortedItems.map((item, index) => (
           <SortableItem
             key={item._id}
@@ -76,7 +74,7 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
             index={index}
             onDragStateChange={onDragStateChange}
           >
-            <div className="flex items-center w-full py-2 px-1 rounded-md hover:bg-gray-50 transition-colors group">
+            <div className="flex items-center justify-between w-full group py-1 pl-2 relative">
               <div className="flex items-center gap-2 w-full">
                 <div
                   className="flex items-center justify-center"
@@ -100,19 +98,33 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                     }}
                   />
                 </div>
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <div
-                      className={cn(
-                        "text-sm cursor-pointer select-none",
-                        item.isCompleted
-                          ? "text-gray-400 line-through"
-                          : "text-gray-700",
-                      )}
-                    >
-                      {item.title}
-                    </div>
-                  </SheetTrigger>
+                <div className="flex items-center gap-2 flex-1">
+                  <div 
+                    onClick={() => handleItemClick(item)}
+                    className={cn(
+                      "text-sm cursor-pointer select-none",
+                      item.isCompleted
+                        ? "text-gray-400 line-through"
+                        : "text-gray-700",
+                    )}
+                  >
+                    {item.title}
+                  </div>
+                  
+                  {/* Floating calendar icon - UI only */}
+                  <button
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // TODO: Add date picker functionality
+                    }}
+                  >
+                    <Calendar className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {/* Source icon */}
                   <span onClick={(e) => e.stopPropagation()}>
                     {item.source ? (
                       <a href={item.metadata?.url} target="_blank">
@@ -122,14 +134,13 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                       <div></div>
                     )}
                   </span>
-                  <ExpandedView item={item} />
-                </Sheet>
+                </div>
               </div>
             </div>
             <Separator className="last:hidden opacity-20 my-0" />
           </SortableItem>
         ))}
-      </div>
-    </SortableContext>
+      </SortableContext>
+    </div>
   );
 }

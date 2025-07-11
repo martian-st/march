@@ -31,7 +31,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 function HeaderWithToggle() {
   return (
-    <div className="h-12 bg-white flex items-center px-3">
+    <div className="h-14 bg-white flex items-center px-6">
       <SidebarTrigger />
     </div>
   );

@@ -23,6 +23,12 @@
     },
     "clean": {
       "cache": false
+    },
+    "ios:build": {
+      "outputs": ["build/**"]
+    },
+    "ios:dev": {
+      "cache": false
     }
   }
 }

@@ -1,0 +1,46 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: ['apps/ios/**']
+  pull_request:
+    branches: [ main ]
+    paths: ['apps/ios/**']
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Build iOS App
+      working-directory: apps/ios
+      run: |
+        xcodebuild -project March.xcodeproj \
+                   -scheme March \
+                   -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+                   build
+    
+    - name: Run Tests
+      working-directory: apps/ios
+      run: |
+        xcodebuild -project March.xcodeproj \
+                   -scheme March \
+                   -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+                   test
+    
+    - name: Archive Build
+      if: github.ref == 'refs/heads/main'
+      working-directory: apps/ios
+      run: |
+        xcodebuild -project March.xcodeproj \
+                   -scheme March \
+                   -archivePath ./build/March.xcarchive \
+                   archive 

@@ -46,14 +46,14 @@ const TitleTextarea = ({ title, setTitle }: TitleTextareaProps) => {
     <div className="w-full">
       <Textarea
         ref={textareaRef}
-        placeholder="Title"
+        placeholder="Untitled"
         value={title}
         onChange={(e) => {
           setTitle(e.target.value);
         }}
         onBlur={handleBlur}
         onFocus={handleFocus}
-        className="border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-hidden min-h-[20px] py-2 px-3 text-base leading-tight"
+        className="border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none overflow-hidden min-h-[40px] py-0 px-0 text-3xl font-bold text-gray-900 leading-tight bg-transparent placeholder:text-gray-400"
         rows={1}
       />
     </div>

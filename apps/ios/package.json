@@ -1,0 +1,35 @@
+{
+  "name": "@march/ios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "March iOS app - Native mobile companion for March productivity platform",
+  "scripts": {
+    "build": "xcodebuild -project March.xcodeproj -scheme March -destination 'platform=iOS Simulator,name=iPhone 15 Pro' build",
+    "build:release": "xcodebuild -project March.xcodeproj -scheme March -configuration Release build",
+    "archive": "xcodebuild -project March.xcodeproj -scheme March -archivePath ./build/March.xcarchive archive",
+    "testflight": "./scripts/build-testflight.sh",
+    "test": "xcodebuild -project March.xcodeproj -scheme March -destination 'platform=iOS Simulator,name=iPhone 15 Pro' test",
+    "clean": "xcodebuild -project March.xcodeproj clean",
+    "dev": "open March.xcodeproj",
+    "setup": "echo 'Setting up iOS development environment...' && mkdir -p build scripts"
+  },
+  "keywords": [
+    "ios",
+    "swift",
+    "swiftui",
+    "march",
+    "productivity",
+    "mobile",
+    "testflight"
+  ],
+  "author": "March Team",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {},
+  "ios": {
+    "platform": "iOS 17.0",
+    "language": "Swift 5.9",
+    "framework": "SwiftUI",
+    "deployment_target": "iOS 15.0"
+  }
+} 
