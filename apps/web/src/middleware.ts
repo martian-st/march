@@ -125,10 +125,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   return NextResponse.next();
 }
 
-// Matcher configuration
+// Matcher configuration - DISABLED FOR DEBUGGING
 export const config = {
   matcher: [
-    // Match all paths except static files, API routes, and auth routes
-    "/((?!api|auth|_next/static|_next/image|favicon.ico).*)",
+    // TEMPORARILY DISABLED - only match debug paths to test if middleware is causing 502s
+    "/middleware-debug-only-no-real-paths",
   ],
 };
