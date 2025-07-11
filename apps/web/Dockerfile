@@ -18,6 +18,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy all source files including TypeScript config
 COPY . .
 
+# Create public directory if it doesn't exist
+RUN mkdir -p public
+
 # Build the app
 RUN bun run build
 
@@ -32,6 +35,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy public folder (now guaranteed to exist)
 COPY --from=builder /app/public ./public
 
 # Set the correct permission for prerender cache
