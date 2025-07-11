@@ -1,0 +1,45 @@
+# Railway Dockerfile for Backend - use this for Railway deployment
+# This should be used from the ROOT directory of the monorepo
+
+FROM oven/bun:1 as builder
+
+WORKDIR /app
+
+# Copy root package.json and lockfile for monorepo setup
+COPY package.json .
+COPY bun.lockb .
+COPY bunfig.toml .
+
+# Copy backend package.json
+COPY apps/backend/package.json ./apps/backend/
+
+# Install all dependencies (this handles the monorepo workspace)
+RUN bun install --frozen-lockfile
+
+# Copy backend source code
+COPY apps/backend/src ./apps/backend/src
+COPY apps/backend/index.js ./apps/backend/
+
+# Production stage
+FROM oven/bun:1-slim
+
+WORKDIR /app
+
+# Copy node_modules and backend files from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/backend/package.json .
+COPY --from=builder /app/apps/backend/src ./src
+COPY --from=builder /app/apps/backend/index.js .
+
+# Set production environment
+ENV NODE_ENV=production
+
+# Expose the port the app runs on
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:8080/ || exit 1
+
+# Start the application
+CMD ["bun", "run", "start"] 
