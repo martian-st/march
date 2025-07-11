@@ -1,50 +1,39 @@
-# Frontend Dockerfile for Next.js
-FROM oven/bun:1 AS base
+# Simple Next.js Dockerfile for Railway
+FROM node:18-alpine AS base
 
-# Install dependencies only when needed
+# Install dependencies
 FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
-
-# Copy package files
 COPY package.json ./
-# Install all dependencies (including dev dependencies needed for build)
-RUN bun install
+RUN npm ci
 
-# Rebuild the source code only when needed
+# Build the app
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-
-# Copy all source files including TypeScript config
 COPY . .
-
-# Create public directory if it doesn't exist
 RUN mkdir -p public
+RUN npm run build
 
-# Build the app
-RUN bun run build
-
-# Production image, copy all the files and run next
+# Production image
 FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Disable telemetry during runtime
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy public folder (now guaranteed to exist)
 COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
 RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
-# Automatically leverage output traces to reduce image size
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Use regular Next.js start instead of standalone
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
 USER nextjs
 
@@ -53,6 +42,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Health check will be handled by Railway
-
-CMD ["node", "server.js"] 
+# Use npm start instead of server.js
+CMD ["npm", "start"] 
