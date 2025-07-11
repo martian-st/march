@@ -16,6 +16,7 @@ COPY bunfig.toml .
 COPY apps/web/package.json ./apps/web/
 
 # Install all dependencies (this handles the monorepo workspace)
+# Use root bun.lockb since that's what this project uses
 RUN bun install
 
 # Rebuild the source code only when needed
