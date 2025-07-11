@@ -82,7 +82,6 @@ export function MyRuntimeProvider({
   
   // If no session, render children without AI runtime
   if (!session) {
-    console.warn("No session available - AI features will be disabled");
     return <>{children}</>;
   }
   

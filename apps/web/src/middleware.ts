@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import {
-  ACCESS_TOKEN,
-  BACKEND_URL,
-  PUBLIC_PATHS,
-  REDIRECT_PATHS,
-} from "./lib/constants";
-import { TokenVerificationResponse } from "./types/auth";
 
-// Cache for token verification results
+import { ACCESS_TOKEN, BACKEND_URL, PUBLIC_PATHS } from "@/lib/constants";
+
+interface TokenVerificationResponse {
+  isValidUser: boolean;
+}
+
 interface TokenCache {
   [token: string]: {
     valid: boolean;
@@ -80,55 +78,43 @@ async function verifyToken(token: string): Promise<boolean> {
   }
 }
 
-// Route protection helpers
-function isPublicPath(path: string): boolean {
-  return PUBLIC_PATH_ARRAY.includes(path as (typeof PUBLIC_PATH_ARRAY)[number]);
-}
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-function createRedirectResponse(
-  request: NextRequest,
-  redirectPath: string
-): NextResponse {
-  return NextResponse.redirect(new URL(redirectPath, request.url));
-}
-
-// Middleware handler
-export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const token = request.cookies.get(ACCESS_TOKEN)?.value;
-  const path = request.nextUrl.pathname;
-
-  // Handle public paths
-  if (isPublicPath(path)) {
-    if (token) {
-      const isValidToken = await verifyToken(token);
-
-      if (isValidToken && path === PUBLIC_PATHS.HOME) {
-        return createRedirectResponse(
-          request,
-          REDIRECT_PATHS.AUTHENTICATED_HOME
-        );
-      }
-    }
+  // Allow public paths without authentication
+  if (PUBLIC_PATH_ARRAY.includes(pathname as any)) {
     return NextResponse.next();
   }
 
-  // Handle protected paths
+  // Get the token from cookies
+  const token = request.cookies.get(ACCESS_TOKEN)?.value;
+
   if (!token) {
-    return createRedirectResponse(request, REDIRECT_PATHS.UNAUTHENTICATED_HOME);
+    // No token, redirect to signin
+    return NextResponse.redirect(new URL("/signin", request.url));
   }
 
-  const isValidToken = await verifyToken(token);
-  if (!isValidToken) {
-    return createRedirectResponse(request, REDIRECT_PATHS.UNAUTHENTICATED_HOME);
+  // Verify the token
+  const isValid = await verifyToken(token);
+
+  if (!isValid) {
+    // Invalid token, redirect to signin
+    return NextResponse.redirect(new URL("/signin", request.url));
   }
 
+  // Token is valid, allow the request to proceed
   return NextResponse.next();
 }
 
-// Matcher configuration - DISABLED FOR DEBUGGING
 export const config = {
   matcher: [
-    // TEMPORARILY DISABLED - only match debug paths to test if middleware is causing 502s
-    "/middleware-debug-only-no-real-paths",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };
