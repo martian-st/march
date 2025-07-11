@@ -37,13 +37,20 @@ async function verifyToken(token: string): Promise<boolean> {
   
   // If not in cache or expired, verify with backend
   try {
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     const response = await fetch(`${BACKEND_URL}/auth/user-verification/`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -64,6 +71,11 @@ async function verifyToken(token: string): Promise<boolean> {
       "Token verification failed:",
       error instanceof Error ? error.message : "Unknown error"
     );
+    // Cache the failure to avoid repeated calls
+    tokenVerificationCache[token] = {
+      valid: false,
+      timestamp: now
+    };
     return false;
   }
 }

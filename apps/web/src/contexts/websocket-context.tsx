@@ -38,6 +38,13 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
       try {
         const session = await getSession();
+        
+        // Don't try to connect if no session or backend URL is not available
+        if (!session || !WEBSOCKET_URL || WEBSOCKET_URL.includes('localhost')) {
+          console.log('Skipping WebSocket connection - no session or backend not available');
+          return;
+        }
+        
         socketInstance = new WebSocket(WEBSOCKET_URL, session);
 
         socketInstance.onopen = () => {
