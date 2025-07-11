@@ -1,13 +1,13 @@
 import { MyRuntimeProvider } from "@/components/provider/my-runtime-provider";
 import { AuthProvider } from "@/contexts/auth-context";
 import QueryProvider from "@/components/provider/query-client-provider";
-import { GoogleOAuthProvider } from "@react-oauth/google";
+// import { GoogleOAuthProvider } from "@react-oauth/google";
 import { ErrorBoundary } from "@/components/error/error-boundary";
 import React from "react";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  // Get Google Client ID and handle missing environment variable
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  // Google OAuth provider temporarily disabled
+  // const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   
   // Simple error fallback without event handlers for SSR compatibility
   const errorFallback = (
@@ -26,28 +26,28 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     </div>
   );
   
-  // If Google Client ID is missing, still render children but without Google OAuth
-  if (!googleClientId) {
-    return (
-      <ErrorBoundary fallback={errorFallback}>
-        <AuthProvider>
-          <MyRuntimeProvider>
-            <QueryProvider>{children}</QueryProvider>
-          </MyRuntimeProvider>
-        </AuthProvider>
-      </ErrorBoundary>
-    );
+  // Google OAuth provider temporarily disabled
+  /*
+  // Always render with GoogleOAuthProvider, even if clientId is empty string
+  // This ensures components that use Google OAuth hooks won't break
+  const clientId = googleClientId || "";
+  
+  // Log warning in development if Google Client ID is missing
+  if (!googleClientId && process.env.NODE_ENV === "development") {
+    console.warn("NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set. Google OAuth functionality will not work properly.");
   }
+  */
 
   return (
     <ErrorBoundary fallback={errorFallback}>
-      <GoogleOAuthProvider clientId={googleClientId}>
+      {/* GoogleOAuthProvider temporarily disabled */}
+      {/* <GoogleOAuthProvider clientId={clientId}> */}
         <AuthProvider>
           <MyRuntimeProvider>
             <QueryProvider>{children}</QueryProvider>
           </MyRuntimeProvider>
         </AuthProvider>
-      </GoogleOAuthProvider>
+      {/* </GoogleOAuthProvider> */}
     </ErrorBoundary>
   );
 }
