@@ -20,21 +20,31 @@ export function AuthProvider({
 }): JSX.Element {
   const [session, setSession] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     async function loadSessionFromCookie(): Promise<void> {
       try {
         setLoading(true);
+        setError(null);
         const session = await getSession();
-        setSession(session);
+        setSession(session || "");
       } catch (error) {
         console.error("Failed to load session", error);
+        setError("Failed to load session");
+        setSession(""); // Ensure session is empty on error
       } finally {
         setLoading(false);
       }
     }
-    void loadSessionFromCookie();
+    
+    // Add a small delay to prevent hydration issues
+    const timeoutId = setTimeout(() => {
+      void loadSessionFromCookie();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   /**
@@ -46,14 +56,26 @@ export function AuthProvider({
       router.push("/signin");
     } catch (error) {
       console.error("Logout error", error);
-      // toast.error("Logout error")
+      // Fallback: manually clear session and redirect
+      setSession("");
+      router.push("/signin");
     }
   };
 
   const value = { session, loading, signOut };
 
   if (loading) {
-    return <>...loading</>;
+    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: 'red' }}>
+        {error}
+        <br />
+        <button onClick={() => window.location.reload()}>Retry</button>
+      </div>
+    );
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
