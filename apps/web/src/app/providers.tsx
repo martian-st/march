@@ -9,8 +9,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   // Get Google Client ID and handle missing environment variable
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   
-  console.log("Providers: Google Client ID available:", !!googleClientId);
-  
   // Simple error fallback without event handlers for SSR compatibility
   const errorFallback = (
     <div style={{ 
@@ -30,7 +28,6 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   
   // If Google Client ID is missing, still render children but without Google OAuth
   if (!googleClientId) {
-    console.warn("NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set - Google OAuth will be disabled");
     return (
       <ErrorBoundary fallback={errorFallback}>
         <AuthProvider>
