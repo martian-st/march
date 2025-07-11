@@ -31,6 +31,9 @@ COPY apps/web ./apps/web
 # Change to web directory for build
 WORKDIR /app/apps/web
 
+# Create public directory if it doesn't exist
+RUN mkdir -p public
+
 # Build the app
 RUN bun run build
 
