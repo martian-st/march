@@ -12,6 +12,8 @@ const useGitHubLogin = () => {
       setError(null);
 
       const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+
+      console.log("github: ",GITHUB_CLIENT_ID);
       const GITHUB_SCOPE = "user:email";
 
       if (!GITHUB_CLIENT_ID) {
