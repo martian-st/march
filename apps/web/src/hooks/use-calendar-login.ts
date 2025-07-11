@@ -1,38 +1,49 @@
-import { useCallback } from "react"
+"use client"
+
+import { useCallback, useState } from "react"
 import { useRouter } from "next/navigation"
 import { FRONTEND_URL } from "@/lib/constants"
 import { apiClient } from "@/lib/api"
+import { useGoogleLogin } from "@react-oauth/google"
 
 const useGoogleCalendar = (
   redirectAfterAuth: string,
   redirectAfterRevoke: string = redirectAfterAuth 
 ): {
   handleCalendarLogin: () => Promise<void>,
-  handleRevokeAccess: () => Promise<void>
+  handleRevokeAccess: () => Promise<void>,
+  isLoading: boolean,
+  error: string | null
 } => {
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  const googleCalendarLogin = useGoogleLogin({
+    onError: (error) => {
+      console.error("Google Calendar login failed:", error)
+      setError("Failed to authenticate with Google Calendar")
+      setIsLoading(false)
+    },
+    flow: "auth-code",
+    ux_mode: "redirect",
+    redirect_uri: `${FRONTEND_URL}/api/auth/google-calendar`,
+    scope: "https://www.googleapis.com/auth/calendar",
+    state: JSON.stringify({ redirect: redirectAfterAuth }),
+  })
   
   const handleCalendarLogin = useCallback(async () => {
     try {
-      const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-      const GOOGLE_SCOPE = "https://www.googleapis.com/auth/calendar"
-      const GOOGLE_REDIRECT_URI = `${FRONTEND_URL}/api/auth/google-calendar`
-      
-      if (!GOOGLE_CLIENT_ID || !GOOGLE_REDIRECT_URI) {
-        throw new Error("Google Client ID or Redirect URI is not set")
-      }
-      
-      const state = encodeURIComponent(
-        JSON.stringify({ redirect: redirectAfterAuth })
-      )
-      
-      const calAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${GOOGLE_REDIRECT_URI}&response_type=code&scope=${GOOGLE_SCOPE}&access_type=offline&state=${state}`
-      
-      router.push(calAuthUrl)
+      setIsLoading(true)
+      setError(null)
+      await googleCalendarLogin()
     } catch (error) {
       console.error("Failed to initiate Google Calendar login:", error)
+      setError((error as Error).message || "An unexpected error occurred")
+    } finally {
+      setIsLoading(false)
     }
-  }, [router, redirectAfterAuth])
+  }, [googleCalendarLogin])
   
   const handleRevokeAccess = useCallback(async () => {
     try {
@@ -48,7 +59,7 @@ const useGoogleCalendar = (
     }
   }, [router, redirectAfterRevoke])
   
-  return { handleCalendarLogin, handleRevokeAccess }
+  return { handleCalendarLogin, handleRevokeAccess, isLoading, error }
 }
 
 export default useGoogleCalendar
