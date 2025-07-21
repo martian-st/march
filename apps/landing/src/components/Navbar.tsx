@@ -60,10 +60,19 @@ export default function Navbar() {
           {/* Logo */}
           <Link 
             href="/" 
-            className="text-xl font-bold text-gray-900"
-            style={logoFont}
+            className="flex items-center h-12"
           >
+            <img 
+              src="/logo.png" 
+              alt="March Logo" 
+              className="h-10 w-auto"
+            />
+            {/* <span className="ml-2 text-xl font-bold text-gray-900" style={logoFont}>
+              March
+            </span> */}
+          <span className="ml-2 mt-2 text-xl text-gray-800 font-medium" style={logoFont}>
             March
+          </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -113,33 +122,31 @@ export default function Navbar() {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-white border-t border-gray-100 shadow-lg px-4 py-3">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3">
             <div className="flex flex-col space-y-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`px-4 py-2.5 text-sm font-medium rounded ${
-                    link.name === 'GitHub' 
-                      ? 'bg-gray-100 text-gray-900 font-semibold' 
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  target={link.external ? "_blank" : "_self"}
+                  rel={link.external ? "noopener noreferrer" : ""}
+                  className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                   onClick={() => setIsOpen(false)}
                 >
-                  {link.name}
+                  {link.icon || link.name}
                 </Link>
               ))}
-              <div className="pt-2 mt-1 border-t border-gray-100">
+              <div className="pt-2 mt-1 border-t border-gray-200">
                 <Link
                   href="/login"
-                  className="block w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded"
+                  className="block w-full text-left px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-100 rounded-md"
                   onClick={() => setIsOpen(false)}
                 >
                   Log in
                 </Link>
                 <Link
                   href="/signup"
-                  className="block w-full text-left px-4 py-2.5 mt-1 bg-gray-800 text-white text-sm font-medium rounded hover:bg-gray-900"
+                  className="block w-full text-left px-4 py-3 mt-2 bg-gray-800 text-white text-base font-medium rounded-md hover:bg-gray-900"
                   onClick={() => setIsOpen(false)}
                 >
                   Sign up
