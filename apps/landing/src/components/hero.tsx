@@ -41,7 +41,7 @@ export default function Hero() {
           variants={itemVariants}
         >
           Build Better Products,
-          <span className="block text-blue-600 mt-2">Faster with March</span>
+          <span className="block text-gray-600 mt-2">Faster with March</span>
         </motion.h1>
         
         <motion.p 
@@ -56,7 +56,7 @@ export default function Hero() {
           variants={itemVariants}
         >
           <Button 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+            className="bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
             size="lg"
           >
             Get Started for Free
@@ -74,7 +74,7 @@ export default function Hero() {
           className="mt-16 rounded-xl overflow-hidden shadow-2xl border border-gray-100"
           variants={itemVariants}
         >
-          <div className="aspect-video bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+          <div className="aspect-video bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
             <div className="text-center p-8">
               <div className="text-2xl font-medium text-gray-700 mb-2">Dashboard Preview</div>
               <div className="text-gray-500">Beautiful, intuitive interface that works for everyone</div>
