@@ -13,7 +13,7 @@ import { useUpdateObject } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { format, isToday as isDateToday, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 
@@ -28,11 +28,20 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState<string | null>(null);
 
-  // Generate days for the current month view
+  // Generate days for the current month view with proper grid alignment
   const daysInMonth = useMemo(() => {
     const start = startOfMonth(currentMonth);
     const end = endOfMonth(currentMonth);
-    return eachDayOfInterval({ start, end });
+    const startDay = start.getDay(); // 0 (Sunday) to 6 (Saturday)
+    
+    // Add empty cells for days before the 1st of the month
+    const days = Array(startDay).fill(null);
+    
+    // Add all days of the month
+    const monthDays = eachDayOfInterval({ start, end });
+    days.push(...monthDays);
+    
+    return days;
   }, [currentMonth]);
 
   // Handle date selection
@@ -142,35 +151,36 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                   >
                     <Popover.Trigger asChild>
                       <button
-                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
                         onClick={(e) => {
                           e.stopPropagation();
                           setCurrentMonth(item.dueDate ? new Date(item.dueDate) : new Date());
                         }}
                       >
-                        <CalendarIcon className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+                        <CalendarIcon className="h-3.5 w-3.5" />
                       </button>
                     </Popover.Trigger>
                     <Popover.Portal>
                       <Popover.Content 
-                        className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-[280px] z-50"
-                        sideOffset={8}
+                        className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-[252px] z-50"
+                        sideOffset={4}
                         align="start"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="w-full">
-                          <div className="flex justify-between items-center mb-4 px-1">
+                          {/* Header with month and navigation */}
+                          <div className="flex items-center justify-between mb-4">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 prevMonth();
                               }}
-                              className="p-1 rounded-full hover:bg-gray-100"
+                              className="p-1 text-gray-500 hover:bg-gray-100 rounded"
                             >
                               <ChevronLeft className="h-4 w-4" />
                             </button>
                             
-                            <div className="text-sm font-medium">
+                            <div className="text-sm font-medium text-gray-800">
                               {format(currentMonth, 'MMMM yyyy')}
                             </div>
                             
@@ -179,46 +189,64 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                                 e.stopPropagation();
                                 nextMonth();
                               }}
-                              className="p-1 rounded-full hover:bg-gray-100"
+                              className="p-1 text-gray-500 hover:bg-gray-100 rounded"
                             >
                               <ChevronRight className="h-4 w-4" />
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-1">
+                          {/* Day headers */}
+                          <div className="grid grid-cols-7 gap-0.5 text-center text-xs text-gray-500 mb-2">
                             {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                              <div key={i} className="h-6 flex items-center justify-center">
+                              <div key={i} className="h-6 w-6 flex items-center justify-center mx-auto text-xs font-normal">
                                 {day}
                               </div>
                             ))}
                           </div>
 
-                          <div className="grid grid-cols-7 gap-1">
-                            {daysInMonth.map((date: Date, index: number) => {
+                          {/* Calendar grid */}
+                          <div className="grid grid-cols-7 gap-0.5">
+                            {daysInMonth.map((date, index) => {
+                              if (!date) {
+                                return <div key={`empty-${index}`} className="h-7 w-7" />;
+                              }
+                              
                               const isSelected = item.dueDate && isSameDay(date, new Date(item.dueDate));
                               const isToday = isDateToday(date);
+                              const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                               
                               return (
-                                <button
-                                  key={index}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDateSelect(date, item._id);
-                                  }}
-                                  className={`
-                                    h-8 w-8 flex items-center justify-center text-sm rounded-full relative
-                                    ${isToday ? 'font-medium text-blue-600' : 'text-gray-900'}
-                                    ${
-                                      isSelected
-                                        ? 'bg-blue-100 text-blue-700'
-                                        : 'hover:bg-gray-100'
-                                    }
-                                  `}
-                                >
-                                  {format(date, 'd')}
-                                </button>
+                                <div key={index} className="relative">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDateSelect(date, item._id);
+                                    }}
+                                    className={`
+                                      h-7 w-7 flex items-center justify-center text-[13px] rounded mx-auto
+                                      transition-colors duration-150
+                                      ${!isCurrentMonth ? 'text-gray-300' : ''}
+                                      ${isToday ? 'font-medium text-blue-500' : 'text-gray-700'}
+                                      ${
+                                        isSelected
+                                          ? 'bg-blue-500 text-white'
+                                          : 'hover:bg-gray-100'
+                                      }
+                                    `}
+                                  >
+                                    {format(date, 'd')}
+                                  </button>
+                                </div>
                               );
                             })}
+                          </div>
+                          
+                          {/* Time picker */}
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="flex items-center text-xs text-gray-600">
+                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                              <span>No time</span>
+                            </div>
                           </div>
                         </div>
                       </Popover.Content>
