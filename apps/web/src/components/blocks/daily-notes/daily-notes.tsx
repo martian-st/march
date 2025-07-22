@@ -165,8 +165,8 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
     setCurrentDate(new Date());
   };
   
-  // Fetch dates with journal entries
-  const fetchDatesWithEntries = async () => {
+  // Fetch dates with journal entries - memoized to prevent unnecessary re-renders
+  const fetchDatesWithEntries = useCallback(async () => {
     try {
       // Get the current month and year for filtering
       const year = currentDate.getFullYear();
@@ -185,7 +185,7 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
         console.log("API endpoint for journal dates not available, using localStorage");
       }
       
-      // Fallback to checking localStorage
+      // Fallback to checking localStorage - this is synchronous and fast
       const dates = [];
       // Get all localStorage keys
       for (let i = 0; i < localStorage.length; i++) {
@@ -208,14 +208,12 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
         }
       }
       
-      console.log("Found dates with entries:", dates);
       setDatesWithEntries(dates);
     } catch (error) {
       console.error('Error fetching dates with entries:', error);
-      // Fallback to empty array if both API and localStorage checks fail
       setDatesWithEntries([]);
     }
-  };
+  }, [currentDate]); // Only recreate when currentDate changes
 
   // Load content from API or localStorage
   const loadContent = async () => {
@@ -312,28 +310,34 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
     }
   }, []);
 
+  // Track the previous date key to detect changes
+  const prevDateKey = useRef<string>('');
+
   // Update derived values when currentDate changes
   useEffect(() => {
-    dateKey.current = format(currentDate, "yyyy-MM-dd");
+    const newDateKey = format(currentDate, "yyyy-MM-dd");
+    dateKey.current = newDateKey;
     formattedDate.current = format(currentDate, "EEEE, MMMM d");
     
     // Check if the current date is today
     setIsToday(isDateToday(currentDate));
     
-    // Reset content and loading state
-    setContent(null);
-    setIsLoaded(false);
-    
-    // Load content for the new date
-    loadContent();
-    
-    // If calendar is open, refresh the dates with entries
+    // Only reset content and loading state if the date actually changed
+    if (prevDateKey.current !== newDateKey) {
+      setContent(null);
+      setIsLoaded(false);
+      loadContent();
+      prevDateKey.current = newDateKey;
+    }
+  }, [currentDate]);
+  
+  // Handle calendar open/close
+  useEffect(() => {
     if (isCalendarOpen) {
+      // Only fetch dates when the calendar is opened
       fetchDatesWithEntries();
     }
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDate, isCalendarOpen]);
+  }, [isCalendarOpen, fetchDatesWithEntries]);
   
   // Initial setup and cleanup
   useEffect(() => {
@@ -368,10 +372,24 @@ export function DailyNotes({ date: initialDate = new Date() }: DailyNotesProps) 
           }}>
           <Popover.Trigger asChild>
             <button 
-              className="flex items-center text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 px-2 py-1 rounded-md transition-colors"
+              className="flex items-center gap-1 text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 px-2 py-1 rounded-md transition-colors group"
               aria-label="Select date"
             >
               <span>{formattedDate.current}</span>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className="text-gray-400 group-hover:text-gray-600 transition-colors"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </button>
           </Popover.Trigger>
           <Popover.Portal>

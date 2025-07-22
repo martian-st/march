@@ -1,5 +1,5 @@
 "use client";
-import { Calendar, Inbox, Database, Plus } from "lucide-react";
+import { Calendar, Inbox, Database } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -117,7 +117,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           
-          <div className="px-3 py-1">
+          {/* <div className="px-3 py-1">
             <button className={cn(
               "flex items-center w-full text-sm py-2 px-3 rounded-lg transition-colors duration-200",
               isCollapsed ? "justify-center w-full" : "gap-3",
@@ -128,7 +128,7 @@ export function AppSidebar() {
               </div>
               {!isCollapsed && <span className="text-sm font-medium">New space</span>}
             </button>
-          </div>
+          </div> */}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-3">
