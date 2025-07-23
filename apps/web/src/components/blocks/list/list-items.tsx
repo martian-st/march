@@ -48,7 +48,7 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
   const handleDateSelect = (date: Date, itemId: string) => {
     updateObject({
       _id: itemId,
-      dueDate: date.toISOString()
+      dueDate: date
     } as Partial<Objects>);
     setIsCalendarOpen(null);
   };
@@ -168,6 +168,45 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="w-full">
+                          {/* Quick action buttons */}
+                          <div className="flex flex-col gap-1.5 mb-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const today = new Date();
+                                handleDateSelect(today, item._id);
+                              }}
+                              className="flex items-center gap-2 text-sm px-2.5 py-1.5 text-left rounded hover:bg-gray-50 transition-colors w-full"
+                            >
+                              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium">Today</div>
+                                <div className="text-xs text-gray-500">{format(new Date(), 'EEE, MMM d')}</div>
+                              </div>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const tomorrow = new Date();
+                                tomorrow.setDate(tomorrow.getDate() + 1);
+                                handleDateSelect(tomorrow, item._id);
+                              }}
+                              className="flex items-center gap-2 text-sm px-2.5 py-1.5 text-left rounded hover:bg-gray-50 transition-colors w-full"
+                            >
+                              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium">Tomorrow</div>
+                                <div className="text-xs text-gray-500">
+                                  {format(new Date(new Date().setDate(new Date().getDate() + 1)), 'EEE, MMM d')}
+                                </div>
+                              </div>
+                            </button>
+                          </div>
+                          
                           {/* Header with month and navigation */}
                           <div className="flex items-center justify-between mb-4">
                             <button 

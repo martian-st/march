@@ -32,7 +32,8 @@ import {
     getObjectsByTypeAndSourceController,
     searchObjectsByTitleController,
     filterObjectsController,
-    getObjectsBySourceController
+    getObjectsBySourceController,
+    getUserUpcomingObjectsController
 } from "../../controllers/lib/object.controller.js";
 // Utility imports
 import { uploadFileController } from "../../controllers/lib/fileAsset.controller.js";
@@ -70,6 +71,7 @@ router.route("/overdue/").get(getUserOverdueObjectsController);
 router.route("/favorite/").get(getUserFavoriteObjectsController);
 router.route("/setDate/").post(moveObjecttoDateController);
 router.route("/items/").get(getObjectsByTypeAndSourceController);
+router.route("/upcoming/").get(getUserUpcomingObjectsController);
 
 /* Journal Routes
 -------------------------------------------------- */
