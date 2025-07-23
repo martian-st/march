@@ -9,6 +9,7 @@ import {
   useInboxObjects,
   useOrderObject,
   useTodayObjects,
+  useUpcomingObjects,
 } from "@/hooks/use-objects";
 import { useEvents } from "@/hooks/use-events";
 import moment from "moment";
@@ -31,12 +32,14 @@ const BlockContext = createContext<BlockContextType | undefined>(undefined);
 interface BlockProviderProps {
   children: ReactNode;
   arrayType: "inbox" | "today";
+  activeFilter?: string;
 }
 
-export function BlockProvider({ children, arrayType }: BlockProviderProps) {
-  // Based on the arrayType, use the appropriate hook
-  const inboxQuery = arrayType === "inbox" ? useInboxObjects() : { data: [], isLoading: false, error: null };
+export function BlockProvider({ children, arrayType, activeFilter = "unplanned" }: BlockProviderProps) {
+  // Based on the arrayType and activeFilter, use the appropriate hook
+  const inboxQuery = arrayType === "inbox" && activeFilter !== "upcoming" ? useInboxObjects() : { data: [], isLoading: false, error: null };
   const todayQuery = arrayType === "today" ? useTodayObjects() : { data: undefined, isLoading: false, error: null };
+  const upcomingQuery = activeFilter === "upcoming" ? useUpcomingObjects() : { data: [], isLoading: false, error: null };
   
   const { mutate: updateOrder } = useOrderObject();
   const queryClient = useQueryClient();
@@ -48,10 +51,17 @@ export function BlockProvider({ children, arrayType }: BlockProviderProps) {
   let error: any = null;
   
   if (arrayType === "inbox") {
-    // For inbox, we just get a plain array of objects
-    items = Array.isArray(inboxQuery.data) ? inboxQuery.data : [];
-    isLoading = inboxQuery.isLoading;
-    error = inboxQuery.error;
+    if (activeFilter === "upcoming") {
+      // For upcoming filter, use the upcoming objects
+      items = Array.isArray(upcomingQuery.data) ? upcomingQuery.data : [];
+      isLoading = upcomingQuery.isLoading;
+      error = upcomingQuery.error;
+    } else {
+      // For inbox with other filters, we just get a plain array of objects
+      items = Array.isArray(inboxQuery.data) ? inboxQuery.data : [];
+      isLoading = inboxQuery.isLoading;
+      error = inboxQuery.error;
+    }
   } else {
     // For today, we get an object with todayObjects and overdueObjects
     const todayData = todayQuery.data as { todayObjects: Objects[], overdueObjects: Objects[] } | undefined;

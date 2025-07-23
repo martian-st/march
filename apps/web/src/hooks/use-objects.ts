@@ -3,15 +3,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createObject, deleteObject, getInboxObjects, getTodayObjects, orderObject, updateObject } from "@/actions/objects";
+import { createObject, deleteObject, getInboxObjects, getTodayObjects, getUpcomingObjects, orderObject, updateObject } from "@/actions/objects";
 import { CreateObject, Objects, OrderObject } from "@/types/objects";
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
+// import { CheckCircle2 } from "lucide-react";
 
 // Query keys as constants to avoid typos and make refactoring easier
 export const QUERY_KEYS = {
   INBOX: ["inbox-objects"],
-  TODAY: ["today-objects"]
+  TODAY: ["today-objects"],
+  UPCOMING: ["upcoming-objects"]
 };
 
 // Common queries
@@ -19,6 +20,13 @@ export function useInboxObjects() {
   return useQuery({
     queryKey: QUERY_KEYS.INBOX,
     queryFn: getInboxObjects,
+  });
+}
+
+export function useUpcomingObjects() {
+  return useQuery({
+    queryKey: QUERY_KEYS.UPCOMING,
+    queryFn: getUpcomingObjects,
   });
 }
 
