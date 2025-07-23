@@ -181,7 +181,7 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                               <div className="flex items-center gap-2">
                                 <div className="relative flex items-center justify-center w-5 h-5">
                                   <div className="absolute inset-0 border border-gray-300 rounded-sm flex flex-col items-center justify-start pt-0.5">
-                                    <div className="w-full h-1 bg-blue-100 mb-0.5"></div>
+                                    <div className="w-full h-0.5 bg-gray-200 mb-0.5"></div>
                                     <span className="text-[11px] font-medium text-gray-700 leading-none">
                                       {new Date().getDate()}
                                     </span>
