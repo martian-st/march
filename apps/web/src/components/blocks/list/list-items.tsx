@@ -13,7 +13,7 @@ import { useUpdateObject } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Sun } from "lucide-react";
 import * as Popover from "@radix-ui/react-popover";
 import { format, isToday as isDateToday, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 
@@ -179,10 +179,15 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                               className="flex items-center justify-between text-sm px-3 py-2 rounded hover:bg-gray-50 transition-colors w-full"
                             >
                               <div className="flex items-center gap-2">
-                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
-                                  <CalendarIcon className="h-3.5 w-3.5" />
+                                <div className="relative flex items-center justify-center w-5 h-5">
+                                  <div className="absolute inset-0 border border-gray-300 rounded-sm flex flex-col items-center justify-start pt-0.5">
+                                    <div className="w-full h-1 bg-blue-100 mb-0.5"></div>
+                                    <span className="text-[11px] font-medium text-gray-700 leading-none">
+                                      {new Date().getDate()}
+                                    </span>
+                                  </div>
                                 </div>
-                                <span className="font-medium">Today</span>
+                                <span className="">Today</span>
                               </div>
                               <span className="text-sm text-gray-500">
                                 {format(new Date(), 'EEE')}
@@ -198,10 +203,10 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                               className="flex items-center justify-between text-sm px-3 py-2 rounded hover:bg-gray-50 transition-colors w-full"
                             >
                               <div className="flex items-center gap-2">
-                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600">
-                                  <CalendarIcon className="h-3.5 w-3.5" />
-                                </div>
-                                <span className="font-medium">Tomorrow</span>
+                                {/* <div className="flex items-center justify-center w-6 h-6  bg-gray-100 "> */}
+                                <Sun className="h-3.5 w-3.5" />
+                                {/* </div> */}
+                                <span className="">Tomorrow</span>
                               </div>
                               <span className="text-sm text-gray-500">
                                 {format(new Date(new Date().setDate(new Date().getDate() + 1)), 'EEE')}
