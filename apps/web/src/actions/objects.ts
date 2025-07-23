@@ -3,6 +3,10 @@
 import { apiClient } from "@/lib/api"
 import { CreateObject, DeleteResponse, Objects, ObjectsResponse, OrderObject, OrderResponse, TodayObjectResponse } from "@/types/objects"
 
+export interface UpcomingObjectResponse {
+  objects: Objects[]
+}
+
 export const getInboxObjects = async (): Promise<Objects[]> => {
   const data = await apiClient.get<ObjectsResponse>('/api/inbox')
   return data.response
@@ -34,4 +38,9 @@ export const deleteObject = async (object: Partial<Objects>) => {
 export const orderObject = async (object: OrderObject) => {
   const data = await apiClient.put<OrderResponse, OrderObject>('/api/reorder', object)
   return data.success
+}
+
+export const getUpcomingObjects = async (): Promise<Objects[]> => {
+  const data = await apiClient.get<UpcomingObjectResponse>('/api/upcoming')
+  return data.objects
 }

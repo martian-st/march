@@ -43,7 +43,7 @@ export default function AllObjects() {
           >
             <Suspense fallback={<InboxSkeleton />}>
               <Block id="objects" arrayType="inbox">
-                <ListBlock arrayType="inbox" />
+                <ListBlock arrayType="inbox" activeFilter={activeFilter} />
               </Block>
             </Suspense>
           </ErrorBoundary>

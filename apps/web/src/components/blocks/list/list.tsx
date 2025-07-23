@@ -10,9 +10,10 @@ import { useState } from "react";
 interface Props {
   header?: string;
   arrayType: "inbox" | "today";
+  activeFilter?: string;
 }
 
-export default function ListBlock({ arrayType }: Props) {
+export default function ListBlock({ arrayType, activeFilter = "unplanned" }: Props) {
   const { mutate: createObject } = useCreateObject();
   const [isDragging, setIsDragging] = useState(false);
 
@@ -22,7 +23,7 @@ export default function ListBlock({ arrayType }: Props) {
 
   return (
     <div className={`w-full mx-auto ${isDragging ? "overflow-hidden" : ""}`}>
-      <BlockProvider arrayType={arrayType}>
+      <BlockProvider arrayType={arrayType} activeFilter={activeFilter}>
         <section className="space-y-3 px-4 pt-2">
           <InputBox
             className="w-full"

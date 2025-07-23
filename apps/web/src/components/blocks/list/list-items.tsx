@@ -9,7 +9,7 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableItem } from "./sortable-item";
 import { useBlock } from "@/contexts/block-context";
-import { useUpdateObject } from "@/hooks/use-objects";
+import { useUpdateObject, useUpcomingObjects } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
@@ -61,11 +61,87 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
     return [...items].sort((a, b) => a.order - b.order);
   }, [items]);
 
-  const renderIcon = (source: string) => {
-    const IconComponent = Icons[source as keyof typeof Icons];
-    return IconComponent ? (
-      <IconComponent className="w-3 h-3 opacity-50" />
-    ) : null;
+  function renderIcon(source: string) {
+    switch (source) {
+      case "linear":
+        return <Icons.linear className="h-3.5 w-3.5" />;
+      case "github":
+        return <Icons.gitHub className="h-3.5 w-3.5" />;
+      case "gmail":
+        return <Icons.gmail className="h-3.5 w-3.5" />;
+      case "twitter":
+        return <Icons.twitter className="h-3.5 w-3.5" />;
+      default:
+        return null;
+    }
+  }
+
+  // Component to display upcoming tasks
+  function UpcomingTasksList({ currentItemId, onSelectDate }: { currentItemId: string; onSelectDate: (date: Date, itemId: string) => void }) {
+    const { data: upcomingObjects, isLoading } = useUpcomingObjects();
+    
+    // Filter out the current item and group by date
+    const groupedTasks = useMemo(() => {
+      if (!upcomingObjects) return new Map();
+      
+      const tasksByDate = new Map<string, Objects[]>();
+      
+      upcomingObjects
+        .filter(task => task._id !== currentItemId && task.dueDate) // Exclude current item and tasks without due date
+        .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()) // Sort by date
+        .forEach(task => {
+          const date = new Date(task.dueDate!);
+          const dateStr = format(date, 'yyyy-MM-dd');
+          
+          if (!tasksByDate.has(dateStr)) {
+            tasksByDate.set(dateStr, []);
+          }
+          tasksByDate.get(dateStr)?.push(task);
+        });
+      
+      return tasksByDate;
+    }, [upcomingObjects, currentItemId]);
+    
+    if (isLoading) {
+      return <div className="text-xs text-gray-400 py-2">Loading upcoming tasks...</div>;
+    }
+    
+    if (groupedTasks.size === 0) {
+      return <div className="text-xs text-gray-400 py-2">No upcoming tasks</div>;
+    }
+    
+    return (
+      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+        {Array.from(groupedTasks.entries()).map(([dateStr, tasks]) => {
+          const date = new Date(dateStr);
+          const isToday = isDateToday(date);
+          const isTomorrow = isDateToday(new Date(date.getTime() - 86400000)); // 24 hours in milliseconds
+          
+          return (
+            <div key={dateStr} className="mb-2">
+              <div className="text-xs font-medium text-gray-500 mb-1">
+                {isToday ? 'Today' : isTomorrow ? 'Tomorrow' : format(date, 'EEEE, MMM d')}
+              </div>
+              <div className="space-y-1">
+                {tasks.map(task => (
+                  <button
+                    key={task._id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectDate(date, currentItemId);
+                    }}
+                    className="w-full text-left text-xs p-1.5 rounded hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500 flex-shrink-0"></div>
+                    <span className="truncate">{task.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const handleItemClick = (item: Objects) => {
@@ -285,6 +361,12 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                                 </div>
                               );
                             })}
+                          </div>
+                          
+                          {/* Upcoming tasks section */}
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <h4 className="text-xs font-medium text-gray-500 mb-2">Upcoming</h4>
+                            <UpcomingTasksList currentItemId={item._id} onSelectDate={handleDateSelect} />
                           </div>
                           
                           {/* Time picker */}
