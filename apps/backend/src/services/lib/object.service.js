@@ -437,6 +437,17 @@ const getObjectsBySource = async (user, source) => {
     return objects;
 }
 
+export const getUserUpcomingObjects = async (user) => {
+    const objects = await Object.find({
+        user,
+        isArchived: false,
+        isDeleted: false,
+        isCompleted: false,
+        dueDate: { $gte: new Date() }
+    })
+    return objects;
+}
+
 export {
     getInboxObjects,
     getInboxObject,

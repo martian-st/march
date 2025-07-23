@@ -1,4 +1,4 @@
-import { createObject, createInboxObject, filterObjects, updateObject, getAllObjectsByBloack, getObject, getObjectFilterByLabel, searchObjectsByTitle, getThisWeekObjectsByDateRange, getUserFavoriteObjects, getSubObjects, getObjectsBySource, getObjectsByTypeAndSource } from "../../services/lib/object.service.js";
+import { createObject, createInboxObject, filterObjects, updateObject, getAllObjectsByBloack, getObject, getObjectFilterByLabel, searchObjectsByTitle, getThisWeekObjectsByDateRange, getUserFavoriteObjects, getSubObjects, getObjectsBySource, getObjectsByTypeAndSource, getUserUpcomingObjects } from "../../services/lib/object.service.js";
 import { linkPreviewGenerator } from "../../services/lib/linkPreview.service.js";
 import { saveContent } from "../../utils/helper.service.js";
 import { linearQueue } from "../../loaders/bullmq.loader.js";
@@ -304,6 +304,16 @@ export async function createObjectFromAI (content, user) {
     } catch (error) {
         console.error("Error creating object from AI:", error);
         throw error;
+    }
+}
+
+export const getUserUpcomingObjectsController = async (req, res, next) => {
+    try {
+        const user = req.user._id;
+        const objects = await getUserUpcomingObjects(user);
+        res.json({ objects });
+    } catch (error) {
+        next(error);
     }
 }
 
