@@ -328,15 +328,33 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                     onOpenChange={(open) => setIsCalendarOpen(open ? item._id : null)}
                   >
                     <Popover.Trigger asChild>
-                      <button
-                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCurrentMonth(item.dueDate ? new Date(item.dueDate) : new Date());
-                        }}
-                      >
-                        <CalendarIcon className="h-3.5 w-3.5" />
-                      </button>
+                      {item.dueDate ? (
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded flex items-center gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentMonth(new Date(item.dueDate!));
+                          }}
+                        >
+                          {/* Show date with appropriate color based on due status */}
+                          <span className={cn(
+                            "text-xs font-medium",
+                            new Date(item.dueDate) < new Date() ? "text-red-500" : "text-blue-500"
+                          )}>
+                            {format(new Date(item.dueDate), "MMM d")}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentMonth(new Date());
+                          }}
+                        >
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </Popover.Trigger>
                     <Popover.Portal>
                       <Popover.Content 
