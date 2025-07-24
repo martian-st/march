@@ -10,6 +10,7 @@ const getInboxObjects = async (me) => {
         // arrays: { $exists: true, $eq: [] },
         status: { $nin: ["archive", "done"] },
         dueDate: null,
+        recurrence: null,
         "cycle.startsAt": null,
         "cycle.endsAt": null
     }).sort({ order: -1 });
@@ -448,6 +449,18 @@ export const getUserUpcomingObjects = async (user) => {
     return objects;
 }
 
+export const getObjectsByRecurrence = async (user) => {
+    const query = {
+        user,
+        isArchived: false,
+        isDeleted: false,
+        recurrence: { $ne: null }
+    };
+    
+    const objects = await Object.find(query).sort({ dueDate: 1 });
+    return objects;
+}
+
 export {
     getInboxObjects,
     getInboxObject,
@@ -470,5 +483,5 @@ export {
     getUserFavoriteObjects,
     getSubObjects,
     getObjectsByTypeAndSource,
-    getObjectsBySource
+    getObjectsBySource,
 }

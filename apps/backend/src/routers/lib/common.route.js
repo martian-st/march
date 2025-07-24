@@ -33,7 +33,8 @@ import {
     searchObjectsByTitleController,
     filterObjectsController,
     getObjectsBySourceController,
-    getUserUpcomingObjectsController
+    getUserUpcomingObjectsController,
+    getObjectsByRecurrenceController
 } from "../../controllers/lib/object.controller.js";
 // Utility imports
 import { uploadFileController } from "../../controllers/lib/fileAsset.controller.js";
@@ -72,6 +73,7 @@ router.route("/favorite/").get(getUserFavoriteObjectsController);
 router.route("/setDate/").post(moveObjecttoDateController);
 router.route("/items/").get(getObjectsByTypeAndSourceController);
 router.route("/upcoming/").get(getUserUpcomingObjectsController);
+router.route("/recurrence/").get(getObjectsByRecurrenceController);
 
 /* Journal Routes
 -------------------------------------------------- */

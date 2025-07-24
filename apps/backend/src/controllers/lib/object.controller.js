@@ -1,4 +1,4 @@
-import { createObject, createInboxObject, filterObjects, updateObject, getAllObjectsByBloack, getObject, getObjectFilterByLabel, searchObjectsByTitle, getThisWeekObjectsByDateRange, getUserFavoriteObjects, getSubObjects, getObjectsBySource, getObjectsByTypeAndSource, getUserUpcomingObjects } from "../../services/lib/object.service.js";
+import { createObject, createInboxObject, filterObjects, updateObject, getAllObjectsByBloack, getObject, getObjectFilterByLabel, searchObjectsByTitle, getThisWeekObjectsByDateRange, getUserFavoriteObjects, getSubObjects, getObjectsBySource, getObjectsByTypeAndSource, getUserUpcomingObjects, getObjectsByRecurrence } from "../../services/lib/object.service.js";
 import { linkPreviewGenerator } from "../../services/lib/linkPreview.service.js";
 import { saveContent } from "../../utils/helper.service.js";
 import { linearQueue } from "../../loaders/bullmq.loader.js";
@@ -317,6 +317,16 @@ export const getUserUpcomingObjectsController = async (req, res, next) => {
     }
 }
 
+export const getObjectsByRecurrenceController = async (req, res, next) => {
+    try {
+        const user = req.user._id;
+        const objects = await getObjectsByRecurrence(user);
+        res.json({ objects });
+    } catch (error) {
+        next(error);
+    }
+}
+
 export {
     createObjectController,
     filterObjectsController,
@@ -330,5 +340,5 @@ export {
     getUserFavoriteObjectsController,
     getSubObjectsController,
     getObjectsByTypeAndSourceController,
-    getObjectsBySourceController
+    getObjectsBySourceController,
 }
