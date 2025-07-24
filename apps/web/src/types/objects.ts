@@ -35,6 +35,9 @@ interface Objects {
   isDeleted: boolean;
   isFavorite: boolean;
   
+  // Recurrence
+  recurrence?: string | null;
+  
   // Nested objects
   cycle: Cycle;
   metadata: Metadata;

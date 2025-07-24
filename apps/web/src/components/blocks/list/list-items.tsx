@@ -27,6 +27,10 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
   const [expandedItem, setExpandedItem] = useState<Objects | null>(null);
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState<string | null>(null);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [isRepeatOpen, setIsRepeatOpen] = useState<string | null>(null);
+  const [selectedRepeat, setSelectedRepeat] = useState<string | null>(null);
 
   // Generate days for the current month view with proper grid alignment
   const daysInMonth = useMemo(() => {
@@ -46,11 +50,52 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
 
   // Handle date selection
   const handleDateSelect = (date: Date, itemId: string) => {
+    let updatedDate = date;
+    
+    // If there's a selected time, add it to the date
+    if (selectedTime) {
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      updatedDate = new Date(date);
+      updatedDate.setHours(hours, minutes);
+    }
+    
     updateObject({
       _id: itemId,
-      dueDate: date
+      dueDate: updatedDate,
+      recurrence: selectedRepeat
     } as Partial<Objects>);
+    
     setIsCalendarOpen(null);
+  };
+  
+  // Handle time selection
+  const handleTimeSelect = (time: string, itemId: string) => {
+    setSelectedTime(time);
+    setIsTimePickerOpen(null);
+    
+    // If there's already a selected date, update the object with the new time
+    const item = items.find(i => i._id === itemId);
+    if (item && item.dueDate) {
+      const date = new Date(item.dueDate);
+      const [hours, minutes] = time.split(':').map(Number);
+      date.setHours(hours, minutes);
+      
+      updateObject({
+        _id: itemId,
+        dueDate: date
+      } as Partial<Objects>);
+    }
+  };
+  
+  // Handle repeat selection
+  const handleRepeatSelect = (repeat: string, itemId: string) => {
+    setSelectedRepeat(repeat);
+    setIsRepeatOpen(null);
+    
+    updateObject({
+      _id: itemId,
+      recurrence: repeat
+    } as Partial<Objects>);
   };
 
   // Navigate months
@@ -369,12 +414,85 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                             <UpcomingTasksList currentItemId={item._id} onSelectDate={handleDateSelect} />
                           </div>
                           
+                          {/* Repeat option */}
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <Popover.Root open={isRepeatOpen === item._id} onOpenChange={(open) => setIsRepeatOpen(open ? item._id : null)}>
+                              <Popover.Trigger asChild>
+                                <button 
+                                  className="flex items-center text-xs text-gray-600 hover:bg-gray-50 p-1 rounded-md w-full"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg className="h-3.5 w-3.5 mr-2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M17.657 8.343a8 8 0 11-11.314 0m0 0L3 5m3.343 3.343L3 11" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  <span>{selectedRepeat || 'Repeat'}</span>
+                                </button>
+                              </Popover.Trigger>
+                              <Popover.Portal>
+                                <Popover.Content 
+                                  className="bg-white rounded-md shadow-lg border border-gray-200 w-64 p-2 z-50"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex flex-col space-y-1">
+                                    {['Daily', 'Weekly', 'Monthly', 'Yearly', 'Every Weekday', 'Custom'].map((option) => (
+                                      <button
+                                        key={option}
+                                        className={`text-left px-3 py-3 text-sm rounded-md hover:bg-gray-50 ${selectedRepeat === option ? 'bg-gray-50' : ''}`}
+                                        onClick={() => handleRepeatSelect(option, item._id)}
+                                      >
+                                        {option}
+                                        {option === 'Weekly' && <span className="text-gray-400 ml-2">(Wednesday)</span>}
+                                        {option === 'Monthly' && <span className="text-gray-400 ml-2">(9th)</span>}
+                                        {option === 'Yearly' && <span className="text-gray-400 ml-2">(Jul 9th)</span>}
+                                        {option === 'Every Weekday' && <span className="text-gray-400 ml-2">(Mon - Fri)</span>}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </Popover.Content>
+                              </Popover.Portal>
+                            </Popover.Root>
+                          </div>
+                          
                           {/* Time picker */}
                           <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="flex items-center text-xs text-gray-600">
-                              <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
-                              <span>No time</span>
-                            </div>
+                            <Popover.Root open={isTimePickerOpen === item._id} onOpenChange={(open) => setIsTimePickerOpen(open ? item._id : null)}>
+                              <Popover.Trigger asChild>
+                                <button 
+                                  className="flex items-center text-xs text-gray-600 hover:bg-gray-50 p-1 rounded-md w-full"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Clock className="h-3.5 w-3.5 mr-2 text-gray-400" />
+                                  <span>{selectedTime ? `${selectedTime}` : ' Time'}</span>
+                                </button>
+                              </Popover.Trigger>
+                              <Popover.Portal>
+                                <Popover.Content 
+                                  className="bg-white rounded-md shadow-lg border border-gray-200 w-64 max-h-60 overflow-y-auto z-50"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="flex flex-col">
+                                    {Array.from({ length: 48 }).map((_, i) => {
+                                      const hour = Math.floor(i / 2);
+                                      const minute = i % 2 === 0 ? '00' : '30';
+                                      const period = hour < 12 ? 'AM' : 'PM';
+                                      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                                      const timeString = `${displayHour.toString().padStart(2, '0')}:${minute} ${period}`;
+                                      const timeValue = `${hour.toString().padStart(2, '0')}:${minute}`;
+                                      
+                                      return (
+                                        <button
+                                          key={i}
+                                          className={`text-left px-3 py-2 text-sm hover:bg-gray-50 ${selectedTime === timeValue ? 'bg-gray-50' : ''}`}
+                                          onClick={() => handleTimeSelect(timeValue, item._id)}
+                                        >
+                                          {timeString}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </Popover.Content>
+                              </Popover.Portal>
+                            </Popover.Root>
                           </div>
                         </div>
                       </Popover.Content>
