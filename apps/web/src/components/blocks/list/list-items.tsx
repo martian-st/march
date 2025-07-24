@@ -14,8 +14,9 @@ import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Sun } from "lucide-react";
+import { getEffectiveDueDate, createStructuredDue, formatDueDate, getRecurrencePattern } from "@/utils/date-utils";
 import * as Popover from "@radix-ui/react-popover";
-import { format, isToday as isDateToday, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
+import { format, isToday as isDateToday, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isBefore } from "date-fns";
 
 interface ListItemsProps {
   onDragStateChange?: (isDragging: boolean) => void;
@@ -59,10 +60,15 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
       updatedDate.setHours(hours, minutes);
     }
     
+    // Create the structured due object
+    const dueObject = createStructuredDue(
+      updatedDate,
+      selectedRepeat
+    );
+    
     updateObject({
       _id: itemId,
-      dueDate: updatedDate,
-      recurrence: selectedRepeat
+      due: dueObject
     } as Partial<Objects>);
     
     setIsCalendarOpen(null);
@@ -75,14 +81,21 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
     
     // If there's already a selected date, update the object with the new time
     const item = items.find(i => i._id === itemId);
-    if (item && item.dueDate) {
-      const date = new Date(item.dueDate);
+    const dueDate = getEffectiveDueDate(item!);
+    if (item && dueDate) {
+      const date = new Date(dueDate);
       const [hours, minutes] = time.split(':').map(Number);
       date.setHours(hours, minutes);
       
+      // Create the structured due object
+      const dueObject = createStructuredDue(
+        date,
+        item.due?.string || null
+      );
+      
       updateObject({
         _id: itemId,
-        dueDate: date
+        due: dueObject
       } as Partial<Objects>);
     }
   };
@@ -92,9 +105,38 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
     setSelectedRepeat(repeat);
     setIsRepeatOpen(null);
     
+    // Find the current item
+    const currentItem = items.find(item => item._id === itemId);
+    if (!currentItem) return;
+    
+    // Get the current due date if it exists, or create a new date
+    const dueDate = getEffectiveDueDate(currentItem) || new Date();
+    
+    // Create a structured due object with the recurrence pattern
+    // Preserve existing due object properties if they exist
+    const existingDue = currentItem.due || {
+      date: null,
+      is_recurring: false,
+      lang: "en",
+      string: null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+    };
+    
+    const dueObject = {
+      ...existingDue,
+      date: dueDate.toISOString(),
+      is_recurring: true,
+      string: repeat.toLowerCase(),
+      lang: existingDue.lang || "en",
+      timezone: existingDue.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+    };
+    
+    console.log('Updating with recurrence:', repeat, 'due object:', dueObject);
+    
+    // Update the object with the new due object
     updateObject({
       _id: itemId,
-      recurrence: repeat
+      due: dueObject
     } as Partial<Objects>);
   };
 
@@ -132,12 +174,13 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
       if (!recurringObjects) return tasksByRecurrence;
       
       recurringObjects.forEach((task: Objects) => {
-        const recurrence = task.recurrence || 'Unknown';
+        // Get recurrence pattern from the structured due object
+        const recurrencePattern = getRecurrencePattern(task) || 'Unknown';
         
-        if (!tasksByRecurrence.has(recurrence)) {
-          tasksByRecurrence.set(recurrence, []);
+        if (!tasksByRecurrence.has(recurrencePattern)) {
+          tasksByRecurrence.set(recurrencePattern, []);
         }
-        tasksByRecurrence.get(recurrence)?.push(task);
+        tasksByRecurrence.get(recurrencePattern)?.push(task);
       });
       
       return tasksByRecurrence;
@@ -189,16 +232,19 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
       const tasksByDate = new Map<string, Objects[]>();
       
       upcomingObjects
-        .filter(task => task._id !== currentItemId && task.dueDate) // Exclude current item and tasks without due date
-        .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()) // Sort by date
+        .filter(task => {
+          const dueDate = getEffectiveDueDate(task);
+          return task._id !== currentItemId && dueDate !== null;
+        }) // Exclude current item and tasks without due date
         .forEach(task => {
-          const date = new Date(task.dueDate!);
-          const dateStr = format(date, 'yyyy-MM-dd');
+          const dueDate = getEffectiveDueDate(task);
+          if (!dueDate) return;
           
-          if (!tasksByDate.has(dateStr)) {
-            tasksByDate.set(dateStr, []);
+          const dateKey = format(dueDate, 'yyyy-MM-dd');
+          if (!tasksByDate.has(dateKey)) {
+            tasksByDate.set(dateKey, []);
           }
-          tasksByDate.get(dateStr)?.push(task);
+          tasksByDate.get(dateKey)!.push(task);
         });
       
       return tasksByDate;
@@ -214,7 +260,7 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
     
     return (
       <div className="space-y-2 max-h-[200px] overflow-y-auto">
-        {Array.from(groupedTasks.entries()).map(([dateStr, tasks]) => {
+        {Array.from(groupedTasks.entries()).map(([dateStr, tasks]: [string, Objects[]]) => {
           const date = new Date(dateStr);
           const isToday = isDateToday(date);
           const isTomorrow = isDateToday(new Date(date.getTime() - 86400000)); // 24 hours in milliseconds
@@ -325,23 +371,39 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                   {/* Calendar popover */}
                   <Popover.Root 
                     open={isCalendarOpen === item._id}
-                    onOpenChange={(open) => setIsCalendarOpen(open ? item._id : null)}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        // When opening the calendar, set the current item ID and reset selected repeat
+                        setIsCalendarOpen(item._id);
+                        
+                        // Reset the selected repeat option to match the current item's recurrence
+                        const recurrencePattern = getRecurrencePattern(item);
+                        setSelectedRepeat(recurrencePattern ? recurrencePattern.charAt(0).toUpperCase() + recurrencePattern.slice(1) : null);
+                      } else {
+                        setIsCalendarOpen(null);
+                      }
+                    }}
                   >
                     <Popover.Trigger asChild>
-                      {item.dueDate ? (
+                      {item.due?.date ? (
                         <button
                           className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded flex items-center gap-1"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setCurrentMonth(new Date(item.dueDate!));
+                            setCurrentMonth(new Date(item.due?.date || new Date()));
                           }}
                         >
                           {/* Show date with appropriate color based on due status */}
                           <span className={cn(
                             "text-xs font-medium",
-                            new Date(item.dueDate) < new Date() ? "text-red-500" : "text-blue-500"
+                            getEffectiveDueDate(item) && isBefore(getEffectiveDueDate(item)!, new Date()) ? "text-red-500" : "text-blue-500"
                           )}>
-                            {format(new Date(item.dueDate), "MMM d")}
+                            {formatDueDate(item)}
+                            {item.due?.is_recurring && (
+                              <span className="ml-1 text-gray-500">
+                                ↻
+                              </span>
+                            )}
                           </span>
                         </button>
                       ) : (
@@ -453,7 +515,8 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                                 return <div key={`empty-${index}`} className="h-7 w-7" />;
                               }
                               
-                              const isSelected = item.dueDate && isSameDay(date, new Date(item.dueDate));
+                              const dueDate = getEffectiveDueDate(item);
+                              const isSelected = dueDate && isSameDay(date, dueDate);
                               const isToday = isDateToday(date);
                               const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                               
@@ -483,28 +546,31 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                             })}
                           </div>
                           
-                          {/* Upcoming tasks section */}
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <h4 className="text-xs font-medium text-gray-500 mb-2">Upcoming</h4>
-                            <UpcomingTasksList currentItemId={item._id} onSelectDate={handleDateSelect} />
-                          </div>
-                          
-                          {/* Recurring tasks section */}
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <h4 className="text-xs font-medium text-gray-500 mb-2">Recurring</h4>
-                            <RecurringTasksList currentItemId={item._id} />
-                          </div>
-                          
+
                           {/* Repeat option */}
                           <div className="mt-3 pt-3 border-t border-gray-100">
-                            <Popover.Root open={isRepeatOpen === item._id} onOpenChange={(open) => setIsRepeatOpen(open ? item._id : null)}>
+                            <Popover.Root 
+                              open={isRepeatOpen === item._id} 
+                              onOpenChange={(open) => {
+                                if (open) {
+                                  // When opening the repeat selector, set the current item ID
+                                  setIsRepeatOpen(item._id);
+                                  
+                                  // Set the selected repeat option to match the current item's recurrence
+                                  const recurrencePattern = getRecurrencePattern(item);
+                                  setSelectedRepeat(recurrencePattern ? recurrencePattern.charAt(0).toUpperCase() + recurrencePattern.slice(1) : null);
+                                } else {
+                                  setIsRepeatOpen(null);
+                                }
+                              }}
+                            >
                               <Popover.Trigger asChild>
                                 <button 
                                   className="flex items-center text-xs text-gray-600 hover:bg-gray-50 p-1 rounded-md w-full"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <svg className="h-3.5 w-3.5 mr-2 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M17.657 8.343a8 8 0 11-11.314 0m0 0L3 5m3.343 3.343L3 11" strokeLinecap="round" strokeLinejoin="round" />
+                                  <svg className="h-4 w-4 mr-2 text-gray-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                   </svg>
                                   <span>{selectedRepeat || 'Repeat'}</span>
                                 </button>

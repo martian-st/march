@@ -39,14 +39,27 @@ const ObjectSchema = new Schema(
             type: Schema.Types.Mixed,
             default: []
         },
-        dueDate: {
-            type: Date,
-            default: null
-        },
-        recurrence: {
-            type: String,
-            enum: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Every Weekday', 'Custom', null],
-            default: null
+        due: {
+            date: {
+                type: String,
+                default: null
+            },
+            is_recurring: {
+                type: Boolean,
+                default: false
+            },
+            lang: {
+                type: String,
+                default: "en"
+            },
+            string: {
+                type: String,
+                default: null
+            },
+            timezone: {
+                type: String,
+                default: "UTC"
+            }
         },
         cycle: {
             startsAt: {

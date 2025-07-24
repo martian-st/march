@@ -321,7 +321,7 @@ export const getObjectsByRecurrenceController = async (req, res, next) => {
     try {
         console.log('Recurrence API called');
         const user = req.user._id;
-        console.log('User ID:', user);
+        // console.log('User ID:', user);
         const objects = await getObjectsByRecurrence(user);
         console.log('Recurrence objects found:', objects.length);
         res.json({ objects });

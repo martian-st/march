@@ -9,8 +9,8 @@ const getInboxObjects = async (me) => {
         isDeleted: false,
         // arrays: { $exists: true, $eq: [] },
         status: { $nin: ["archive", "done"] },
-        dueDate: null,
-        recurrence: null,
+        "due.date": null,
+        "due.is_recurring": false,
         "cycle.startsAt": null,
         "cycle.endsAt": null
     }).sort({ order: -1 });
@@ -25,8 +25,8 @@ export const getObjectsWithDate = async (me) => {
         isDeleted: false,
         arrays: { $exists: true, $eq: [] },
         status: { $nin: ["archive", "done"] },
-        dueDate: { $exists: true, $ne: null }
-    }).sort({ dueDate: 1, createdAt: -1 });
+        "due.date": { $exists: true, $ne: null }
+    }).sort({ "due.date": 1, createdAt: -1 });
 
     return objects;
 }
@@ -105,7 +105,7 @@ const getThisWeekObjectsByDateRange = async (me, startDate, endDate) => {
         $or: [
             { "cycle.startsAt": { $gte: startDate, $lte: endDate } },
             { "cycle.endsAt": { $gte: startDate, $lte: endDate } },
-            { dueDate: { $gte: startDate, $lte: endDate } }
+            { "due.date": { $gte: startDate, $lte: endDate } }
         ]
     }).sort({ createdAt: 1 });
 
@@ -132,7 +132,7 @@ const getUserTodayObjects = async (me) => {
         isArchived: false,
         isDeleted: false,
         $or: [
-            { dueDate: { $gte: startOfDay, $lt: endOfDay } },
+            { "due.date": { $gte: startOfDay, $lt: endOfDay } },
             { completedAt: { $gte: startOfDay, $lt: endOfDay } }
         ]
     });
@@ -144,7 +144,7 @@ const getUserOverdueObjects = async (me) => {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const objects = await Object.find({
         user: me,
-        dueDate: { $lt: startOfToday },
+        "due.date": { $lt: startOfToday },
         isCompleted: false,
         isArchived: false,
         isDeleted: false
@@ -166,7 +166,7 @@ const getUserObjectsByDate = async (me, date) => {
         isArchived: false,
         isDeleted: false,
         $or: [
-            { dueDate: { $gte: startOfDay, $lte: endOfDay } },
+            { "due.date": { $gte: startOfDay, $lte: endOfDay } },
             { completedAt: { $gte: startOfDay, $lte: endOfDay } }
         ]
     }).sort({ createdAt: -1 });
@@ -356,10 +356,35 @@ const updateObject = async (id, updateData, array, block) => {
 
 const moveObjecttoDate = async (date, id) => {
     const formattedDate = date ? new Date(date) : null;
-
+    
+    // Get the current object to check for recurrence
+    const currentObject = await Object.findById(id);
+    
+    // Get recurrence pattern from the current due object if it exists
+    const recurrencePattern = currentObject?.due?.string || null;
+    const isRecurring = currentObject?.due?.is_recurring || false;
+    
+    // Create the structured due object
+    let dueObject = null;
+    
+    if (formattedDate) {
+        dueObject = {
+            date: formattedDate.toISOString(),
+            is_recurring: isRecurring,
+            lang: currentObject?.due?.lang || "en",
+            string: recurrencePattern,
+            timezone: currentObject?.due?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+        };
+    }
+    
     const object = await Object.findByIdAndUpdate(
         id,
-        { $set: { dueDate: formattedDate } },
+        { 
+            $set: { 
+                // Set the structured due object
+                due: dueObject
+            } 
+        },
         { new: true }
     );
 
@@ -444,8 +469,8 @@ export const getUserUpcomingObjects = async (user) => {
         isArchived: false,
         isDeleted: false,
         isCompleted: false,
-        dueDate: { $gte: new Date() }
-    })
+        'due.date': { $gte: new Date().toISOString() }
+    });
     return objects;
 }
 
@@ -454,10 +479,10 @@ export const getObjectsByRecurrence = async (user) => {
         user,
         isArchived: false,
         isDeleted: false,
-        recurrence: { $ne: null }
+        'due.is_recurring': true
     };
     
-    const objects = await Object.find(query).sort({ dueDate: 1 });
+    const objects = await Object.find(query).sort({ 'due.date': 1 });
     
     return objects;
 }
