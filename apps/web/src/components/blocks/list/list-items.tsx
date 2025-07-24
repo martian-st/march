@@ -393,15 +393,17 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                             setCurrentMonth(new Date(item.due?.date || new Date()));
                           }}
                         >
-                          {/* Show date with appropriate color based on due status */}
+                          {/* Show date with appropriate color based on due status - recurring tasks always blue */}
                           <span className={cn(
                             "text-xs font-medium",
-                            getEffectiveDueDate(item) && isBefore(getEffectiveDueDate(item)!, new Date()) ? "text-red-500" : "text-blue-500"
+                            getEffectiveDueDate(item) && isBefore(getEffectiveDueDate(item)!, new Date()) && !item.due?.is_recurring ? "text-red-500" : "text-blue-500"
                           )}>
                             {formatDueDate(item)}
                             {item.due?.is_recurring && (
                               <span className="ml-1 text-gray-500">
-                                ↻
+                                <svg className="inline-block h-3 w-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
                               </span>
                             )}
                           </span>
