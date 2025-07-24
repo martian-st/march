@@ -5,12 +5,7 @@ import { DragEndEvent } from "@dnd-kit/core";
 import { CalendarEvent, Event } from "@/types/calendar";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Objects, OrderObject, SortableObject } from "@/types/objects";
-import {
-  useInboxObjects,
-  useOrderObject,
-  useTodayObjects,
-  useUpcomingObjects,
-} from "@/hooks/use-objects";
+import { useInboxObjects, useOrderObject, useRecurringObjects, useTodayObjects, useUpdateObject, useUpcomingObjects } from "@/hooks/use-objects";
 import { useEvents } from "@/hooks/use-events";
 import moment from "moment";
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,9 +32,10 @@ interface BlockProviderProps {
 
 export function BlockProvider({ children, arrayType, activeFilter = "unplanned" }: BlockProviderProps) {
   // Based on the arrayType and activeFilter, use the appropriate hook
-  const inboxQuery = arrayType === "inbox" && activeFilter !== "upcoming" ? useInboxObjects() : { data: [], isLoading: false, error: null };
+  const inboxQuery = arrayType === "inbox" && activeFilter !== "upcoming" && activeFilter !== "recurrences" ? useInboxObjects() : { data: [], isLoading: false, error: null };
   const todayQuery = arrayType === "today" ? useTodayObjects() : { data: undefined, isLoading: false, error: null };
   const upcomingQuery = activeFilter === "upcoming" ? useUpcomingObjects() : { data: [], isLoading: false, error: null };
+  const recurringQuery = activeFilter === "recurrences" ? useRecurringObjects() : { data: [], isLoading: false, error: null };
   
   const { mutate: updateOrder } = useOrderObject();
   const queryClient = useQueryClient();
@@ -56,6 +52,11 @@ export function BlockProvider({ children, arrayType, activeFilter = "unplanned" 
       items = Array.isArray(upcomingQuery.data) ? upcomingQuery.data : [];
       isLoading = upcomingQuery.isLoading;
       error = upcomingQuery.error;
+    } else if (activeFilter === "recurrences") {
+      // For recurrences filter, use the recurring objects
+      items = Array.isArray(recurringQuery.data) ? recurringQuery.data : [];
+      isLoading = recurringQuery.isLoading;
+      error = recurringQuery.error;
     } else {
       // For inbox with other filters, we just get a plain array of objects
       items = Array.isArray(inboxQuery.data) ? inboxQuery.data : [];

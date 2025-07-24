@@ -9,7 +9,7 @@ import {
 } from "@dnd-kit/sortable";
 import { SortableItem } from "./sortable-item";
 import { useBlock } from "@/contexts/block-context";
-import { useUpdateObject, useUpcomingObjects } from "@/hooks/use-objects";
+import { useRecurringObjects, useUpdateObject, useUpcomingObjects } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
@@ -121,6 +121,63 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
     }
   }
 
+  // Component to display recurring tasks
+  function RecurringTasksList({ currentItemId }: { currentItemId: string }) {
+    const { data: recurringObjects, isLoading } = useRecurringObjects();
+    
+    // Group tasks by recurrence pattern
+    const groupedTasks = useMemo(() => {
+      const tasksByRecurrence = new Map<string, Objects[]>();
+      
+      if (!recurringObjects) return tasksByRecurrence;
+      
+      recurringObjects.forEach((task: Objects) => {
+        const recurrence = task.recurrence || 'Unknown';
+        
+        if (!tasksByRecurrence.has(recurrence)) {
+          tasksByRecurrence.set(recurrence, []);
+        }
+        tasksByRecurrence.get(recurrence)?.push(task);
+      });
+      
+      return tasksByRecurrence;
+    }, [recurringObjects, currentItemId]);
+    
+    if (isLoading) {
+      return <div className="text-xs text-gray-400 py-2">Loading recurring tasks...</div>;
+    }
+    
+    if (groupedTasks.size === 0) {
+      return <div className="text-xs text-gray-400 py-2">No recurring tasks</div>;
+    }
+    
+    return (
+      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+        {Array.from(groupedTasks.entries()).map(([recurrence, tasks]) => {
+          return (
+            <div key={recurrence} className="mb-2">
+              <div className="text-xs font-medium text-gray-500 mb-1">{recurrence}</div>
+              <div className="space-y-1">
+                {tasks.map(task => (
+                  <button
+                    key={task._id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="w-full text-left text-xs p-1.5 rounded hover:bg-gray-50 transition-colors flex items-center gap-2"
+                  >
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0"></div>
+                    <span className="truncate">{task.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  
   // Component to display upcoming tasks
   function UpcomingTasksList({ currentItemId, onSelectDate }: { currentItemId: string; onSelectDate: (date: Date, itemId: string) => void }) {
     const { data: upcomingObjects, isLoading } = useUpcomingObjects();
@@ -412,6 +469,12 @@ export function ListItems({ onDragStateChange }: ListItemsProps) {
                           <div className="mt-3 pt-3 border-t border-gray-100">
                             <h4 className="text-xs font-medium text-gray-500 mb-2">Upcoming</h4>
                             <UpcomingTasksList currentItemId={item._id} onSelectDate={handleDateSelect} />
+                          </div>
+                          
+                          {/* Recurring tasks section */}
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <h4 className="text-xs font-medium text-gray-500 mb-2">Recurring</h4>
+                            <RecurringTasksList currentItemId={item._id} />
                           </div>
                           
                           {/* Repeat option */}

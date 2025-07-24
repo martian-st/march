@@ -458,6 +458,7 @@ export const getObjectsByRecurrence = async (user) => {
     };
     
     const objects = await Object.find(query).sort({ dueDate: 1 });
+    
     return objects;
 }
 
