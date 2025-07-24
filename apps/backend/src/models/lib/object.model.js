@@ -43,6 +43,11 @@ const ObjectSchema = new Schema(
             type: Date,
             default: null
         },
+        recurrence: {
+            type: String,
+            enum: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Every Weekday', 'Custom', null],
+            default: null
+        },
         cycle: {
             startsAt: {
                 type: Date,
@@ -147,12 +152,19 @@ ObjectSchema.pre("save", async function (next) {
 
 ObjectSchema.pre("findOneAndUpdate", function (next) {
     const update = this.getUpdate();
+    
+    // Handle status updates
     if (update.$set && update.$set.status === "done") {
         update.$set.isCompleted = true;
         update.$set.completedAt = new Date();
     } else if (update.$set && update.$set.status) {
         update.$set.isCompleted = false;
         update.$set.completedAt = null;
+    }
+    
+    // Ensure dueDate is properly handled as a Date object
+    if (update.$set && update.$set.dueDate && typeof update.$set.dueDate === 'string') {
+        update.$set.dueDate = new Date(update.$set.dueDate);
     }
 
     next();
