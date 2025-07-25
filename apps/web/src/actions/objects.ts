@@ -14,6 +14,7 @@ export const getInboxObjects = async (): Promise<Objects[]> => {
 
 export const getTodayObjects = async (): Promise<{ todayObjects: Objects[], overdueObjects: Objects[] }> => {
   const data = await apiClient.get<TodayObjectResponse>('/api/today')
+
   return {
     todayObjects: data.response.todayObjects || [],
     overdueObjects: data.response.overdueObjects || []

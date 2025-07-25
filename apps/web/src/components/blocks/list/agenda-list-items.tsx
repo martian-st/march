@@ -13,7 +13,28 @@ import { useUpdateObject } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
-import { isToday, format, isPast } from "date-fns";
+import { isToday, format, isPast, parseISO, subDays } from "date-fns";
+
+
+// Function to adjust date display to match what's shown in the UI
+const adjustDateDisplay = (dateString: string): Date => {
+  console.log("saju", dateString);
+  // Parse the ISO string
+  const date = parseISO(dateString);
+  
+  // // Check if the date is in UTC format (ends with Z)
+  // const isUtcDate = dateString.endsWith('Z');
+  
+  // // If it's a UTC date and the time is set to midnight UTC (00:00:00)
+  // // This is likely a date that was intended to be shown as the previous day in IST
+  // if (isUtcDate && dateString.includes('T00:00:00')) {
+  //   // Subtract one day to match the intended local date
+  //   // This fixes the +1 day issue when displaying dates
+  //   return subDays(date, 1);
+  // }
+  
+  return date;
+};
 
 interface AgendaListItemsProps {
   onDragStateChange?: (isDragging: boolean) => void;
@@ -120,13 +141,16 @@ export function AgendaListItems({ onDragStateChange }: AgendaListItemsProps) {
               <div className="ml-3 text-xs">
                 {isOverdue ? (
                   <span className="text-red-500 font-medium">
-                    {format(new Date(item.due.date), "MMM d")}
+  
+                    {/* {console.log(`saju date from DB: ${item.due.date}`)} */}
+                    {format(subDays(parseISO(item.due.date), 1), "MMM d")}
                   </span>
-                ) : isToday(new Date(item.due.date)) ? (
+                ) : isToday(subDays(parseISO(item.due.date), 1)) ? (
                   <span className="text-blue-500 font-medium">Today</span>
                 ) : (
                   <span className="text-gray-500">
-                    {format(new Date(item.due.date), "MMM d")}
+                    {/* Parse the ISO string and adjust for timezone */}
+                    {format(subDays(parseISO(item.due.date), 1), "MMM d")}
                   </span>
                 )}
               </div>

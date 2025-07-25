@@ -70,17 +70,36 @@ export const createStructuredDue = (
 ): Objects["due"] => {
   if (!date) return null;
   
+  // Convert to Date object if string
   const dateObj = typeof date === "string" ? new Date(date) : date;
   
   // Only set is_recurring to true if a recurrence pattern is provided
   const isRecurring = recurrence !== null && recurrence !== "";
   
+  // Get the timezone from the system
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  
+  // Create a date that preserves the local date parts but in UTC time
+  // This is the key fix - we create a UTC date with the same day/month/year as the local date
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth();
+  const day = dateObj.getDate();
+  const hours = dateObj.getHours();
+  const minutes = dateObj.getMinutes();
+  const seconds = dateObj.getSeconds();
+  
+  // Create a new UTC date with the same date parts
+  // This ensures the date stored will have the same day value regardless of timezone
+  const utcDate = new Date(Date.UTC(year, month, day, hours, minutes, seconds));
+  
+  // Convert to ISO string (will be in UTC)
+  const isoString = utcDate.toISOString();
+  
   return {
-    date: dateObj.toISOString(),
+    date: isoString,
     is_recurring: isRecurring,
     lang: "en",
-    // Only set the string if it's a recurring task
     string: isRecurring ? recurrence!.toLowerCase() : null,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+    timezone: timezone
   };
 };
