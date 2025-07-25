@@ -14,7 +14,19 @@ export const getInboxObjects = async (): Promise<Objects[]> => {
 
 export const getTodayObjects = async (): Promise<{ todayObjects: Objects[], overdueObjects: Objects[] }> => {
   const data = await apiClient.get<TodayObjectResponse>('/api/today')
-  console.log( data.response.overdueObjects)
+  
+  // Log details of objects with today's date
+  const today = new Date();
+  const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  
+  if (data.response.overdueObjects) {
+    data.response.overdueObjects.forEach(obj => {
+      if (obj.due && obj.due.date) {
+        const dueDate = new Date(obj.due.date);
+      }
+    });
+  }
+  
   return {
     todayObjects: data.response.todayObjects || [],
     overdueObjects: data.response.overdueObjects || []
@@ -52,7 +64,6 @@ export interface RecurringObjectResponse {
 
 export const getRecurringObjects = async (): Promise<Objects[]> => {
   try {
-    console.log('Recurrence API called');
     // Make sure we're using the correct API endpoint path
     const data = await apiClient.get<RecurringObjectResponse>('/api/recurrence/')
     
@@ -68,7 +79,6 @@ export const getRecurringObjects = async (): Promise<Objects[]> => {
     }
     return []
   } catch (error) {
-    console.error('Error fetching recurring objects:', error)
     return []
   }
 }
