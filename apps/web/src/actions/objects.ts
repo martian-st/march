@@ -44,3 +44,30 @@ export const getUpcomingObjects = async (): Promise<Objects[]> => {
   const data = await apiClient.get<UpcomingObjectResponse>('/api/upcoming')
   return data.objects
 }
+
+export interface RecurringObjectResponse {
+  objects: Objects[]
+}
+
+export const getRecurringObjects = async (): Promise<Objects[]> => {
+  try {
+    console.log('Recurrence API called');
+    // Make sure we're using the correct API endpoint path
+    const data = await apiClient.get<RecurringObjectResponse>('/api/recurrence/')
+    
+    // Handle the case where the response structure might be different
+    if (data && data.objects) {
+      return data.objects
+    } else if (Array.isArray(data)) {
+      return data
+    } else if (typeof data === 'object' && data !== null) {
+      // Try to find objects in the response
+      const possibleObjects = Object.values(data).find(Array.isArray)
+      return Array.isArray(possibleObjects) ? possibleObjects : []
+    }
+    return []
+  } catch (error) {
+    console.error('Error fetching recurring objects:', error)
+    return []
+  }
+}

@@ -39,9 +39,27 @@ const ObjectSchema = new Schema(
             type: Schema.Types.Mixed,
             default: []
         },
-        dueDate: {
-            type: Date,
-            default: null
+        due: {
+            date: {
+                type: String,
+                default: null
+            },
+            is_recurring: {
+                type: Boolean,
+                default: false
+            },
+            lang: {
+                type: String,
+                default: "en"
+            },
+            string: {
+                type: String,
+                default: null
+            },
+            timezone: {
+                type: String,
+                default: "UTC"
+            }
         },
         cycle: {
             startsAt: {
@@ -147,12 +165,19 @@ ObjectSchema.pre("save", async function (next) {
 
 ObjectSchema.pre("findOneAndUpdate", function (next) {
     const update = this.getUpdate();
+    
+    // Handle status updates
     if (update.$set && update.$set.status === "done") {
         update.$set.isCompleted = true;
         update.$set.completedAt = new Date();
     } else if (update.$set && update.$set.status) {
         update.$set.isCompleted = false;
         update.$set.completedAt = null;
+    }
+    
+    // Ensure dueDate is properly handled as a Date object
+    if (update.$set && update.$set.dueDate && typeof update.$set.dueDate === 'string') {
+        update.$set.dueDate = new Date(update.$set.dueDate);
     }
 
     next();

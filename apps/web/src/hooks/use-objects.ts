@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createObject, deleteObject, getInboxObjects, getTodayObjects, getUpcomingObjects, orderObject, updateObject } from "@/actions/objects";
+import { createObject, deleteObject, getInboxObjects, getRecurringObjects, getTodayObjects, getUpcomingObjects, orderObject, updateObject } from "@/actions/objects";
 import { CreateObject, Objects, OrderObject } from "@/types/objects";
 import { toast } from "sonner";
 // import { CheckCircle2 } from "lucide-react";
@@ -12,7 +12,8 @@ import { toast } from "sonner";
 export const QUERY_KEYS = {
   INBOX: ["inbox-objects"],
   TODAY: ["today-objects"],
-  UPCOMING: ["upcoming-objects"]
+  UPCOMING: ["upcoming-objects"],
+  RECURRING: ["recurring-objects"]
 };
 
 // Common queries
@@ -27,6 +28,13 @@ export function useUpcomingObjects() {
   return useQuery({
     queryKey: QUERY_KEYS.UPCOMING,
     queryFn: getUpcomingObjects,
+  });
+}
+
+export function useRecurringObjects() {
+  return useQuery({
+    queryKey: QUERY_KEYS.RECURRING,
+    queryFn: getRecurringObjects,
   });
 }
 

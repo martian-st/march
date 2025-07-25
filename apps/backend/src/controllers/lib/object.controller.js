@@ -1,4 +1,4 @@
-import { createObject, createInboxObject, filterObjects, updateObject, getAllObjectsByBloack, getObject, getObjectFilterByLabel, searchObjectsByTitle, getThisWeekObjectsByDateRange, getUserFavoriteObjects, getSubObjects, getObjectsBySource, getObjectsByTypeAndSource, getUserUpcomingObjects } from "../../services/lib/object.service.js";
+import { createObject, createInboxObject, filterObjects, updateObject, getAllObjectsByBloack, getObject, getObjectFilterByLabel, searchObjectsByTitle, getThisWeekObjectsByDateRange, getUserFavoriteObjects, getSubObjects, getObjectsBySource, getObjectsByTypeAndSource, getUserUpcomingObjects, getObjectsByRecurrence } from "../../services/lib/object.service.js";
 import { linkPreviewGenerator } from "../../services/lib/linkPreview.service.js";
 import { saveContent } from "../../utils/helper.service.js";
 import { linearQueue } from "../../loaders/bullmq.loader.js";
@@ -317,6 +317,20 @@ export const getUserUpcomingObjectsController = async (req, res, next) => {
     }
 }
 
+export const getObjectsByRecurrenceController = async (req, res, next) => {
+    try {
+        console.log('Recurrence API called');
+        const user = req.user._id;
+        // console.log('User ID:', user);
+        const objects = await getObjectsByRecurrence(user);
+        console.log('Recurrence objects found:', objects.length);
+        res.json({ objects });
+    } catch (error) {
+        console.error('Error in getObjectsByRecurrenceController:', error);
+        next(error);
+    }
+}
+
 export {
     createObjectController,
     filterObjectsController,
@@ -330,5 +344,5 @@ export {
     getUserFavoriteObjectsController,
     getSubObjectsController,
     getObjectsByTypeAndSourceController,
-    getObjectsBySourceController
+    getObjectsBySourceController,
 }

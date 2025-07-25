@@ -22,8 +22,6 @@ interface Objects {
   icon: string;
   cover_image: string;
   
-  // Date fields
-  dueDate: Date | null;
   completedAt: Date | null;
   createdAt: string;
   updatedAt: string;
@@ -34,6 +32,16 @@ interface Objects {
   isArchived: boolean;
   isDeleted: boolean;
   isFavorite: boolean;
+  
+  
+  // New structured due object
+  due?: {
+    date: string | null;
+    is_recurring: boolean;
+    lang: string;
+    string: string | null;
+    timezone: string;
+  } | null;
   
   // Nested objects
   cycle: Cycle;
