@@ -13,7 +13,7 @@ import { useUpdateObject } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
-import { Star } from "lucide-react";
+import { isToday, format, isPast } from "date-fns";
 
 interface AgendaListItemsProps {
   onDragStateChange?: (isDragging: boolean) => void;
@@ -116,9 +116,19 @@ export function AgendaListItems({ onDragStateChange }: AgendaListItemsProps) {
             >
               {item.title}
             </div>
-            {isOverdue && (
-              <div className="absolute -right-7">
-                <Star size={14} className="fill-red-500 text-red-500" />
+            {item.due && item.due.date && (
+              <div className="ml-3 text-xs">
+                {isOverdue ? (
+                  <span className="text-red-500 font-medium">
+                    {format(new Date(item.due.date), "MMM d")}
+                  </span>
+                ) : isToday(new Date(item.due.date)) ? (
+                  <span className="text-blue-500 font-medium">Today</span>
+                ) : (
+                  <span className="text-gray-500">
+                    {format(new Date(item.due.date), "MMM d")}
+                  </span>
+                )}
               </div>
             )}
           </div>
