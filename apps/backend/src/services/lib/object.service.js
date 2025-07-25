@@ -124,32 +124,72 @@ const getAllObjects = async (me) => {
 
 const getUserTodayObjects = async (me) => {
     const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+    // Create dates in UTC
+    const startOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
 
-    const objects = await Object.find({
+
+    // First, get all objects that might be due today
+    const allObjects = await Object.find({
         user: me,
         isArchived: false,
         isDeleted: false,
         $or: [
-            { "due.date": { $gte: startOfDay, $lt: endOfDay } },
-            { completedAt: { $gte: startOfDay, $lt: endOfDay } }
+            // Get objects completed today
+            { completedAt: { $gte: startOfDay, $lt: endOfDay } },
+            // Get objects with due dates
+            { "due.date": { $exists: true, $ne: null } }
         ]
     });
+
+    // Filter objects to find those that are due today
+    const objects = allObjects.filter(obj => {
+        // If completed today, include it
+        if (obj.completedAt && new Date(obj.completedAt) >= startOfDay && new Date(obj.completedAt) < endOfDay) {
+            return true;
+        }
+        
+        // Check if due date is today
+        if (obj.due && obj.due.date) {
+            const dueDate = new Date(obj.due.date);
+            const dueDateUTC = new Date(Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate(), 0, 0, 0, 0));
+            const isSameDay = dueDateUTC.getTime() === startOfDay.getTime();
+            return isSameDay;
+        }
+        
+        return false;
+    });
+
     return objects;
 }
 
 const getUserOverdueObjects = async (me) => {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const objects = await Object.find({
+    // Create date in UTC
+    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
+    
+    // Get all incomplete objects with due dates
+    const allObjects = await Object.find({
         user: me,
-        "due.date": { $lt: startOfToday },
+        "due.date": { $exists: true, $ne: null },
         isCompleted: false,
         isArchived: false,
         isDeleted: false
-    })
-        .sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 });
+    
+    // Filter to find objects that are truly overdue (before today)
+    const objects = allObjects.filter(obj => {
+        if (obj.due && obj.due.date) {
+            const dueDate = new Date(obj.due.date);
+            // Convert to UTC date with time set to 00:00:00
+            const dueDateUTC = new Date(Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate(), 0, 0, 0, 0));
+            // Check if due date is before today
+            const isOverdue = dueDateUTC.getTime() < startOfToday.getTime();
+            return isOverdue;
+        }
+        return false;
+    });
+    
 
     return objects;
 }

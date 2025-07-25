@@ -13,27 +13,23 @@ import { useUpdateObject } from "@/hooks/use-objects";
 import ExpandedView from "@/components/object/expanded-view";
 import { Icons } from "@/components/ui/icons";
 import { Objects } from "@/types/objects";
-import { isToday, format, isPast, parseISO, subDays } from "date-fns";
+import { isToday, format, isPast, parseISO } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 
-
-// Function to adjust date display to match what's shown in the UI
-const adjustDateDisplay = (dateString: string): Date => {
-  console.log("saju", dateString);
-  // Parse the ISO string
+/**
+ * Convert a UTC date string to the user's timezone
+ * This properly handles dates stored in the database (in UTC)
+ * and displays them in the user's local timezone or the task's specified timezone
+ */
+const convertToTaskTimezone = (dateString: string, timezone: string | null): Date => {
+  // Parse the ISO string to a Date object
   const date = parseISO(dateString);
   
-  // // Check if the date is in UTC format (ends with Z)
-  // const isUtcDate = dateString.endsWith('Z');
+  // Use the task's timezone if available, otherwise use the browser's timezone
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
   
-  // // If it's a UTC date and the time is set to midnight UTC (00:00:00)
-  // // This is likely a date that was intended to be shown as the previous day in IST
-  // if (isUtcDate && dateString.includes('T00:00:00')) {
-  //   // Subtract one day to match the intended local date
-  //   // This fixes the +1 day issue when displaying dates
-  //   return subDays(date, 1);
-  // }
-  
-  return date;
+  // Convert the UTC date to the specified timezone
+  return toZonedTime(date, tz);
 };
 
 interface AgendaListItemsProps {
@@ -141,16 +137,15 @@ export function AgendaListItems({ onDragStateChange }: AgendaListItemsProps) {
               <div className="ml-3 text-xs">
                 {isOverdue ? (
                   <span className="text-red-500 font-medium">
-  
-                    {/* {console.log(`saju date from DB: ${item.due.date}`)} */}
-                    {format(subDays(parseISO(item.due.date), 1), "MMM d")}
+                    {/* Convert UTC date to task's timezone */}
+                    {format(convertToTaskTimezone(item.due.date, item.due.timezone), "MMM d")}
                   </span>
-                ) : isToday(subDays(parseISO(item.due.date), 1)) ? (
+                ) : isToday(convertToTaskTimezone(item.due.date, item.due.timezone)) ? (
                   <span className="text-blue-500 font-medium">Today</span>
                 ) : (
                   <span className="text-gray-500">
-                    {/* Parse the ISO string and adjust for timezone */}
-                    {format(subDays(parseISO(item.due.date), 1), "MMM d")}
+                    {/* Convert UTC date to task's timezone */}
+                    {format(convertToTaskTimezone(item.due.date, item.due.timezone), "MMM d")}
                   </span>
                 )}
               </div>
