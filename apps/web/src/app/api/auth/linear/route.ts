@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     })
 
     const state = searchParams.get('state')
-    const redirectUrl = state ? JSON.parse(decodeURIComponent(state)).redirect : '/'
+    const redirectUrl = state ? JSON.parse(decodeURIComponent(state)).redirect : '/inbox'
 
     return NextResponse.redirect(new URL(redirectUrl, redirectDomain))
 
