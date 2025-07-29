@@ -17,7 +17,7 @@ export function useLinearLogin(
   const handleLinearLogin = useCallback(async () => {
     try {
       const { authUrl } = await apiClient.internal.get<{ authUrl: string }>(
-        "/api/auth/linear-url",
+        `/api/auth/linear-url?redirectTo=${encodeURIComponent(redirectAfterAuth)}`,
       );
 
       if (!authUrl) {
@@ -30,7 +30,7 @@ export function useLinearLogin(
       console.error("failed to login to linear", err);
       toast.error("Failed to login to linear");
     }
-  }, []);
+  }, [redirectAfterAuth]);
 
   const handleLinearRevoke = useCallback(async () => {
     try {
