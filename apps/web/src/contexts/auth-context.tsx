@@ -4,6 +4,7 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 
 import { clearSession, getSession } from "@/actions/session";
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api";
 
 interface AuthContextType {
   session: string;
@@ -52,13 +53,31 @@ export function AuthProvider({
    */
   const signOut = async (): Promise<void> => {
     try {
+      console.log("Signing out...");
+      // First call the backend to invalidate the token
+      if (session) {
+        try {
+          await apiClient.post('/auth/logout/');
+          console.log('Successfully logged out on server');
+        } catch (apiError) {
+          console.error("Backend logout error", apiError);
+          // Continue with local logout even if backend call fails
+        }
+      }
+      
+      // Then clear the local session
       await clearSession();
-      router.push("/signin");
+      
+      // Clear the session state
+      setSession("");
+      
+      // Use window.location for a full page refresh to avoid React router issues
+      window.location.href = '/signin';
     } catch (error) {
       console.error("Logout error", error);
-      // Fallback: manually clear session and redirect
+      // Fallback: manually clear session and redirect with full page refresh
       setSession("");
-      router.push("/signin");
+      window.location.href = '/signin';
     }
   };
 
