@@ -1,6 +1,6 @@
 "use server"
 
-import { ACCESS_TOKEN } from "@/lib/constants"
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "@/lib/constants"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
@@ -39,7 +39,8 @@ const setSession = async (session: string): Promise<void> => {
 const clearSession = async (): Promise<void> => {
   const cookieStore = await cookies()
   cookieStore.delete(ACCESS_TOKEN)
-  return redirect("/")
+  cookieStore.delete(REFRESH_TOKEN) // Also clear the refresh token
+  // Don't redirect here, let the calling function handle navigation
 }
 
 export { getSession, setSession, clearSession }
