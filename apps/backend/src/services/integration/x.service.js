@@ -1,11 +1,12 @@
 import { TwitterApi } from "twitter-api-v2";
 import { Object } from "../../models/lib/object.model.js"
+import { environment } from "../../loaders/environment.loader.js";
 
 export const refreshTwitterToken = async (refreshToken) => {
     try {
         const client = new TwitterApi({
-            clientId: process.env.X_CLIENT_ID,
-            clientSecret: process.env.X_CLIENT_SECRET
+            clientId: environment.X_CLIENT_ID,
+            clientSecret: environment.X_CLIENT_SECRET
         });
 
         const { accessToken, refreshToken: newRefreshToken, expiresIn } =

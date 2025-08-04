@@ -145,3 +145,32 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Make clickable icons show pointer cursor */
+.x-icon,
+svg[viewBox="0 0 1200 1227"],
+svg[viewBox="0 0 200 200"],
+button svg,
+[role="button"] svg,
+.clickable svg,
+[aria-label="X"],
+[aria-label="Delete"],
+[aria-label="Remove"],
+[aria-label="Close"] {
+  cursor: pointer !important;
+}
+
+/* Target the specific X icons in the list */
+.x-icon path,
+svg path,
+button path {
+  pointer-events: none;
+}
+
+/* Direct targeting of the X buttons */
+[class*="x-"],
+[class*="delete"],
+[class*="remove"],
+[class*="close"] {
+  cursor: pointer !important;
+}
