@@ -7,12 +7,19 @@ const handleGithubCallbackController = async (req, res, next) => {
     try {
         const { installation_id: installationId, code } = req.query;
         const user = req.user;
+        
+        if (!installationId || !code) {
+            return res.status(400).json({
+                message: 'Missing required parameters'
+            });
+        }
+        
         const profile = await exchangeCodeForAccessToken(code);
 
         user.integration.github.installationId = installationId;
         user.integration.github.userName = profile.login;
-        user.integration.github.connected = true
-        user.save();
+        user.integration.github.connected = true;
+        await user.save();
 
         if (user.integration.github.connected) {
             const existingSource = await Source.findOne({ slug: "github", user: user._id });
@@ -25,10 +32,11 @@ const handleGithubCallbackController = async (req, res, next) => {
             }
         }
 
-        res.status(200).send({
+        res.status(200).json({
             message: 'GitHub App installed and user authenticated successfully'
         });
     } catch (err) {
+        console.error('GitHub callback error:', err);
         next(err);
     }
 };

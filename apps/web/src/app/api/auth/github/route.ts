@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/signin", redirectUrl));
   }
 
-  const response = NextResponse.redirect(new URL("/agenda", redirectUrl));
+  const response = NextResponse.redirect(new URL("/inbox", redirectUrl));
 
   response.cookies.set(ACCESS_TOKEN, res.accessToken, {
     maxAge: 60 * 60 * 24 * 30, // 30 days

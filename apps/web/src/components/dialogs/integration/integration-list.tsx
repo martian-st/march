@@ -33,7 +33,7 @@ const IntegrationsList = () => {
         // gmailDisconnectHandler: handleGmailRevoke,
       linearConnectHandler: handleLinearLogin,
       linearDisconnectHandler: handleLinearRevoke,
-      // githubConnectHandler: handleGithubInstall,
+      githubConnectHandler: handleGithubInstall,
       xConnectHandler: handleXLogin,
     },
     user
