@@ -1,12 +1,15 @@
 import { TwitterApi } from "twitter-api-v2";
 import { XQueue } from "../../loaders/bullmq.loader.js";
+import { environment } from "../../loaders/environment.loader.js";
 
 const twitterClient = new TwitterApi({
-    clientId: process.env.X_CLIENT_ID,
-    clientSecret: process.env.X_CLIENT_SECRET
+    clientId: environment.X_CLIENT_ID,
+    clientSecret: environment.X_CLIENT_SECRET
 });
 
-const CALLBACK_URL = process.env.X_CALLBACK_URL;
+
+const CALLBACK_URL = environment.X_CALLBACK_URL;
+
 
 export const redirectXOAuthLoginController = async (req, res) => {
     try {

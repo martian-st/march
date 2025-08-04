@@ -53,6 +53,9 @@ export const environment = {
     LOGSNAG_TOKEN: process.env.LOGSNAG_TOKEN,
     LOGSNAG_PROJECT_NAME: process.env.LOGSNAG_PROJECT_NAME,
     LOOPS_TOKEN: process.env.LOOPS_TOKEN,
+    X_CALLBACK_URL: process.env.X_CALLBACK_URL,
+    X_CLIENT_ID: process.env.X_CLIENT_ID,
+    X_CLIENT_SECRET: process.env.X_CLIENT_SECRET,
     GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY,
     PINECONE_API_KEY: process.env.PINECONE_API_KEY,
     GOOGLE_EMAIL_REDIRECT_URL: process.env.GOOGLE_EMAIL_REDIRECT_URL

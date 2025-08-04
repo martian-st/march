@@ -34,7 +34,7 @@ const IntegrationsList = () => {
       linearConnectHandler: handleLinearLogin,
       linearDisconnectHandler: handleLinearRevoke,
       // githubConnectHandler: handleGithubInstall,
-      // xConnectHandler: handleXLogin,
+      xConnectHandler: handleXLogin,
     },
     user
   );
