@@ -26,8 +26,7 @@ const initRoutes = (app) => {
     app.use('/github', JWTMiddleware, GithubRoute);
     app.use('/notion', JWTMiddleware, NotionRoute);
     app.use('/x', JWTMiddleware, XRoute);
-    // Temporarily bypass JWT middleware for testing
-    app.use('/ai/enhanced', AiRoute);
+    app.use('/ai/enhanced', JWTMiddleware, AiRoute);
     app.get("/", async (req, res) => {
         res.json({
             "message": "Welcome to  sage "

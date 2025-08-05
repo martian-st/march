@@ -20,7 +20,8 @@ export class EnhancedAIController {
     async processComplexRequest(req, res) {
         try {
             const { query, context = {} } = req.body;
-            const userId = req.user._id;
+            // Use a default user ID if no user is present in the request (for testing)
+            const userId = req.user?._id ;
 
             if (!query?.trim()) {
                 return res.status(400).json({ 
