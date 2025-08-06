@@ -465,7 +465,7 @@ const EnhancedAIChat = () => {
                         </div>
                         
                         {/* Feature buttons - below input */}
-                        <div className="flex items-center space-x-2 mt-4 overflow-x-auto pb-2">
+                        {/* <div className="flex items-center space-x-2 mt-4 overflow-x-auto pb-2">
                             <button type="button" className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -493,7 +493,7 @@ const EnhancedAIChat = () => {
                             <button type="button" className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
                                 <span>More</span>
                             </button>
-                        </div>
+                        </div> */}
                         
                         {/* Example queries - only shown when no messages exist */}
                         {messages.length === 0 && (
