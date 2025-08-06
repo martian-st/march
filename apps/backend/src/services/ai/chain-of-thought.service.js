@@ -29,59 +29,89 @@ export class ChainOfThoughtService {
     }
 
     /**
-     * Check if this is a simple conversational query
+     * Check if this is a simple conversational query using AI understanding
      */
-    isSimpleConversationalQuery(userPrompt) {
-        const conversationalPatterns = [
-            /^(hi|hello|hey|hiya)\b/i,
-            /^(how are you|what's up|what are you)\b/i,
-            /^(who are you|what do you do|tell me about yourself)\b/i,
-            /^(good morning|good afternoon|good evening)\b/i,
-            /^(thanks|thank you|bye|goodbye)\b/i,
-            /^(help|what can you do)\b/i
-        ];
-        
-        return conversationalPatterns.some(pattern => pattern.test(userPrompt.trim()));
+    async isSimpleConversationalQuery(userPrompt) {
+        try {
+            const conversationalPrompt = `
+Is this user query a simple conversational message (greeting, thanks, small talk) or a task-related request?
+
+User query: "${userPrompt}"
+
+Respond with just one word: "conversational" or "task"
+
+Examples:
+- "hello" → conversational
+- "thanks" → conversational
+- "create a task" → task
+- "what clarification" → conversational
+- "can you help me" → conversational
+- "add due date to tasks" → task
+`;
+
+            const result = await this.model.generateContent(conversationalPrompt);
+            const response = result.response.text().trim().toLowerCase();
+            
+            return response === 'conversational';
+            
+        } catch (error) {
+            console.error('Error detecting conversational query:', error);
+            // Fallback to simple check
+            const simpleConversational = ['hi', 'hello', 'hey', 'thanks', 'thank you', 'bye', 'goodbye', 'yes', 'no', 'ok', 'okay'];
+            return simpleConversational.some(word => userPrompt.toLowerCase().trim() === word);
+        }
     }
 
     /**
-     * Handle simple conversational queries
+     * Handle simple conversational queries using AI understanding
      */
     async handleConversationalQuery(userPrompt, userId) {
-        const lowerPrompt = userPrompt.toLowerCase().trim();
-        
-        let response = "";
-        
-        if (lowerPrompt.match(/^(hi|hello|hey|hiya)/)) {
-            response = "Hello! I'm March AI, your intelligent assistant. I can help you manage tasks, schedule meetings, search through your objects, and handle complex multi-step requests. What would you like me to help you with today?";
-        } else if (lowerPrompt.match(/^(who are you|what do you do|tell me about yourself)/)) {
-            response = "I'm March AI, your enhanced AI assistant built into the March productivity platform. I can:\n\n• Create and manage tasks, notes, and other objects\n• Search through your content intelligently\n• Schedule meetings and calendar events\n• Handle complex multi-step requests\n• Ask clarifying questions when needed\n• Continue conversations with context\n\nI'm designed to understand natural language and help you be more productive. Try asking me to create a task, find something, or schedule a meeting!";
-        } else if (lowerPrompt.match(/^(how are you|what's up)/)) {
-            response = "I'm doing great, thank you for asking! I'm here and ready to help you with your tasks, scheduling, or any other productivity needs. What can I assist you with?";
-        } else if (lowerPrompt.match(/^(help|what can you do)/)) {
-            response = "I can help you with many things! Here are some examples:\n\n**Task Management:**\n• \"Create a task to review the quarterly report\"\n• \"Find all my urgent tasks due this week\"\n\n**Scheduling:**\n• \"Schedule a meeting with the team tomorrow at 2 PM\"\n• \"Find a good time for a 1-hour meeting next week\"\n\n**Complex Requests:**\n• \"Find overdue tasks and create a meeting to discuss them\"\n• \"Create a project plan with 5 tasks for the website redesign\"\n\n**Follow-up Questions:**\nI can continue conversations and answer follow-up questions based on our previous interactions.\n\nJust ask me naturally - I'll understand what you need and ask for clarification if needed!";
-        } else if (lowerPrompt.match(/^(thanks|thank you)/)) {
-            response = "You're very welcome! I'm always here to help. Feel free to ask me anything else you need assistance with.";
-        } else if (lowerPrompt.match(/^(bye|goodbye)/)) {
-            response = "Goodbye! Have a great day, and don't hesitate to come back if you need any help with your tasks or scheduling.";
-        } else {
-            response = "Hello! I'm March AI, your intelligent assistant. I'm here to help you manage tasks, schedule meetings, and handle complex requests. What would you like me to help you with?";
+        try {
+            const conversationalPrompt = `
+You are March AI, a helpful productivity assistant. The user sent you a conversational message. Respond naturally and helpfully.
+
+User message: "${userPrompt}"
+
+Guidelines:
+- Be friendly and helpful
+- If it's a greeting, introduce yourself briefly
+- If they're asking what you can do, give examples
+- If they're saying thanks, acknowledge it warmly
+- If they seem confused, offer to help
+- Keep responses concise but warm
+- Always end by asking how you can help (unless they're saying goodbye)
+
+Examples:
+- "hello" → "Hello! How can I help you today?"
+- "thanks" → "You're very welcome! I'm always here to help. Is there anything else you'd like me to assist you with?"
+- "what clarification" → "I was asking for more details to help you better. But don't worry about it - just tell me what you'd like me to do and I'll do my best to help!"
+`;
+
+            const result = await this.model.generateContent(conversationalPrompt);
+            const response = result.response.text().trim();
+            
+            // Store this simple interaction in context
+            this.updateConversationContext(userId, {
+                request: userPrompt,
+                isConversational: true,
+                result: { response },
+                timestamp: new Date()
+            });
+            
+            return {
+                isConversational: true,
+                response,
+                success: true
+            };
+            
+        } catch (error) {
+            console.error('Error handling conversational query:', error);
+            return {
+                isConversational: true,
+                response: "Hello! I'm March AI, your productivity assistant. I can help you with tasks, scheduling, and much more. What would you like me to help you with?",
+                success: true
+            };
         }
-        
-        // Store this simple interaction in context
-        this.updateConversationContext(userId, {
-            request: userPrompt,
-            isConversational: true,
-            result: { response },
-            timestamp: new Date()
-        });
-        
-        return {
-            success: true,
-            isConversational: true,
-            response,
-            message: "Conversational response"
-        };
     }
 
     /**
@@ -90,54 +120,65 @@ export class ChainOfThoughtService {
     async processComplexRequest(userPrompt, userId, context = {}) {
         try {
             // Check if this is a simple conversational query first
-            if (this.isSimpleConversationalQuery(userPrompt)) {
+            if (await this.isSimpleConversationalQuery(userPrompt)) {
                 return await this.handleConversationalQuery(userPrompt, userId);
             }
 
-            // Check if this is a response to a pending clarification
+            // Check if this is a follow-up question
+            const conversationHistory = this.getConversationContext(userId);
+            if (conversationHistory.length > 0 && this.detectFollowUpQuestion(userPrompt, conversationHistory)) {
+                return await this.handleFollowUpQuestion(userPrompt, userId, conversationHistory);
+            }
+
+            // Check for pending clarifications
             const pendingClarification = this.pendingClarifications.get(userId);
             if (pendingClarification) {
                 return await this.handleClarificationResponse(userPrompt, userId, pendingClarification);
             }
 
-            // Get conversation context for follow-up detection
-            const conversationHistory = this.getConversationContext(userId);
-            const isFollowUp = this.detectFollowUpQuestion(userPrompt, conversationHistory);
-
-            if (isFollowUp) {
-                return await this.handleFollowUpQuestion(userPrompt, userId, conversationHistory);
-            }
-
-            // Step 1: Analyze the request structure
+            // Analyze the request structure
             const analysis = await this.analyzeRequestStructure(userPrompt, userId);
             
-            // Check if clarification is needed
-            const clarificationNeeded = this.needsClarification(analysis, userPrompt);
-            if (clarificationNeeded.needed) {
-                return await this.requestClarification(clarificationNeeded, userId, userPrompt, analysis);
+            // Be more lenient with clarification - only ask when absolutely necessary
+            if (this.needsClarification(analysis, userPrompt) && this.isHighlyAmbiguous(userPrompt)) {
+                return await this.requestClarification(analysis.clarificationNeeded, userId, userPrompt, analysis);
             }
+
+            // Generate reasoning chain
+            const reasoningChain = await this.generateReasoningChain(analysis, context);
             
-            // Step 2: Generate reasoning chain
-            const reasoningChain = await this.generateReasoningChain(analysis, {
-                ...context,
-                conversationHistory
-            });
+            // Execute the reasoning chain
+            const results = await this.executeReasoningChain(reasoningChain, userId);
             
-            // Step 3: Execute the reasoning chain
-            const result = await this.executeReasoningChain(reasoningChain, userId);
+            // Synthesize final result
+            const finalResult = this.synthesizeFinalResult(results);
+            const executionSummary = this.generateExecutionSummary(results);
             
-            // Step 4: Store context for future interactions
+            // Update conversation context
             this.updateConversationContext(userId, {
-                request: userPrompt,
+                query: userPrompt,
                 analysis,
-                result,
-                timestamp: new Date()
+                results: finalResult,
+                timestamp: new Date().toISOString()
             });
             
-            return result;
+            return {
+                ...finalResult,
+                executionSummary,
+                reasoningChain: reasoningChain.map(step => ({
+                    step: step.stepNumber,
+                    action: step.action,
+                    completed: true
+                }))
+            };
+            
         } catch (error) {
-            console.error("Error in processComplexRequest:", error);
-            throw error;
+            console.error('Error in processComplexRequest:', error);
+            return {
+                success: false,
+                message: 'I had trouble with that request. Could you try rephrasing it?',
+                error: error.message
+            };
         }
     }
 
@@ -147,16 +188,27 @@ export class ChainOfThoughtService {
     needsClarification(analysis, userPrompt) {
         const ambiguityScore = this.calculateAmbiguityScore(analysis, userPrompt);
         
-        if (ambiguityScore > 0.7) {
-            return {
-                needed: true,
-                reasons: analysis.actions.flatMap(action => action.ambiguities || []),
-                missingInfo: analysis.actions.flatMap(action => action.requiredInfo || []),
-                confidence: analysis.confidence
-            };
-        }
+        return {
+            needed: ambiguityScore > 0.7,
+            score: ambiguityScore,
+            reasons: analysis.clarificationNeeded || []
+        };
+    }
+
+    /**
+     * Check if a query is highly ambiguous (only ask for clarification in extreme cases)
+     */
+    isHighlyAmbiguous(userPrompt) {
+        const prompt = userPrompt.toLowerCase().trim();
         
-        return { needed: false };
+        // Only consider highly ambiguous if it's extremely vague
+        const extremelyVague = [
+            /^(do something|help me|what|how|why)$/i,
+            /^(i need|i want|can you)$/i,
+            /^(please|could you|would you)$/i
+        ];
+        
+        return extremelyVague.some(pattern => pattern.test(prompt)) && prompt.split(' ').length <= 3;
     }
 
     /**
@@ -165,12 +217,21 @@ export class ChainOfThoughtService {
     calculateAmbiguityScore(analysis, userPrompt) {
         let score = 0;
         
-        // High ambiguity indicators
-        if (analysis.actions.some(action => action.ambiguities?.length > 0)) score += 0.4;
-        if (analysis.actions.some(action => action.requiredInfo?.length > 0)) score += 0.3;
-        if (analysis.confidence < 0.6) score += 0.3;
-        if (userPrompt.split(' ').length < 4) score += 0.2; // Very short queries
-        if (analysis.contextNeeded?.length > 0) score += 0.2;
+        // Be more lenient - reduce ambiguity scoring
+        const vagueWords = ['something', 'anything', 'stuff'];
+        const words = userPrompt.toLowerCase().split(' ');
+        const vagueCount = words.filter(word => vagueWords.includes(word)).length;
+        score += vagueCount * 0.3; // Increased weight for truly vague words
+        
+        // Only penalize if there's truly missing critical information
+        if (analysis.missingInformation?.length > 2) {
+            score += (analysis.missingInformation.length - 2) * 0.2;
+        }
+        
+        // Be more forgiving with pronouns - they're often clear in context
+        const criticalPronouns = ['it', 'them'] // Only these are truly ambiguous
+        const pronounCount = words.filter(word => criticalPronouns.includes(word)).length;
+        score += pronounCount * 0.15;
         
         return Math.min(score, 1.0);
     }

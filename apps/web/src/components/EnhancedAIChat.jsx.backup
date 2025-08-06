@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 /**
  * Enhanced AI Chat Component
  * Provides a sophisticated chat interface for the enhanced AI assistant
+ * with natural language understanding and learning capabilities
  */
 const EnhancedAIChat = () => {
     const [messages, setMessages] = useState([]);
@@ -22,6 +23,41 @@ const EnhancedAIChat = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // Add CSS for feedback buttons
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            .message-container {
+                position: relative;
+            }
+            .feedback-buttons {
+                position: absolute;
+                right: 0;
+                top: 0;
+                display: flex;
+                gap: 5px;
+                opacity: 0.5;
+                transition: opacity 0.2s;
+            }
+            .feedback-buttons:hover {
+                opacity: 1;
+            }
+            .feedback-btn {
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 2px 5px;
+                border-radius: 4px;
+            }
+            .feedback-btn:hover {
+                background-color: rgba(0,0,0,0.05);
+            }
+        `;
+        document.head.appendChild(style);
+        return () => document.head.removeChild(style);
+    }, []);
 
     const addMessage = (message) => {
         setMessages(prev => [...prev, message]);
@@ -64,8 +100,18 @@ const EnhancedAIChat = () => {
         addMessage(loadingMessage);
 
         try {
-            // Use single intelligent endpoint that learns from user patterns
-            await handleIntelligentRequest(input);
+            // Get conversation history for context
+            const conversationHistory = messages
+                .filter(msg => !msg.isLoading)
+                .slice(-10) // Last 10 messages for context
+                .map(msg => ({
+                    role: msg.type,
+                    content: msg.content,
+                    timestamp: msg.timestamp
+                }));
+            
+            // Use the unified process endpoint for all requests
+            await handleUnifiedRequest(input, conversationHistory);
         } catch (error) {
             console.error('Error:', error);
             updateLastMessage({
@@ -79,54 +125,70 @@ const EnhancedAIChat = () => {
         }
     };
 
-    // Single intelligent endpoint - no more routing based on keywords!
-    // The AI will learn from user interactions and understand intent naturally
-    const getIntelligentEndpoint = () => {
-        return 'http://localhost:8080/ai/intelligent';
-    };
-
-    // Intelligent request handler - uses AI learning instead of keyword matching
-    const handleIntelligentRequest = async (query) => {
+    const handleUnifiedRequest = async (query, conversationHistory = []) => {
         setIsStreaming(true);
         
         // Get session token
         const session = await getSession();
         
-        const response = await fetch(getIntelligentEndpoint(), {
+        // Get user preferences and settings if available
+        const userPreferences = localStorage.getItem('userPreferences') 
+            ? JSON.parse(localStorage.getItem('userPreferences')) 
+            : {};
+        
+        // Get any feedback from previous interactions
+        const interactionFeedback = localStorage.getItem('interactionFeedback') 
+            ? JSON.parse(localStorage.getItem('interactionFeedback')) 
+            : [];
+        
+        const response = await fetch('http://localhost:8080/ai/enhanced/process', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${session}`
             },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ 
+                query,
+                context: {
+                    conversationHistory,
+                    userPreferences,
+                    interactionFeedback,
+                    clientTimestamp: new Date().toISOString(),
+                    clientInfo: {
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        locale: navigator.language,
+                        userAgent: navigator.userAgent
+                    }
+                }
+            })
         });
 
         if (!response.ok) {
             console.error('API Error:', response.status, response.statusText);
-            setMessages(prev => [...prev.slice(0, -1), {
-                role: 'assistant',
+            updateLastMessage({
                 content: 'Sorry, I encountered an error processing your request. Please try again.',
+                isLoading: false,
+                isStreaming: false,
                 isError: true
-            }]);
-            setIsStreaming(false);
+            });
             return;
         }
 
+        // Handle streaming response
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = '';
-
-        updateLastMessage({ content: '', isLoading: false, isStreaming: true });
 
         try {
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop(); // Keep incomplete line in buffer
-
+                
+                if (done) {
+                    break;
+                }
+                
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
                 for (const line of lines) {
                     if (line.trim()) {
                         try {
@@ -143,15 +205,17 @@ const EnhancedAIChat = () => {
         }
     };
 
+    // This function is no longer used as we're using the unified approach
+    const handleSimpleRequest = async (query, endpoint) => {
+        console.log('This function is deprecated - using unified request handler instead');
+        // Redirect to unified handler
+        return handleUnifiedRequest(query);
+    };
+
     const handleStreamingResponse = (data) => {
+        console.log('Received streaming response:', data.status);
+        
         switch (data.status) {
-            case 'thinking':
-                // AI is understanding the request (learning happens silently)
-                updateLastMessage({ 
-                    content: data.message || 'Processing your request...',
-                    isStreaming: true
-                });
-                break;
             case 'processing':
                 // Show real-time processing updates
                 updateLastMessage({ 
@@ -159,30 +223,45 @@ const EnhancedAIChat = () => {
                     isStreaming: true 
                 });
                 break;
-            case 'progress':
-                // Show progress without exposing learning details
+            case 'thinking':
+                // Add a new status for showing thinking process
                 updateLastMessage({ 
-                    content: data.message || 'Working on your request...',
-                    isStreaming: true
+                    content: data.message || 'Thinking about your request...',
+                    isStreaming: true 
+                });
+                break;
+            case 'progress':
+                // Add a new status for showing progress updates
+                updateLastMessage({ 
+                    content: data.message || 'Making progress on your request...',
+                    isStreaming: true,
+                    progress: data.progress
                 });
                 break;
             case 'completed':
-                // Show final result with learning stats
-                const responseContent = formatIntelligentResponse(data.data);
+                // Ensure we properly handle the completed response
+                console.log('Completed response received:', data.data);
+                
+                // Handle case where data might be undefined
+                const responseData = data.data || {
+                    message: "I processed your request, but no data was returned.",
+                    summary: "Request processed successfully."
+                };
+                
                 updateLastMessage({
-                    content: responseContent,
+                    content: formatComplexResponse(responseData),
                     isStreaming: false,
-                    data: data.data,
-                    learningStats: data.data.learningStats
+                    isLoading: false,
+                    data: responseData
                 });
                 setConversationState('normal');
+                setIsStreaming(false);
+                setIsLoading(false);
                 break;
             case 'conversational':
                 updateLastMessage({
                     content: data.data.response,
-                    isStreaming: false,
-                    isConversational: true,
-                    data: data.data
+                    isStreaming: false
                 });
                 setConversationState('normal');
                 break;
@@ -193,140 +272,54 @@ const EnhancedAIChat = () => {
                     needsClarification: true,
                     clarificationData: data.data
                 });
-                setPendingClarification(data.data);
                 setConversationState('clarification');
                 break;
             case 'follow_up_response':
                 updateLastMessage({
-                    content: data.data.response,
+                    content: data.data.response || formatComplexResponse(data.data),
                     isStreaming: false,
-                    isFollowUp: true,
                     data: data.data
                 });
-                setConversationState('normal');
+                setConversationState('follow_up');
                 break;
             case 'error':
                 updateLastMessage({
-                    content: `Error: ${data.error}`,
+                    content: data.error || 'Sorry, I encountered an error processing your request.',
                     isStreaming: false,
-                    error: true
+                    isError: true
                 });
                 setConversationState('normal');
-                setPendingClarification(null);
                 break;
             default:
-                // Handle any other status messages
-                updateLastMessage({ 
-                    content: data.message || 'Processing your request...',
-                    isStreaming: true 
-                });
+                console.warn('Unknown status in streaming response:', data.status);
                 break;
         }
     };
 
     const formatResponse = (data) => {
-        if (data.objects) {
-            // Format search results
-            const count = data.objects.length;
-            let response = `Found ${count} result${count !== 1 ? 's' : ''}:\n\n`;
-            
-            data.objects.slice(0, 5).forEach((obj, index) => {
-                response += `${index + 1}. **${obj.title}**\n`;
-                response += `   Type: ${obj.type} | Status: ${obj.status || 'Not set'}\n`;
-                if (obj.due?.string) {
-                    response += `   Due: ${obj.due.string}\n`;
-                }
-                response += '\n';
-            });
-            
-            if (count > 5) {
-                response += `... and ${count - 5} more results`;
-            }
-            
-            return response;
-        } else if (data.object) {
-            // Format created object
-            const obj = data.object;
-            return `✅ Created ${obj.type}: **${obj.title}**\n\n` +
-                   `Status: ${obj.status || 'Not set'}\n` +
-                   (obj.due?.string ? `Due: ${obj.due.string}\n` : '') +
-                   (obj.priority ? `Priority: ${obj.priority}\n` : '') +
-                   (obj.description ? `Description: ${obj.description}` : '');
-        } else if (data.meeting) {
-            // Format calendar event
-            const meeting = data.meeting;
-            return `📅 Created meeting: **${meeting.title}**\n\n` +
-                   `Date: ${meeting.due.string}\n` +
-                   `Location: ${meeting.metadata.location || 'TBD'}\n` +
-                   `Duration: ${meeting.metadata.duration} minutes`;
-        }
-        
-        return data.message || 'Request completed successfully';
-    };
-
-    // Format response from intelligent AI system (learning happens silently)
-    const formatIntelligentResponse = (data) => {
-        let response = '';
-        
-        // Handle conversational responses first
-        if (data.isConversational && data.response) {
-            return data.response;
-        }
-        
-        // Show main result without exposing AI learning details
-        if (data.message) {
-            response += data.message + '\n\n';
-        }
-        
-        // Show response text if available
-        if (data.response && !data.isConversational) {
-            response += data.response + '\n\n';
-        }
-        
-        // Show created objects
-        if (data.object) {
-            response += `✅ Created: **${data.object.title}**\n`;
-            response += `Type: ${data.object.type}\n`;
-            if (data.object.status) response += `Status: ${data.object.status}\n`;
-            if (data.object.due?.string) response += `Due: ${data.object.due.string}\n`;
-            response += '\n';
-        }
-        
-        // Show found objects
-        if (data.objects && data.objects.length > 0) {
-            response += `Found ${data.objects.length} result${data.objects.length !== 1 ? 's' : ''}:\n\n`;
-            data.objects.slice(0, 5).forEach((obj, index) => {
-                response += `${index + 1}. **${obj.title}**\n`;
-                response += `   ${obj.type} | ${obj.status || 'No status'}\n`;
-                if (obj.due?.string) response += `   Due: ${obj.due.string}\n`;
-                response += '\n';
-            });
-            if (data.objects.length > 5) {
-                response += `... and ${data.objects.length - 5} more results\n\n`;
             }
         }
-        
-        // Learning happens silently - no need to show progress to user
-        
-        return response || 'Request completed successfully';
-    };
+    })
+});
 
-    const formatClarificationRequest = (data) => {
-        let response = `${data.message}\n\n`;
+if (!response.ok) {
+    console.error('API Error:', response.status, response.statusText);
+    updateLastMessage({
+        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        isLoading: false,
+        isStreaming: false,
+        isError: true
+    });
+    return;
+}
+        let response = data.message || 'I need some clarification to better help you.';
         
         if (data.questions && data.questions.length > 0) {
-            response += "**Please help me with the following:**\n\n";
-            
-            data.questions.forEach((question, index) => {
-                response += `${index + 1}. ${question.question}\n`;
-                
-                if (question.suggestions && question.suggestions.length > 0) {
-                    response += `   Suggestions: ${question.suggestions.join(', ')}\n`;
-                }
-                response += '\n';
+            response += '\n\n';
+            data.questions.forEach((q, i) => {
+                response += `**${q.question}**\n`;
+                if (q.context) response += `${q.context}\n`;
             });
-            
-            response += "You can answer all questions in one message, or just provide the most important details.";
         }
         
         return response;
@@ -335,11 +328,11 @@ const EnhancedAIChat = () => {
     const getInputPlaceholder = () => {
         switch (conversationState) {
             case 'clarification':
-                return "Please provide the requested details...";
+                return 'Type your clarification here...';
             case 'follow_up':
-                return "Ask a follow-up question or continue the conversation...";
+                return 'Ask a follow-up question...';
             default:
-                return "Ask me anything... (e.g., 'Find my urgent tasks and create a meeting to discuss them')";
+                return 'Ask me anything...';
         }
     };
 
@@ -357,14 +350,36 @@ const EnhancedAIChat = () => {
             .replace(/`(.*?)`/g, '<code>$1</code>')
             .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
     };
+    
+    // Store user feedback about AI responses to improve future interactions
+    const storeUserFeedback = (messageId, isHelpful) => {
+        const feedback = localStorage.getItem('interactionFeedback') 
+            ? JSON.parse(localStorage.getItem('interactionFeedback')) 
+            : [];
+            
+        feedback.push({
+            messageId,
+            timestamp: new Date().toISOString(),
+            isHelpful,
+            query: messages.find(m => m.id === messageId - 1)?.content || '',
+            response: messages.find(m => m.id === messageId)?.content || ''
+        });
+        
+        // Keep only the last 50 feedback items
+        if (feedback.length > 50) {
+            feedback.shift();
+        }
+        
+        localStorage.setItem('interactionFeedback', JSON.stringify(feedback));
+    };
 
     const exampleQueries = [
-        "Create a task to review the quarterly report by Friday",
-        "Find my urgent tasks due this week",
-        "Add a due date of August 15th to all my unplanned todos",
-        "Schedule a team meeting for tomorrow at 2 PM",
-        "Show me completed tasks from last month",
-        "Update high priority tasks to be due next Monday"
+        "Create a task to review the proposal by Friday",
+        "Find all my urgent tasks due this week",
+        "Schedule a team meeting for tomorrow at 2pm",
+        "Add a due date of August 10th to all my unplanned tasks", // Example of an update operation
+        "Create a project plan for the new feature launch",
+        "Mark all completed tasks as archived" // Another update example
     ];
 
     return (
@@ -374,7 +389,7 @@ const EnhancedAIChat = () => {
                 <div className="header-content">
                     <h1>March AI</h1>
                     {conversationState !== 'normal' && (
-                        <div className="status-badge">
+                        <div className="conversation-state">
                             {conversationState === 'clarification' ? '💭 Clarifying' : '💬 Continuing'}
                         </div>
                     )}
@@ -386,18 +401,22 @@ const EnhancedAIChat = () => {
                 {messages.length === 0 && (
                     <div className="welcome-screen">
                         <div className="welcome-icon">🤖</div>
-                        <h2>How can I help you today?</h2>
+                        <h2>Welcome to March AI</h2>
+                        <p>I can help you manage tasks, schedule meetings, and more. Try asking me something!</p>
+                        
                         <div className="example-prompts">
-                            {exampleQueries.map((query, index) => (
-                                <button
-                                    key={index}
-                                    className="example-prompt"
-                                    onClick={() => setInput(query)}
-                                    disabled={isLoading}
-                                >
-                                    {query}
-                                </button>
-                            ))}
+                            <h3>Try these examples:</h3>
+                            <div className="example-grid">
+                                {exampleQueries.map((query, index) => (
+                                    <button 
+                                        key={index} 
+                                        className="example-query"
+                                        onClick={() => handleQuickResponse(query)}
+                                    >
+                                        {query}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -411,32 +430,50 @@ const EnhancedAIChat = () => {
                                 </div>
                             ) : (
                                 <>
-                                    <div 
-                                        className="message-text"
-                                        dangerouslySetInnerHTML={{ 
-                                            __html: formatMessageContent(message.content) 
-                                        }}
-                                    />
+                                    <div className="message-container">
+                                        <div 
+                                            className="message-text"
+                                            dangerouslySetInnerHTML={{ 
+                                                __html: formatMessageContent(message.content) 
+                                            }}
+                                        />
+                                        {message.type === 'assistant' && !message.isLoading && (
+                                            <div className="feedback-buttons">
+                                                <button 
+                                                    className="feedback-btn helpful" 
+                                                    onClick={() => storeUserFeedback(message.id, true)}
+                                                    title="This was helpful"
+                                                >
+                                                    <span>👍</span>
+                                                </button>
+                                                <button 
+                                                    className="feedback-btn unhelpful" 
+                                                    onClick={() => storeUserFeedback(message.id, false)}
+                                                    title="This was not helpful"
+                                                >
+                                                    <span>👎</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                     {message.needsClarification && message.clarificationData?.questions && (
                                         <div className="clarification-section">
                                             {message.clarificationData.questions.map((question, qIndex) => (
-                                                question.suggestions && question.suggestions.length > 0 && (
-                                                    <div key={qIndex} className="clarification-group">
-                                                        <div className="clarification-question">{question.question}</div>
-                                                        <div className="clarification-options">
+                                                <div key={qIndex} className="clarification-question">
+                                                    {question.suggestions && (
+                                                        <div className="clarification-suggestions">
                                                             {question.suggestions.map((suggestion, sIndex) => (
                                                                 <button
                                                                     key={sIndex}
                                                                     className="clarification-option"
                                                                     onClick={() => handleQuickResponse(suggestion)}
-                                                                    disabled={isLoading}
                                                                 >
                                                                     {suggestion}
                                                                 </button>
                                                             ))}
                                                         </div>
-                                                    </div>
-                                                )
+                                                    )}
+                                                </div>
                                             ))}
                                         </div>
                                     )}
@@ -448,35 +485,34 @@ const EnhancedAIChat = () => {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
+            {/* Input Section */}
             <div className="input-section">
-                <form onSubmit={handleSubmit} className="input-form">
+                <form className="input-form" onSubmit={handleSubmit}>
                     <div className="input-wrapper">
                         <input
                             type="text"
+                            className="message-input"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder={getInputPlaceholder()}
                             disabled={isLoading}
-                            className="message-input"
                         />
                         <button 
                             type="submit" 
-                            disabled={isLoading || !input.trim()}
                             className="send-btn"
+                            disabled={!input.trim() || isLoading}
                         >
                             {isLoading ? (
                                 <div className="loading-spinner"></div>
                             ) : (
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                                </svg>
+                                <span>➤</span>
                             )}
                         </button>
                     </div>
                 </form>
             </div>
-            
+
+            {/* Styles */}
             <style jsx>{`
                 .chat-container {
                     display: flex;
@@ -484,46 +520,49 @@ const EnhancedAIChat = () => {
                     height: 100vh;
                     max-height: 800px;
                     width: 100%;
-                    max-width: 1000px;
+                    max-width: 1200px;
                     margin: 0 auto;
-                    background: #ffffff;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                    background: #f9fafb;
                 }
 
                 .chat-header {
                     padding: 16px 24px;
-                    border-bottom: 1px solid #e5e5e5;
                     background: #ffffff;
+                    border-bottom: 1px solid #e5e5e5;
                 }
 
                 .header-content {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
+                    max-width: 768px;
+                    margin: 0 auto;
+                    width: 100%;
                 }
 
-                .header-content h1 {
+                .chat-header h1 {
                     margin: 0;
                     font-size: 20px;
                     font-weight: 600;
-                    color: #202123;
+                    color: #111827;
                 }
 
-                .status-badge {
-                    padding: 4px 12px;
-                    background: #f7f7f8;
+                .conversation-state {
+                    font-size: 14px;
+                    color: #4b5563;
+                    background: #f3f4f6;
+                    padding: 4px 10px;
                     border-radius: 12px;
-                    font-size: 12px;
-                    color: #6b7280;
-                    font-weight: 500;
                 }
 
                 .messages-container {
                     flex: 1;
                     overflow-y: auto;
-                    padding: 0;
-                    display: flex;
-                    flex-direction: column;
+                    padding: 24px 0;
+                    scroll-behavior: smooth;
                 }
 
                 .welcome-screen {
@@ -531,134 +570,148 @@ const EnhancedAIChat = () => {
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    flex: 1;
-                    padding: 48px 24px;
+                    height: 100%;
+                    padding: 24px;
                     text-align: center;
                 }
 
                 .welcome-icon {
                     font-size: 48px;
-                    margin-bottom: 24px;
+                    margin-bottom: 16px;
                 }
 
                 .welcome-screen h2 {
-                    margin: 0 0 32px 0;
+                    margin: 0 0 8px;
                     font-size: 24px;
                     font-weight: 600;
-                    color: #202123;
+                    color: #111827;
+                }
+
+                .welcome-screen p {
+                    margin: 0 0 24px;
+                    font-size: 16px;
+                    color: #4b5563;
+                    max-width: 500px;
                 }
 
                 .example-prompts {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                    gap: 12px;
-                    max-width: 800px;
                     width: 100%;
+                    max-width: 600px;
                 }
 
-                .example-prompt {
-                    padding: 16px;
-                    border: 1px solid #d1d5db;
-                    border-radius: 8px;
+                .example-prompts h3 {
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #4b5563;
+                    margin-bottom: 12px;
+                }
+
+                .example-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                }
+
+                .example-query {
+                    text-align: left;
                     background: #ffffff;
+                    border: 1px solid #e5e5e5;
+                    border-radius: 8px;
+                    padding: 12px 16px;
+                    font-size: 14px;
+                    color: #111827;
                     cursor: pointer;
                     transition: all 0.2s ease;
-                    font-size: 14px;
-                    text-align: left;
-                    color: #374151;
-                    font-weight: 400;
                 }
 
-                .example-prompt:hover:not(:disabled) {
-                    border-color: #9ca3af;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                }
-
-                .example-prompt:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
+                .example-query:hover {
+                    background: #f9fafb;
+                    border-color: #d1d5db;
                 }
 
                 .message-wrapper {
-                    padding: 24px;
-                    border-bottom: 1px solid #f0f0f0;
+                    display: flex;
+                    margin-bottom: 16px;
+                    padding: 0 24px;
                 }
 
                 .message-wrapper.user {
-                    background: #f7f7f8;
-                }
-
-                .message-wrapper.assistant {
-                    background: #ffffff;
+                    justify-content: flex-end;
                 }
 
                 .message-bubble {
-                    max-width: 100%;
-                    margin: 0 auto;
-                    max-width: 768px;
+                    max-width: 80%;
+                    padding: 12px 16px;
+                    border-radius: 12px;
+                    background: #ffffff;
+                    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+                }
+
+                .message-wrapper.user .message-bubble {
+                    background: #2563eb;
+                    color: white;
                 }
 
                 .message-text {
-                    line-height: 1.6;
-                    color: #202123;
-                    font-size: 16px;
-                    white-space: pre-wrap;
+                    font-size: 15px;
+                    line-height: 1.5;
+                }
+
+                .message-wrapper.user .message-text {
+                    color: white;
                 }
 
                 .typing-indicator {
                     display: flex;
-                    gap: 4px;
                     align-items: center;
+                    gap: 4px;
                 }
 
                 .typing-indicator span {
                     width: 8px;
                     height: 8px;
                     border-radius: 50%;
-                    background: #9ca3af;
-                    animation: typing 1.4s infinite ease-in-out;
+                    background: #d1d5db;
+                    animation: typing 1.4s infinite both;
                 }
 
-                .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-                .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-                .typing-indicator span:nth-child(3) { animation-delay: 0s; }
+                .typing-indicator span:nth-child(2) {
+                    animation-delay: 0.2s;
+                }
+
+                .typing-indicator span:nth-child(3) {
+                    animation-delay: 0.4s;
+                }
 
                 @keyframes typing {
-                    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-                    40% { transform: scale(1); opacity: 1; }
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.5); }
+                    100% { transform: scale(1); }
                 }
 
                 .clarification-section {
-                    margin-top: 20px;
-                    padding-top: 16px;
-                    border-top: 1px solid #e5e5e5;
-                }
-
-                .clarification-group {
-                    margin-bottom: 16px;
+                    margin-top: 12px;
                 }
 
                 .clarification-question {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #374151;
                     margin-bottom: 8px;
                 }
 
-                .clarification-options {
+                .clarification-suggestions {
                     display: flex;
                     flex-wrap: wrap;
                     gap: 8px;
+                    margin-top: 8px;
                 }
 
                 .clarification-option {
-                    padding: 8px 16px;
-                    border: 1px solid #d1d5db;
-                    border-radius: 20px;
                     background: #ffffff;
-                    color: #374151;
-                    cursor: pointer;
+                    border: 1px solid #d1d5db;
+                    border-radius: 16px;
+                    padding: 6px 12px;
                     font-size: 14px;
+                    color: #111827;
+                    cursor: pointer;
                     transition: all 0.2s ease;
                     font-weight: 500;
                 }
