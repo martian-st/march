@@ -88,8 +88,14 @@ const EnhancedAIChat = () => {
     const determineEndpoint = (query) => {
         const lowerQuery = query.toLowerCase();
         
+        // For simple task creation, always use the complex process endpoint
+        // to ensure we get proper clarification and details
+        if (lowerQuery === 'create a task' || lowerQuery === 'add a task' || lowerQuery === 'make a task') {
+            return 'http://localhost:8080/ai/enhanced/process';
+        }
+        
         if (lowerQuery.includes('find') || lowerQuery.includes('search') || lowerQuery.includes('show me')) {
-            return 'localhost:8080/ai/enhanced/find';
+            return 'http://localhost:8080/ai/enhanced/find';
         } else if (lowerQuery.includes('create') || lowerQuery.includes('add') || lowerQuery.includes('make')) {
             return 'http://localhost:8080/ai/enhanced/create';
         } else if (lowerQuery.includes('schedule') || lowerQuery.includes('meeting') || lowerQuery.includes('calendar')) {
@@ -117,7 +123,14 @@ const EnhancedAIChat = () => {
         });
 
         if (!response.ok) {
-            throw new Error('Network response was not ok');
+            console.error('API Error:', response.status, response.statusText);
+            setMessages(prev => [...prev.slice(0, -1), {
+                role: 'assistant',
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+                isError: true
+            }]);
+            setIsStreaming(false);
+            return;
         }
 
         const reader = response.body.getReader();
@@ -152,45 +165,126 @@ const EnhancedAIChat = () => {
     };
 
     const handleSimpleRequest = async (query, endpoint) => {
+        setIsStreaming(true); // Set streaming state for all requests
+        
         let body = { query };
         
-        if (endpoint === '/api/ai/enhanced/create') {
+        if (endpoint === 'http://localhost:8080/ai/enhanced/create') {
             body = { prompt: query };
-        } else if (endpoint === '/api/ai/enhanced/calendar') {
+        } else if (endpoint === 'http://localhost:8080/ai/enhanced/calendar') {
             body = { prompt: query, action: 'create' };
         }
 
         // Get session token
         const session = await getSession();
         
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session}`
-            },
-            body: JSON.stringify(body)
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-            updateLastMessage({
-                content: formatResponse(data.data),
-                isLoading: false,
-                data: data.data
+        try {
+            // Update message to show we're processing
+            updateLastMessage({ 
+                content: 'Processing your request...', 
+                isLoading: false, 
+                isStreaming: true 
             });
-        } else {
-            throw new Error(data.message || 'Request failed');
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                console.error('API Error:', response.status, response.statusText);
+                updateLastMessage({
+                    content: 'Sorry, I encountered an error processing your request. Please try again.',
+                    isLoading: false,
+                    isStreaming: false,
+                    isError: true
+                });
+                return;
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                // If the task creation is too simple (e.g., just "Create a task" with no details)
+                // and we get a null status, suggest adding more details
+                if (endpoint.includes('/create') && 
+                    data.data?.object?.status === null && 
+                    query.toLowerCase().match(/^create a( simple)? task$/)) {
+                    
+                    updateLastMessage({
+                        content: 'I need more information to create a useful task. Could you please provide details like:\n\n' +
+                                 '- What is the task about?\n' +
+                                 '- When is it due?\n' +
+                                 '- What priority level?\n\n' +
+                                 'For example: "Create a high priority task to review the proposal by Friday"',
+                        isLoading: false,
+                        isStreaming: false,
+                        needsClarification: true,
+                        clarificationData: {
+                            questions: [{
+                                question: 'Please provide more details for the task:',
+                                suggestions: [
+                                    'Create a high priority task to review the proposal by Friday',
+                                    'Add a task to call the client tomorrow',
+                                    'Make a task to update the website content'
+                                ]
+                            }]
+                        }
+                    });
+                    setConversationState('clarification');
+                } else {
+                    updateLastMessage({
+                        content: formatResponse(data.data),
+                        isLoading: false,
+                        isStreaming: false,
+                        data: data.data
+                    });
+                }
+            } else {
+                updateLastMessage({
+                    content: data.message || 'Sorry, I encountered an error processing your request.',
+                    isLoading: false,
+                    isStreaming: false,
+                    isError: true
+                });
+            }
+        } catch (error) {
+            console.error('Error handling simple request:', error);
+            updateLastMessage({
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+                isLoading: false,
+                isStreaming: false,
+                isError: true
+            });
         }
     };
 
     const handleStreamingResponse = (data) => {
         switch (data.status) {
             case 'processing':
+                // Show real-time processing updates
                 updateLastMessage({ 
-                    content: data.message,
+                    content: data.message || 'Processing your request...',
                     isStreaming: true 
+                });
+                break;
+            case 'thinking':
+                // Add a new status for showing thinking process
+                updateLastMessage({ 
+                    content: data.message || 'Thinking about your request...',
+                    isStreaming: true 
+                });
+                break;
+            case 'progress':
+                // Add a new status for showing progress updates
+                updateLastMessage({ 
+                    content: data.message || 'Making progress on your request...',
+                    isStreaming: true,
+                    progress: data.progress
                 });
                 break;
             case 'completed':
@@ -238,6 +332,13 @@ const EnhancedAIChat = () => {
                 setConversationState('normal');
                 setPendingClarification(null);
                 break;
+            default:
+                // Handle any other status messages
+                updateLastMessage({ 
+                    content: data.message || 'Processing your request...',
+                    isStreaming: true 
+                });
+                break;
         }
     };
 
@@ -249,7 +350,7 @@ const EnhancedAIChat = () => {
             
             data.objects.slice(0, 5).forEach((obj, index) => {
                 response += `${index + 1}. **${obj.title}**\n`;
-                response += `   Type: ${obj.type} | Status: ${obj.status}\n`;
+                response += `   Type: ${obj.type} | Status: ${obj.status || 'Not set'}\n`;
                 if (obj.due?.string) {
                     response += `   Due: ${obj.due.string}\n`;
                 }
@@ -265,8 +366,9 @@ const EnhancedAIChat = () => {
             // Format created object
             const obj = data.object;
             return `✅ Created ${obj.type}: **${obj.title}**\n\n` +
-                   `Status: ${obj.status}\n` +
+                   `Status: ${obj.status || 'Not set'}\n` +
                    (obj.due?.string ? `Due: ${obj.due.string}\n` : '') +
+                   (obj.priority ? `Priority: ${obj.priority}\n` : '') +
                    (obj.description ? `Description: ${obj.description}` : '');
         } else if (data.meeting) {
             // Format calendar event
@@ -351,11 +453,14 @@ const EnhancedAIChat = () => {
     };
 
     const formatMessageContent = (content) => {
-        // Simple markdown-like formatting
+        // Enhanced markdown-like formatting
         return content
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
             .replace(/\n/g, '<br/>')
-            .replace(/•/g, '&bull;');
+            .replace(/•/g, '&bull;')
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
     };
 
     const exampleQueries = [
