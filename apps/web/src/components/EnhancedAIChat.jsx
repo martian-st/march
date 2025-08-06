@@ -371,20 +371,9 @@ const EnhancedAIChat = () => {
         <div className="flex flex-col h-screen bg-white text-gray-900">
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-6 pb-36">
-                {messages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full text-center max-w-4xl mx-auto">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl w-full mt-auto">
-                            {exampleQueries.map((query, index) => (
-                                <button
-                                    key={index}
-                                    className="p-4 text-left text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    onClick={() => setInput(query)}
-                                    disabled={isLoading}
-                                >
-                                    {query}
-                                </button>
-                            ))}
-                        </div>
+                {messages.length > 0 && (
+                    <div className="flex flex-col space-y-4">
+                        {/* Message bubbles would go here */}
                     </div>
                 )}
                 
@@ -444,9 +433,9 @@ const EnhancedAIChat = () => {
                 </div>
             </div>
 
-            {/* Input field at bottom */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white">
-                <div className="max-w-2xl mx-auto">
+            {/* Input field - centered when no chat, bottom when chat exists */}
+            <div className={`${messages.length === 0 ? 'flex items-center justify-center h-full' : 'fixed bottom-0 left-0 right-0 p-4'} bg-white`}>
+                <div className="max-w-2xl w-full mx-auto">
                     <form onSubmit={handleSubmit} className="relative">
                         <div className="rounded-xl bg-gray-100 shadow-sm overflow-hidden">
                             {/* Main input */}
@@ -473,41 +462,55 @@ const EnhancedAIChat = () => {
                                     )}
                                 </button>
                             </div>
-                            
-
                         </div>
+                        
+                        {/* Feature buttons - below input */}
+                        <div className="flex items-center space-x-2 mt-4 overflow-x-auto pb-2">
+                            <button type="button" className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>Summarize text</span>
+                            </button>
+                            <button type="button" className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span>Analyze images</span>
+                            </button>
+                            <button type="button" className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                                <span>Help me write</span>
+                            </button>
+                            <button type="button" className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <span>Analyze data</span>
+                            </button>
+                            <button type="button" className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
+                                <span>More</span>
+                            </button>
+                        </div>
+                        
+                        {/* Example queries - only shown when no messages exist */}
+                        {messages.length === 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 w-full">
+                                {exampleQueries.map((query, index) => (
+                                    <button
+                                        key={index}
+                                        className="p-4 text-left text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={() => setInput(query)}
+                                        disabled={isLoading}
+                                    >
+                                        {query}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </form>
-                    
-                    {/* Feature buttons */}
-                    <div className="flex items-center space-x-2 mt-4 overflow-x-auto pb-2">
-                        <button className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span>Summarize text</span>
-                        </button>
-                        <button className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span>Analyze images</span>
-                        </button>
-                        <button className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                            <span>Help me write</span>
-                        </button>
-                        <button className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            <span>Analyze data</span>
-                        </button>
-                        <button className="flex items-center space-x-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors text-xs whitespace-nowrap">
-                            <span>More</span>
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
