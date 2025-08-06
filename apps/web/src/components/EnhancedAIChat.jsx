@@ -368,13 +368,13 @@ const EnhancedAIChat = () => {
     ];
 
     return (
-        <div className="chat-container">
+        <div className="flex flex-col h-screen bg-white">
             {/* Header */}
-            <div className="chat-header">
-                <div className="header-content">
-                    <h1>March AI</h1>
+            <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-center">
+                    <h1 className="text-xl font-semibold text-gray-900">March AI</h1>
                     {conversationState !== 'normal' && (
-                        <div className="status-badge">
+                        <div className="ml-3 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
                             {conversationState === 'clarification' ? '💭 Clarifying' : '💬 Continuing'}
                         </div>
                     )}
@@ -382,16 +382,20 @@ const EnhancedAIChat = () => {
             </div>
 
             {/* Messages */}
-            <div className="messages-container">
+            <div className="flex-1 overflow-y-auto px-4 py-6">
                 {messages.length === 0 && (
-                    <div className="welcome-screen">
-                        <div className="welcome-icon">🤖</div>
-                        <h2>How can I help you today?</h2>
-                        <div className="example-prompts">
+                    <div className="flex flex-col items-center justify-center h-full text-center max-w-4xl mx-auto">
+                        <div className="mb-8">
+                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                                <span className="text-xl">🤖</span>
+                            </div>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-2">How can I help you today?</h2>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl w-full">
                             {exampleQueries.map((query, index) => (
                                 <button
                                     key={index}
-                                    className="example-prompt"
+                                    className="p-4 text-left text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                     onClick={() => setInput(query)}
                                     disabled={isLoading}
                                 >
@@ -402,32 +406,41 @@ const EnhancedAIChat = () => {
                     </div>
                 )}
                 
-                {messages.map((message) => (
-                    <div key={message.id} className={`message-wrapper ${message.type}`}>
-                        <div className="message-bubble">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    {messages.map((message) => (
+                        <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-2xl px-4 py-3 rounded-2xl ${
+                                message.type === 'user' 
+                                    ? 'bg-gray-900 text-white ml-12' 
+                                    : 'bg-gray-100 text-gray-900 mr-12'
+                            }`}>
                             {message.isLoading ? (
-                                <div className="typing-indicator">
-                                    <span></span><span></span><span></span>
+                                <div className="flex items-center space-x-1">
+                                    <div className="flex space-x-1">
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                    </div>
                                 </div>
                             ) : (
                                 <>
                                     <div 
-                                        className="message-text"
+                                        className="text-sm leading-relaxed"
                                         dangerouslySetInnerHTML={{ 
                                             __html: formatMessageContent(message.content) 
                                         }}
                                     />
                                     {message.needsClarification && message.clarificationData?.questions && (
-                                        <div className="clarification-section">
+                                        <div className="mt-4 pt-4 border-t border-gray-200">
                                             {message.clarificationData.questions.map((question, qIndex) => (
                                                 question.suggestions && question.suggestions.length > 0 && (
-                                                    <div key={qIndex} className="clarification-group">
-                                                        <div className="clarification-question">{question.question}</div>
-                                                        <div className="clarification-options">
+                                                    <div key={qIndex} className="mb-4">
+                                                        <div className="text-sm font-medium text-gray-700 mb-2">{question.question}</div>
+                                                        <div className="flex flex-wrap gap-2">
                                                             {question.suggestions.map((suggestion, sIndex) => (
                                                                 <button
                                                                     key={sIndex}
-                                                                    className="clarification-option"
+                                                                    className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                     onClick={() => handleQuickResponse(suggestion)}
                                                                     disabled={isLoading}
                                                                 >
@@ -445,351 +458,38 @@ const EnhancedAIChat = () => {
                         </div>
                     </div>
                 ))}
-                <div ref={messagesEndRef} />
+                    <div ref={messagesEndRef} />
+                </div>
             </div>
 
             {/* Input */}
-            <div className="input-section">
-                <form onSubmit={handleSubmit} className="input-form">
-                    <div className="input-wrapper">
+            <div className="px-4 py-6 bg-white border-t border-gray-200">
+                <div className="max-w-4xl mx-auto">
+                    <form onSubmit={handleSubmit} className="flex space-x-3">
                         <input
                             type="text"
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder={getInputPlaceholder()}
+                            placeholder="Ask another question..."
                             disabled={isLoading}
-                            className="message-input"
+                            className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent focus:bg-white transition-all duration-200"
                         />
                         <button 
                             type="submit" 
                             disabled={isLoading || !input.trim()}
-                            className="send-btn"
+                            className="px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             {isLoading ? (
-                                <div className="loading-spinner"></div>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             ) : (
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                                 </svg>
                             )}
                         </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
-            
-            <style jsx>{`
-                .chat-container {
-                    display: flex;
-                    flex-direction: column;
-                    height: 100vh;
-                    max-height: 800px;
-                    width: 100%;
-                    max-width: 1000px;
-                    margin: 0 auto;
-                    background: #ffffff;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                }
-
-                .chat-header {
-                    padding: 16px 24px;
-                    border-bottom: 1px solid #e5e5e5;
-                    background: #ffffff;
-                }
-
-                .header-content {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                }
-
-                .header-content h1 {
-                    margin: 0;
-                    font-size: 20px;
-                    font-weight: 600;
-                    color: #202123;
-                }
-
-                .status-badge {
-                    padding: 4px 12px;
-                    background: #f7f7f8;
-                    border-radius: 12px;
-                    font-size: 12px;
-                    color: #6b7280;
-                    font-weight: 500;
-                }
-
-                .messages-container {
-                    flex: 1;
-                    overflow-y: auto;
-                    padding: 0;
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .welcome-screen {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    flex: 1;
-                    padding: 48px 24px;
-                    text-align: center;
-                }
-
-                .welcome-icon {
-                    font-size: 48px;
-                    margin-bottom: 24px;
-                }
-
-                .welcome-screen h2 {
-                    margin: 0 0 32px 0;
-                    font-size: 24px;
-                    font-weight: 600;
-                    color: #202123;
-                }
-
-                .example-prompts {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                    gap: 12px;
-                    max-width: 800px;
-                    width: 100%;
-                }
-
-                .example-prompt {
-                    padding: 16px;
-                    border: 1px solid #d1d5db;
-                    border-radius: 8px;
-                    background: #ffffff;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    font-size: 14px;
-                    text-align: left;
-                    color: #374151;
-                    font-weight: 400;
-                }
-
-                .example-prompt:hover:not(:disabled) {
-                    border-color: #9ca3af;
-                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                }
-
-                .example-prompt:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                .message-wrapper {
-                    padding: 24px;
-                    border-bottom: 1px solid #f0f0f0;
-                }
-
-                .message-wrapper.user {
-                    background: #f7f7f8;
-                }
-
-                .message-wrapper.assistant {
-                    background: #ffffff;
-                }
-
-                .message-bubble {
-                    max-width: 100%;
-                    margin: 0 auto;
-                    max-width: 768px;
-                }
-
-                .message-text {
-                    line-height: 1.6;
-                    color: #202123;
-                    font-size: 16px;
-                    white-space: pre-wrap;
-                }
-
-                .typing-indicator {
-                    display: flex;
-                    gap: 4px;
-                    align-items: center;
-                }
-
-                .typing-indicator span {
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    background: #9ca3af;
-                    animation: typing 1.4s infinite ease-in-out;
-                }
-
-                .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-                .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-                .typing-indicator span:nth-child(3) { animation-delay: 0s; }
-
-                @keyframes typing {
-                    0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-                    40% { transform: scale(1); opacity: 1; }
-                }
-
-                .clarification-section {
-                    margin-top: 20px;
-                    padding-top: 16px;
-                    border-top: 1px solid #e5e5e5;
-                }
-
-                .clarification-group {
-                    margin-bottom: 16px;
-                }
-
-                .clarification-question {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #374151;
-                    margin-bottom: 8px;
-                }
-
-                .clarification-options {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 8px;
-                }
-
-                .clarification-option {
-                    padding: 8px 16px;
-                    border: 1px solid #d1d5db;
-                    border-radius: 20px;
-                    background: #ffffff;
-                    color: #374151;
-                    cursor: pointer;
-                    font-size: 14px;
-                    transition: all 0.2s ease;
-                    font-weight: 500;
-                }
-
-                .clarification-option:hover:not(:disabled) {
-                    background: #f3f4f6;
-                    border-color: #9ca3af;
-                }
-
-                .clarification-option:disabled {
-                    opacity: 0.5;
-                    cursor: not-allowed;
-                }
-
-                .input-section {
-                    padding: 24px;
-                    border-top: 1px solid #e5e5e5;
-                    background: #ffffff;
-                }
-
-                .input-form {
-                    max-width: 768px;
-                    margin: 0 auto;
-                }
-
-                .input-wrapper {
-                    display: flex;
-                    align-items: center;
-                    background: #ffffff;
-                    border: 1px solid #d1d5db;
-                    border-radius: 12px;
-                    padding: 12px 16px;
-                    transition: border-color 0.2s ease;
-                }
-
-                .input-wrapper:focus-within {
-                    border-color: #2563eb;
-                    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-                }
-
-                .message-input {
-                    flex: 1;
-                    border: none;
-                    outline: none;
-                    font-size: 16px;
-                    color: #202123;
-                    background: transparent;
-                    resize: none;
-                    font-family: inherit;
-                }
-
-                .message-input::placeholder {
-                    color: #9ca3af;
-                }
-
-                .send-btn {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 32px;
-                    height: 32px;
-                    border: none;
-                    border-radius: 6px;
-                    background: #2563eb;
-                    color: white;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    margin-left: 8px;
-                }
-
-                .send-btn:hover:not(:disabled) {
-                    background: #1d4ed8;
-                }
-
-                .send-btn:disabled {
-                    background: #d1d5db;
-                    cursor: not-allowed;
-                }
-
-                .loading-spinner {
-                    width: 16px;
-                    height: 16px;
-                    border: 2px solid #ffffff;
-                    border-top: 2px solid transparent;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-
-                /* Scrollbar styling */
-                .messages-container::-webkit-scrollbar {
-                    width: 6px;
-                }
-
-                .messages-container::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-
-                .messages-container::-webkit-scrollbar-thumb {
-                    background: #d1d5db;
-                    border-radius: 3px;
-                }
-
-                .messages-container::-webkit-scrollbar-thumb:hover {
-                    background: #9ca3af;
-                }
-
-                /* Responsive design */
-                @media (max-width: 768px) {
-                    .chat-container {
-                        height: 100vh;
-                        max-height: none;
-                    }
-
-                    .example-prompts {
-                        grid-template-columns: 1fr;
-                    }
-
-                    .message-wrapper {
-                        padding: 16px;
-                    }
-
-                    .input-section {
-                        padding: 16px;
-                    }
-                }
-            `}</style>
         </div>
     );
 };
