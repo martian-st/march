@@ -533,11 +533,103 @@ Examples:
     }
 
     /**
+     * Generates a step-by-step reasoning chain
+     */
+    async generateReasoningChain(analysis, context) {
+        const chainPrompt = `
+        Based on this analysis: ${JSON.stringify(analysis, null, 2)}
+        And context: ${JSON.stringify(context, null, 2)}
+        
+        Generate a step-by-step reasoning chain to accomplish the user's goal.
+        
+        IMPORTANT: Use the extractedTitle and extractedType from the analysis for create operations.
+        If the analysis contains extractedTitle, use it as the title parameter.
+        If the analysis contains extractedType, use it as the type parameter.
+        
+        For create operations, the parameters should include:
+        - title: Use analysis.actions[0].extractedTitle if available
+        - type: Use analysis.actions[0].extractedType if available (default: "todo")
+        - description: Any additional details
+        
+        Each step should have:
+        - A clear action to take
+        - Expected outcome
+        - How to handle potential failures
+        - What information to pass to the next step
+        
+        Return a JSON array of steps:
+        [
+            {
+                "stepNumber": 1,
+                "action": "specific action to take",
+                "method": "search|create|update|delete|calendar|analyze",
+                "parameters": {
+                    "title": "use extractedTitle from analysis if creating",
+                    "type": "use extractedType from analysis if creating",
+                    "description": "additional details if any"
+                },
+                "expectedOutcome": "what should happen",
+                "failureHandling": "what to do if this fails",
+                "outputForNext": "what info to pass forward"
+            }
+        ]`;
+
+        const result = await this.model.generateContent(chainPrompt);
+        const response = result.response.text();
+        
+        try {
+            const parsedChain = JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
+            
+            // Enhance create steps with extracted title from analysis
+            return parsedChain.map(step => {
+                if (step.method === 'create' && analysis.actions && analysis.actions[0]) {
+                    const action = analysis.actions[0];
+                    step.parameters = {
+                        ...step.parameters,
+                        title: action.extractedTitle || step.parameters.title || this.extractTitleFromPrompt(analysis.overallIntent || 'New Task'),
+                        type: action.extractedType || step.parameters.type || 'todo'
+                    };
+                }
+                return step;
+            });
+        } catch (parseError) {
+            console.error("Failed to parse reasoning chain:", response);
+            
+            // Fallback to simple chain with extracted title
+            const extractedTitle = analysis.actions && analysis.actions[0] && analysis.actions[0].extractedTitle 
+                ? analysis.actions[0].extractedTitle 
+                : this.extractTitleFromPrompt(analysis.overallIntent || 'New Task');
+                
+            return [{
+                stepNumber: 1,
+                action: "Create task",
+                method: "create",
+                parameters: { 
+                    title: extractedTitle,
+                    type: "todo",
+                    description: analysis.overallIntent || "User requested task"
+                },
+                expectedOutcome: "Task created successfully",
+                failureHandling: "Ask for clarification",
+                outputForNext: "Task ready"
+            }];
+        }
+    }
+
+    /**
      * Analyzes the structure and complexity of user requests
      */
     async analyzeRequestStructure(userPrompt, userId) {
         const analysisPrompt = `
         Analyze this user request for complexity and structure: "${userPrompt}"
+        
+        IMPORTANT: If this is a task creation request, extract the specific task title and details.
+        
+        Examples:
+        - "add buy milk" → extract title: "Buy milk", type: "todo"
+        - "create task call john" → extract title: "Call John", type: "todo"
+        - "schedule meeting with team" → extract title: "Meeting with team", type: "meeting"
+        - "add grocery shopping" → extract title: "Grocery shopping", type: "todo"
         
         Consider:
         1. Is this a single action or multiple actions?
@@ -545,6 +637,7 @@ Examples:
         3. What information is needed to complete the request?
         4. Are there any ambiguities that need clarification?
         5. What is the user's likely intent and goal?
+        6. If creating a task/todo, what should the title be?
         
         Return a JSON object with:
         {
@@ -554,6 +647,8 @@ Examples:
                 {
                     "type": "search|create|update|delete|calendar|conversation",
                     "description": "what needs to be done",
+                    "extractedTitle": "specific task title if creating something",
+                    "extractedType": "todo|meeting|note|task",
                     "dependencies": ["list of dependencies"],
                     "priority": "high|medium|low",
                     "requiredInfo": ["list of required information"],
@@ -577,67 +672,38 @@ Examples:
                 complexity: "simple",
                 actionCount: 1,
                 actions: [{
-                    type: "conversation",
+                    type: "create",
                     description: userPrompt,
+                    extractedTitle: this.extractTitleFromPrompt(userPrompt),
+                    extractedType: "todo",
                     dependencies: [],
                     priority: "medium",
                     requiredInfo: [],
                     ambiguities: []
                 }],
-                overallIntent: "User needs assistance",
+                overallIntent: "Create a task",
                 contextNeeded: [],
-                confidence: 0.5
+                confidence: 0.7
             };
         }
     }
 
     /**
-     * Generates a step-by-step reasoning chain
+     * Simple fallback method to extract title from user prompt
      */
-    async generateReasoningChain(analysis, context) {
-        const chainPrompt = `
-        Based on this analysis: ${JSON.stringify(analysis, null, 2)}
-        And context: ${JSON.stringify(context, null, 2)}
+    extractTitleFromPrompt(userPrompt) {
+        // Remove common action words and clean up the title
+        const cleanedPrompt = userPrompt
+            .toLowerCase()
+            .replace(/^(add|create|make|new|task|todo)\s+/i, '')
+            .replace(/^(a|an|the)\s+/i, '')
+            .trim();
         
-        Generate a step-by-step reasoning chain to accomplish the user's goal.
-        
-        Each step should have:
-        - A clear action to take
-        - Expected outcome
-        - How to handle potential failures
-        - What information to pass to the next step
-        
-        Return a JSON array of steps:
-        [
-            {
-                "stepNumber": 1,
-                "action": "specific action to take",
-                "method": "search|create|update|delete|calendar|analyze",
-                "parameters": {},
-                "expectedOutcome": "what should happen",
-                "failureHandling": "what to do if this fails",
-                "outputForNext": "what info to pass forward"
-            }
-        ]`;
-
-        const result = await this.model.generateContent(chainPrompt);
-        const response = result.response.text();
-        
-        try {
-            return JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
-        } catch (parseError) {
-            console.error("Failed to parse reasoning chain:", response);
-            // Fallback to simple chain
-            return [{
-                stepNumber: 1,
-                action: "Process user request",
-                method: "analyze",
-                parameters: { query: analysis.overallIntent },
-                expectedOutcome: "Provide helpful response",
-                failureHandling: "Ask for clarification",
-                outputForNext: "Response ready"
-            }];
-        }
+        // Capitalize first letter of each word
+        return cleanedPrompt
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ') || 'New Task';
     }
 
     /**
@@ -707,14 +773,35 @@ Examples:
                 return await this.executeCalendarStep(step, userId, contextData);
             case 'analyze':
                 return await this.executeAnalyzeStep(step, userId, contextData);
+            case 'conversational':
+                return await this.executeConversationalStep(step, userId, contextData);
             default:
                 throw new Error(`Unknown step method: ${step.method}`);
         }
     }
 
     /**
-     * Execute search operations
+     * Execute conversational steps
      */
+    async executeConversationalStep(step, userId, contextData) {
+        const conversationalPrompt = `
+        User needs a conversational response for: ${step.action}
+        Parameters: ${JSON.stringify(step.parameters, null, 2)}
+        Context: ${JSON.stringify(contextData, null, 2)}
+        
+        Provide a helpful, conversational response.`;
+
+        const result = await this.model.generateContent(conversationalPrompt);
+        const response = result.response.text();
+
+        return {
+            response,
+            conversational: true,
+            summary: "Provided conversational response"
+        };
+    }
+
+    /**
     async executeSearchStep(step, userId, contextData) {
         const { parameters } = step;
         
