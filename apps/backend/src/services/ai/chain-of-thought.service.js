@@ -7,7 +7,7 @@ import { saveContent } from "../../utils/helper.service.js";
  * Provides sophisticated reasoning capabilities for complex user requests
  */
 export class ChainOfThoughtService {
-    constructor(apiKey, systemPrompt) {
+    constructor (apiKey, systemPrompt) {
         this.genAI = new GoogleGenerativeAI(apiKey);
         this.model = this.genAI.getGenerativeModel({
             model: "gemini-1.5-flash",
@@ -19,7 +19,7 @@ export class ChainOfThoughtService {
             },
             systemInstruction: systemPrompt
         });
-        
+
         // Context memory for conversation continuity
         this.conversationContext = new Map();
         // Conversation state tracking
@@ -31,7 +31,7 @@ export class ChainOfThoughtService {
     /**
      * Check if this is a simple conversational query using AI understanding
      */
-    async isSimpleConversationalQuery(userPrompt) {
+    async isSimpleConversationalQuery (userPrompt) {
         try {
             const conversationalPrompt = `
 Is this user query a simple conversational message (greeting, thanks, small talk) or a task-related request?
@@ -51,9 +51,8 @@ Examples:
 
             const result = await this.model.generateContent(conversationalPrompt);
             const response = result.response.text().trim().toLowerCase();
-            
+
             return response === 'conversational';
-            
         } catch (error) {
             console.error('Error detecting conversational query:', error);
             // Fallback to simple check
@@ -65,7 +64,7 @@ Examples:
     /**
      * Handle simple conversational queries using AI understanding
      */
-    async handleConversationalQuery(userPrompt, userId) {
+    async handleConversationalQuery (userPrompt, userId) {
         try {
             const conversationalPrompt = `
 You are March AI, a helpful productivity assistant. The user sent you a conversational message. Respond naturally and helpfully.
@@ -89,7 +88,7 @@ Examples:
 
             const result = await this.model.generateContent(conversationalPrompt);
             const response = result.response.text().trim();
-            
+
             // Store this simple interaction in context
             this.updateConversationContext(userId, {
                 request: userPrompt,
@@ -97,13 +96,12 @@ Examples:
                 result: { response },
                 timestamp: new Date()
             });
-            
+
             return {
                 isConversational: true,
                 response,
                 success: true
             };
-            
         } catch (error) {
             console.error('Error handling conversational query:', error);
             return {
@@ -117,7 +115,7 @@ Examples:
     /**
      * Main reasoning engine - breaks down complex requests into steps
      */
-    async processComplexRequest(userPrompt, userId, context = {}) {
+    async processComplexRequest (userPrompt, userId, context = {}) {
         try {
             // Check if this is a simple conversational query first
             if (await this.isSimpleConversationalQuery(userPrompt)) {
@@ -138,7 +136,6 @@ Examples:
 
             // Analyze the request structure
             const analysis = await this.analyzeRequestStructure(userPrompt, userId);
-            
             // Be more lenient with clarification - only ask when absolutely necessary
             if (this.needsClarification(analysis, userPrompt) && this.isHighlyAmbiguous(userPrompt)) {
                 return await this.requestClarification(analysis.clarificationNeeded, userId, userPrompt, analysis);
@@ -146,14 +143,14 @@ Examples:
 
             // Generate reasoning chain
             const reasoningChain = await this.generateReasoningChain(analysis, context);
-            
+
             // Execute the reasoning chain
             const executionResult = await this.executeReasoningChain(reasoningChain, userId);
-            
+
             // Synthesize final result
             const finalResult = this.synthesizeFinalResult(executionResult.steps);
             const executionSummary = this.generateExecutionSummary(executionResult.steps);
-            
+
             // Update conversation context
             this.updateConversationContext(userId, {
                 query: userPrompt,
@@ -161,7 +158,7 @@ Examples:
                 results: finalResult,
                 timestamp: new Date().toISOString()
             });
-            
+
             return {
                 ...finalResult,
                 executionSummary,
@@ -171,7 +168,6 @@ Examples:
                     completed: true
                 }))
             };
-            
         } catch (error) {
             console.error('Error in processComplexRequest:', error);
             return {
@@ -185,9 +181,8 @@ Examples:
     /**
      * Detect if a query needs clarification
      */
-    needsClarification(analysis, userPrompt) {
+    needsClarification (analysis, userPrompt) {
         const ambiguityScore = this.calculateAmbiguityScore(analysis, userPrompt);
-        
         return {
             needed: ambiguityScore > 0.7,
             score: ambiguityScore,
@@ -198,54 +193,50 @@ Examples:
     /**
      * Check if a query is highly ambiguous (only ask for clarification in extreme cases)
      */
-    isHighlyAmbiguous(userPrompt) {
+    isHighlyAmbiguous (userPrompt) {
         const prompt = userPrompt.toLowerCase().trim();
-        
+
         // Only consider highly ambiguous if it's extremely vague
         const extremelyVague = [
             /^(do something|help me|what|how|why)$/i,
             /^(i need|i want|can you)$/i,
             /^(please|could you|would you)$/i
         ];
-        
+
         return extremelyVague.some(pattern => pattern.test(prompt)) && prompt.split(' ').length <= 3;
     }
 
     /**
      * Calculate ambiguity score based on analysis
      */
-    calculateAmbiguityScore(analysis, userPrompt) {
+    calculateAmbiguityScore (analysis, userPrompt) {
         let score = 0;
-        
         // Be more lenient - reduce ambiguity scoring
         const vagueWords = ['something', 'anything', 'stuff'];
         const words = userPrompt.toLowerCase().split(' ');
         const vagueCount = words.filter(word => vagueWords.includes(word)).length;
         score += vagueCount * 0.3; // Increased weight for truly vague words
-        
         // Only penalize if there's truly missing critical information
         if (analysis.missingInformation?.length > 2) {
             score += (analysis.missingInformation.length - 2) * 0.2;
         }
-        
         // Be more forgiving with pronouns - they're often clear in context
         const criticalPronouns = ['it', 'them'] // Only these are truly ambiguous
         const pronounCount = words.filter(word => criticalPronouns.includes(word)).length;
         score += pronounCount * 0.15;
-        
         return Math.min(score, 1.0);
     }
 
     /**
      * Request clarification from user
      */
-    async requestClarification(clarificationNeeded, userId, originalPrompt, analysis) {
+    async requestClarification (clarificationNeeded, userId, originalPrompt, analysis) {
         const clarificationQuestions = await this.generateClarificationQuestions(
-            clarificationNeeded, 
-            originalPrompt, 
+            clarificationNeeded,
+            originalPrompt,
             analysis
         );
-        
+
         // Store pending clarification
         this.pendingClarifications.set(userId, {
             originalPrompt,
@@ -253,7 +244,7 @@ Examples:
             questions: clarificationQuestions,
             timestamp: new Date()
         });
-        
+
         return {
             success: true,
             needsClarification: true,
@@ -267,7 +258,7 @@ Examples:
     /**
      * Generate specific clarification questions
      */
-    async generateClarificationQuestions(clarificationNeeded, originalPrompt, analysis) {
+    async generateClarificationQuestions (clarificationNeeded, originalPrompt, analysis) {
         const questionPrompt = `
         The user said: "${originalPrompt}"
         
@@ -291,7 +282,7 @@ Examples:
         
         Question types: text, date, choice, time, priority
         `;
-        
+
         try {
             const result = await this.model.generateContent(questionPrompt);
             const response = result.response.text();
@@ -305,33 +296,33 @@ Examples:
     /**
      * Handle clarification response from user
      */
-    async handleClarificationResponse(userResponse, userId, pendingClarification) {
+    async handleClarificationResponse (userResponse, userId, pendingClarification) {
         try {
             // Parse the user's clarification response
             const parsedResponse = await this.parseClarificationResponse(
-                userResponse, 
+                userResponse,
                 pendingClarification
             );
-            
+
             // Enhance the original analysis with clarification
             const enhancedAnalysis = await this.enhanceAnalysisWithClarification(
                 pendingClarification.analysis,
                 parsedResponse
             );
-            
+
             // Clear pending clarification
             this.pendingClarifications.delete(userId);
-            
+
             // Generate reasoning chain with enhanced analysis
             const reasoningChain = await this.generateReasoningChain(enhancedAnalysis, {
                 clarificationProvided: true,
                 originalPrompt: pendingClarification.originalPrompt,
                 clarificationResponse: userResponse
             });
-            
+
             // Execute the reasoning chain
             const result = await this.executeReasoningChain(reasoningChain, userId);
-            
+
             // Store context
             this.updateConversationContext(userId, {
                 request: pendingClarification.originalPrompt,
@@ -340,7 +331,7 @@ Examples:
                 result,
                 timestamp: new Date()
             });
-            
+
             return result;
         } catch (error) {
             console.error("Error handling clarification response:", error);
@@ -353,15 +344,15 @@ Examples:
     /**
      * Detect if this is a follow-up question
      */
-    detectFollowUpQuestion(userPrompt, conversationHistory) {
+    detectFollowUpQuestion (userPrompt, conversationHistory) {
         if (conversationHistory.length === 0) return false;
-        
+
         const followUpIndicators = [
             'what about', 'and also', 'can you also', 'what if', 'how about',
             'tell me more', 'explain', 'elaborate', 'what did we', 'from before',
             'that', 'this', 'it', 'them', 'those', 'these', 'continue', 'next'
         ];
-        
+
         const lowerPrompt = userPrompt.toLowerCase();
         return followUpIndicators.some(indicator => lowerPrompt.includes(indicator)) ||
                lowerPrompt.split(' ').length < 6; // Short queries are often follow-ups
@@ -370,30 +361,30 @@ Examples:
     /**
      * Handle follow-up questions using conversation context
      */
-    async handleFollowUpQuestion(userPrompt, userId, conversationHistory) {
+    async handleFollowUpQuestion (userPrompt, userId, conversationHistory) {
         const recentContext = conversationHistory.slice(-3); // Last 3 interactions
-        
+
         const followUpPrompt = `
         Based on our recent conversation:
         ${recentContext.map(ctx => `
         User: ${ctx.request}
         Result: ${JSON.stringify(ctx.result?.finalResult || ctx.result, null, 2)}
         `).join('\n')}
-        
+
         The user now asks: "${userPrompt}"
-        
+
         This appears to be a follow-up question. Please:
         1. Understand what they're referring to from the context
         2. Provide a helpful response that builds on the previous conversation
         3. If they want to perform an action, determine what action based on context
-        
+
         Respond naturally as if continuing the conversation.
         `;
-        
+
         try {
             const result = await this.model.generateContent(followUpPrompt);
             const response = result.response.text();
-            
+
             // Store this interaction
             this.updateConversationContext(userId, {
                 request: userPrompt,
@@ -401,7 +392,7 @@ Examples:
                 result: { response },
                 timestamp: new Date()
             });
-            
+
             return {
                 success: true,
                 isFollowUp: true,
@@ -418,7 +409,7 @@ Examples:
     /**
      * Parse clarification response
      */
-    async parseClarificationResponse(userResponse, pendingClarification) {
+    async parseClarificationResponse (userResponse, pendingClarification) {
         const parsePrompt = `
         The user was asked these clarification questions:
         ${JSON.stringify(pendingClarification.questions, null, 2)}
@@ -437,7 +428,6 @@ Examples:
             "confidence": 0.95
         }
         `;
-        
         try {
             const result = await this.model.generateContent(parsePrompt);
             const response = result.response.text();
@@ -454,7 +444,7 @@ Examples:
     /**
      * Enhance analysis with clarification data
      */
-    async enhanceAnalysisWithClarification(originalAnalysis, clarificationData) {
+    async enhanceAnalysisWithClarification (originalAnalysis, clarificationData) {
         const enhanced = { ...originalAnalysis };
         
         // Apply clarification answers to enhance the analysis
