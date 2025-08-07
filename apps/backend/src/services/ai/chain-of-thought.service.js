@@ -446,71 +446,65 @@ Examples:
      */
     async enhanceAnalysisWithClarification (originalAnalysis, clarificationData) {
         const enhanced = { ...originalAnalysis };
-        
+
         // Apply clarification answers to enhance the analysis
         clarificationData.answers.forEach((answer, index) => {
             const question = originalAnalysis.actions[0]; // Simplification for now
-            
             switch (answer.type) {
-                case 'text':
-                    if (answer.answer.length > 0) {
-                        enhanced.actions[0].description = answer.answer;
-                        enhanced.actions[0].requiredInfo = enhanced.actions[0].requiredInfo?.filter(info => 
-                            !info.toLowerCase().includes('title') && !info.toLowerCase().includes('content')
-                        ) || [];
-                    }
-                    break;
-                case 'date':
-                    enhanced.actions[0].parameters = enhanced.actions[0].parameters || {};
-                    enhanced.actions[0].parameters.dueDate = answer.answer;
-                    break;
-                case 'priority':
-                    enhanced.actions[0].parameters = enhanced.actions[0].parameters || {};
-                    enhanced.actions[0].parameters.priority = answer.answer;
-                    break;
+            case 'text':
+                if (answer.answer.length > 0) {
+                    enhanced.actions[0].description = answer.answer;
+                    enhanced.actions[0].requiredInfo = enhanced.actions[0].requiredInfo?.filter(info =>
+                        !info.toLowerCase().includes('title') && !info.toLowerCase().includes('content')
+                    ) || [];
+                }
+                break;
+            case 'date':
+                enhanced.actions[0].parameters = enhanced.actions[0].parameters || {};
+                enhanced.actions[0].parameters.dueDate = answer.answer;
+                break;
+            case 'priority':
+                enhanced.actions[0].parameters = enhanced.actions[0].parameters || {};
+                enhanced.actions[0].parameters.priority = answer.answer;
+                break;
             }
         });
-        
         // Increase confidence since we have clarification
         enhanced.confidence = Math.min(enhanced.confidence + 0.3, 1.0);
-        
         return enhanced;
     }
 
     /**
      * Get default clarification questions
      */
-    getDefaultClarificationQuestions(originalPrompt, analysis) {
+    getDefaultClarificationQuestions (originalPrompt, analysis) {
         const questions = [];
-        
         if (originalPrompt.toLowerCase().includes('create') || originalPrompt.toLowerCase().includes('task')) {
             questions.push({
                 question: "What should the task title be?",
                 type: "text",
                 suggestions: ["Complete project review", "Call client", "Write report"]
             });
-            
             questions.push({
                 question: "When should this be due?",
                 type: "date",
                 suggestions: ["today", "tomorrow", "next week", "no due date"]
             });
         }
-        
+
         if (originalPrompt.toLowerCase().includes('meeting') || originalPrompt.toLowerCase().includes('schedule')) {
             questions.push({
                 question: "What time would you prefer?",
                 type: "time",
                 suggestions: ["9:00 AM", "2:00 PM", "4:00 PM"]
             });
-            
+
             questions.push({
                 question: "How long should the meeting be?",
                 type: "choice",
                 suggestions: ["30 minutes", "1 hour", "2 hours"]
             });
         }
-        
         if (questions.length === 0) {
             questions.push({
                 question: "Could you provide more details about what you'd like me to do?",
@@ -518,14 +512,13 @@ Examples:
                 suggestions: ["I need help with...", "Please create...", "Can you find..."]
             });
         }
-        
         return questions;
     }
 
     /**
      * Generates a step-by-step reasoning chain
      */
-    async generateReasoningChain(analysis, context) {
+    async generateReasoningChain (analysis, context) {
         const chainPrompt = `
         Based on this analysis: ${JSON.stringify(analysis, null, 2)}
         And context: ${JSON.stringify(context, null, 2)}
@@ -566,10 +559,10 @@ Examples:
 
         const result = await this.model.generateContent(chainPrompt);
         const response = result.response.text();
-        
+
         try {
             const parsedChain = JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
-            
+
             // Enhance create steps with extracted title from analysis
             return parsedChain.map(step => {
                 if (step.method === 'create' && analysis.actions && analysis.actions[0]) {
@@ -584,17 +577,17 @@ Examples:
             });
         } catch (parseError) {
             console.error("Failed to parse reasoning chain:", response);
-            
+
             // Fallback to simple chain with extracted title
-            const extractedTitle = analysis.actions && analysis.actions[0] && analysis.actions[0].extractedTitle 
-                ? analysis.actions[0].extractedTitle 
+            const extractedTitle = analysis.actions && analysis.actions[0] && analysis.actions[0].extractedTitle
+                ? analysis.actions[0].extractedTitle
                 : this.extractTitleFromPrompt(analysis.overallIntent || 'New Task');
-                
+
             return [{
                 stepNumber: 1,
                 action: "Create task",
                 method: "create",
-                parameters: { 
+                parameters: {
                     title: extractedTitle,
                     type: "todo",
                     description: analysis.overallIntent || "User requested task"
@@ -609,7 +602,7 @@ Examples:
     /**
      * Analyzes the structure and complexity of user requests
      */
-    async analyzeRequestStructure(userPrompt, userId) {
+    async analyzeRequestStructure (userPrompt, userId) {
         const analysisPrompt = `
         Analyze this user request for complexity and structure: "${userPrompt}"
         
@@ -652,7 +645,7 @@ Examples:
 
         const result = await this.model.generateContent(analysisPrompt);
         const response = result.response.text();
-        
+
         try {
             return JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
         } catch (parseError) {
@@ -681,14 +674,14 @@ Examples:
     /**
      * Simple fallback method to extract title from user prompt
      */
-    extractTitleFromPrompt(userPrompt) {
+    extractTitleFromPrompt (userPrompt) {
         // Remove common action words and clean up the title
         const cleanedPrompt = userPrompt
             .toLowerCase()
             .replace(/^(add|create|make|new|task|todo)\s+/i, '')
             .replace(/^(a|an|the)\s+/i, '')
             .trim();
-        
+
         // Capitalize first letter of each word
         return cleanedPrompt
             .split(' ')
@@ -699,14 +692,14 @@ Examples:
     /**
      * Executes the reasoning chain step by step
      */
-    async executeReasoningChain(reasoningChain, userId) {
+    async executeReasoningChain (reasoningChain, userId) {
         const results = [];
         let contextData = {};
 
         for (const step of reasoningChain) {
             try {
                 console.log(`Executing step ${step.stepNumber}: ${step.action}`);
-                
+
                 const stepResult = await this.executeStep(step, userId, contextData);
                 results.push({
                     step: step.stepNumber,
@@ -714,13 +707,12 @@ Examples:
                     result: stepResult,
                     success: true
                 });
-                
+
                 // Pass data to next step
                 contextData = { ...contextData, ...stepResult };
-                
             } catch (error) {
                 console.error(`Step ${step.stepNumber} failed:`, error);
-                
+
                 // Handle failure according to step's failure handling
                 const fallbackResult = await this.handleStepFailure(step, error, userId);
                 results.push({
@@ -730,7 +722,7 @@ Examples:
                     success: false,
                     error: error.message
                 });
-                
+
                 // Decide whether to continue or stop
                 if (step.failureHandling.includes("stop")) {
                     break;
@@ -749,31 +741,31 @@ Examples:
     /**
      * Executes individual steps based on their method
      */
-    async executeStep(step, userId, contextData) {
+    async executeStep (step, userId, contextData) {
         switch (step.method) {
-            case 'search':
-                return await this.executeSearchStep(step, userId, contextData);
-            case 'create':
-                return await this.executeCreateStep(step, userId, contextData);
-            case 'update':
-                return await this.executeUpdateStep(step, userId, contextData);
-            case 'delete':
-                return await this.executeDeleteStep(step, userId, contextData);
-            case 'calendar':
-                return await this.executeCalendarStep(step, userId, contextData);
-            case 'analyze':
-                return await this.executeAnalyzeStep(step, userId, contextData);
-            case 'conversational':
-                return await this.executeConversationalStep(step, userId, contextData);
-            default:
-                throw new Error(`Unknown step method: ${step.method}`);
+        case 'search':
+            return await this.executeSearchStep(step, userId, contextData);
+        case 'create':
+            return await this.executeCreateStep(step, userId, contextData);
+        case 'update':
+            return await this.executeUpdateStep(step, userId, contextData);
+        case 'delete':
+            return await this.executeDeleteStep(step, userId, contextData);
+        case 'calendar':
+            return await this.executeCalendarStep(step, userId, contextData);
+        case 'analyze':
+            return await this.executeAnalyzeStep(step, userId, contextData);
+        case 'conversational':
+            return await this.executeConversationalStep(step, userId, contextData);
+        default:
+            throw new Error(`Unknown step method: ${step.method}`);
         }
     }
 
     /**
      * Execute conversational steps
      */
-    async executeConversationalStep(step, userId, contextData) {
+    async executeConversationalStep (step, userId, contextData) {
         const conversationalPrompt = `
         User needs a conversational response for: ${step.action}
         Parameters: ${JSON.stringify(step.parameters, null, 2)}
@@ -794,7 +786,7 @@ Examples:
     /**
     async executeSearchStep(step, userId, contextData) {
         const { parameters } = step;
-        
+
         // Build search query
         const searchQuery = {
             user: userId,
@@ -822,9 +814,9 @@ Examples:
     /**
      * Execute object creation
      */
-    async executeCreateStep(step, userId, contextData) {
+    async executeCreateStep (step, userId, contextData) {
         const { parameters } = step;
-        
+
         // Enhance parameters with context data
         const objectData = {
             user: userId,
@@ -837,7 +829,7 @@ Examples:
 
         // Create the object
         const object = await Object.create(objectData);
-        
+
         // Save to search index
         await saveContent(object);
 
@@ -851,9 +843,9 @@ Examples:
     /**
      * Execute object updates
      */
-    async executeUpdateStep(step, userId, contextData) {
+    async executeUpdateStep (step, userId, contextData) {
         const { parameters } = step;
-        
+
         if (!parameters.objectId && !contextData.objectId) {
             throw new Error("No object ID provided for update");
         }
@@ -881,15 +873,15 @@ Examples:
     /**
      * Execute delete operations
      */
-    async executeDeleteStep(step, userId, contextData) {
+    async executeDeleteStep (step, userId, contextData) {
         const { parameters } = step;
-        
+
         if (!parameters.objectId && !contextData.objectId) {
             throw new Error("No object ID provided for deletion");
         }
 
         const objectId = parameters.objectId || contextData.objectId;
-        
+
         const object = await Object.findByIdAndUpdate(
             objectId,
             { isDeleted: true },
@@ -910,7 +902,7 @@ Examples:
     /**
      * Execute calendar operations
      */
-    async executeCalendarStep(step, userId, contextData) {
+    async executeCalendarStep (step, userId, contextData) {
         // This would integrate with calendar services
         // For now, create a meeting object
         const meetingData = {
@@ -942,7 +934,7 @@ Examples:
     /**
      * Execute analysis operations
      */
-    async executeAnalyzeStep(step, userId, contextData) {
+    async executeAnalyzeStep (step, userId, contextData) {
         const analysisPrompt = `
         Analyze the following data and provide insights:
         Parameters: ${JSON.stringify(step.parameters, null, 2)}
@@ -963,9 +955,9 @@ Examples:
     /**
      * Handle step failures with appropriate fallbacks
      */
-    async handleStepFailure(step, error, userId) {
+    async handleStepFailure (step, error, userId) {
         console.log(`Handling failure for step ${step.stepNumber}: ${error.message}`);
-        
+
         // Generate a helpful error response
         const fallbackPrompt = `
         Step failed: ${step.action}
@@ -995,7 +987,7 @@ Examples:
     /**
      * Synthesize final result from all steps
      */
-    async synthesizeFinalResult(results) {
+    async synthesizeFinalResult (results) {
         const successfulSteps = results.filter(r => r.success);
         const failedSteps = results.filter(r => !r.success);
 
@@ -1044,9 +1036,9 @@ Examples:
     /**
      * Generate user-friendly conversational response
      */
-    async generateConversationalResponse(resultData) {
+    async generateConversationalResponse (resultData) {
         const { createdObjects, foundObjects, analyses, successfulSteps } = resultData;
-        
+
         const responsePrompt = `
         Based on the following results, generate a friendly, conversational response to the user:
         
@@ -1069,23 +1061,23 @@ Examples:
         
         Respond naturally as March AI assistant.
         `;
-        
+
         try {
             const result = await this.model.generateContent(responsePrompt);
             return result.response.text().trim();
         } catch (error) {
             console.error('Error generating conversational response:', error);
-            
+
             // Fallback response based on what was accomplished
             if (createdObjects?.length > 0) {
                 const titles = createdObjects.map(obj => obj.title).join(', ');
                 return `I've successfully created: ${titles}. Is there anything else you'd like me to help you with?`;
             }
-            
+
             if (foundObjects?.length > 0) {
                 return `I found ${foundObjects.length} items matching your request. Would you like me to show you the details?`;
             }
-            
+
             return "I've completed your request successfully. Is there anything else I can help you with?";
         }
     }
@@ -1093,7 +1085,7 @@ Examples:
     /**
      * Generate execution summary
      */
-    generateExecutionSummary(results) {
+    generateExecutionSummary (results) {
         const total = results.length;
         const successful = results.filter(r => r.success).length;
         const failed = total - successful;
@@ -1110,29 +1102,29 @@ Examples:
     /**
      * Update conversation context for continuity
      */
-    updateConversationContext(userId, contextData) {
+    updateConversationContext (userId, contextData) {
         const userContext = this.conversationContext.get(userId) || [];
         userContext.push(contextData);
-        
+
         // Keep only last 10 interactions to manage memory
         if (userContext.length > 10) {
             userContext.shift();
         }
-        
+
         this.conversationContext.set(userId, userContext);
     }
 
     /**
      * Get conversation context for user
      */
-    getConversationContext(userId) {
+    getConversationContext (userId) {
         return this.conversationContext.get(userId) || [];
     }
 
     /**
      * Clear conversation context
      */
-    clearConversationContext(userId) {
+    clearConversationContext (userId) {
         this.conversationContext.delete(userId);
     }
 }
