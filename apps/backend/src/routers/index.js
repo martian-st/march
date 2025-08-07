@@ -9,7 +9,8 @@ import EmailRoute from "../routers/integration/email.route.js";
 import GithubRoute from "../routers/integration/github.route.js";
 import NotionRoute from "../routers/integration/notion.route.js";
 import XRoute from "../routers/integration/x.route.js";
-import AiRoute from "../routers/ai/ai.route.js";
+import AiRoute from "../routers/ai/enhanced-ai.route.js";
+import { intelligentAIRouter } from "../routers/ai/intelligent-ai.route.js";
 
 /**
  * @param {import('express').Application} app
@@ -26,7 +27,8 @@ const initRoutes = (app) => {
     app.use('/github', JWTMiddleware, GithubRoute);
     app.use('/notion', JWTMiddleware, NotionRoute);
     app.use('/x', JWTMiddleware, XRoute);
-    app.use('/ai', JWTMiddleware, AiRoute);
+    app.use('/ai/enhanced', JWTMiddleware, AiRoute);
+    app.use('/ai/intelligent', JWTMiddleware, intelligentAIRouter);
     app.get("/", async (req, res) => {
         res.json({
             "message": "Welcome to  sage "

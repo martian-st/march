@@ -1,20 +1,17 @@
-import { Agent } from "@/components/agent/agent";
+'use client';
+
+import EnhancedAIChat from '@/components/EnhancedAIChat';
 import { ErrorBoundary } from "@/components/error/error-boundary";
-import { MyRuntimeProvider } from "@/components/provider/my-runtime-provider";
 
 export default function AgentPage() {
   return (
-    <section className="h-full pl-12">
-      <div className="w-full h-[calc(100vh-64px)] overflow-auto">
-        <div className="w-full h-full">
-          <ErrorBoundary
-            fallback={<div>Error loading agent. Please try again later.</div>}
-          >
-            <MyRuntimeProvider>
-              <Agent />
-            </MyRuntimeProvider>
-          </ErrorBoundary>
-        </div>
+    <section className="h-full">
+      <div className="w-full h-[calc(100vh-64px)]">
+        <ErrorBoundary
+          fallback={<div>Error loading AI chat. Please try again later.</div>}
+        >
+          <EnhancedAIChat />
+        </ErrorBoundary>
       </div>
     </section>
   );

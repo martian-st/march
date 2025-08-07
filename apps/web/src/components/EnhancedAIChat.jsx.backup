@@ -1,0 +1,850 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { getSession } from '@/actions/session';
+import { api } from '@/lib/api';
+
+/**
+ * Enhanced AI Chat Component
+ * Provides a sophisticated chat interface for the enhanced AI assistant
+ * with natural language understanding and learning capabilities
+ */
+const EnhancedAIChat = () => {
+    const [messages, setMessages] = useState([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [pendingClarification, setPendingClarification] = useState(null);
+    const [conversationState, setConversationState] = useState('normal'); // 'normal', 'clarification', 'follow_up'
+    const messagesEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    // Add CSS for feedback buttons
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            .message-container {
+                position: relative;
+            }
+            .feedback-buttons {
+                position: absolute;
+                right: 0;
+                top: 0;
+                display: flex;
+                gap: 5px;
+                opacity: 0.5;
+                transition: opacity 0.2s;
+            }
+            .feedback-buttons:hover {
+                opacity: 1;
+            }
+            .feedback-btn {
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 2px 5px;
+                border-radius: 4px;
+            }
+            .feedback-btn:hover {
+                background-color: rgba(0,0,0,0.05);
+            }
+        `;
+        document.head.appendChild(style);
+        return () => document.head.removeChild(style);
+    }, []);
+
+    const addMessage = (message) => {
+        setMessages(prev => [...prev, message]);
+    };
+
+    const updateLastMessage = (updates) => {
+        setMessages(prev => {
+            const newMessages = [...prev];
+            const lastIndex = newMessages.length - 1;
+            if (lastIndex >= 0) {
+                newMessages[lastIndex] = { ...newMessages[lastIndex], ...updates };
+            }
+            return newMessages;
+        });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const userMessage = {
+            id: Date.now(),
+            type: 'user',
+            content: input,
+            timestamp: new Date()
+        };
+
+        addMessage(userMessage);
+        setInput('');
+        setIsLoading(true);
+
+        // Add loading message
+        const loadingMessage = {
+            id: Date.now() + 1,
+            type: 'assistant',
+            content: 'Thinking...',
+            isLoading: true,
+            timestamp: new Date()
+        };
+        addMessage(loadingMessage);
+
+        try {
+            // Get conversation history for context
+            const conversationHistory = messages
+                .filter(msg => !msg.isLoading)
+                .slice(-10) // Last 10 messages for context
+                .map(msg => ({
+                    role: msg.type,
+                    content: msg.content,
+                    timestamp: msg.timestamp
+                }));
+            
+            // Use the unified process endpoint for all requests
+            await handleUnifiedRequest(input, conversationHistory);
+        } catch (error) {
+            console.error('Error:', error);
+            updateLastMessage({
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+                isLoading: false,
+                error: true
+            });
+        } finally {
+            setIsLoading(false);
+            setIsStreaming(false);
+        }
+    };
+
+    const handleUnifiedRequest = async (query, conversationHistory = []) => {
+        setIsStreaming(true);
+        
+        // Get session token
+        const session = await getSession();
+        
+        // Get user preferences and settings if available
+        const userPreferences = localStorage.getItem('userPreferences') 
+            ? JSON.parse(localStorage.getItem('userPreferences')) 
+            : {};
+        
+        // Get any feedback from previous interactions
+        const interactionFeedback = localStorage.getItem('interactionFeedback') 
+            ? JSON.parse(localStorage.getItem('interactionFeedback')) 
+            : [];
+        
+        const response = await fetch('http://localhost:8080/ai/enhanced/process', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session}`
+            },
+            body: JSON.stringify({ 
+                query,
+                context: {
+                    conversationHistory,
+                    userPreferences,
+                    interactionFeedback,
+                    clientTimestamp: new Date().toISOString(),
+                    clientInfo: {
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        locale: navigator.language,
+                        userAgent: navigator.userAgent
+                    }
+                }
+            })
+        });
+
+        if (!response.ok) {
+            console.error('API Error:', response.status, response.statusText);
+            updateLastMessage({
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+                isLoading: false,
+                isStreaming: false,
+                isError: true
+            });
+            return;
+        }
+
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                    break;
+                }
+                
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const data = JSON.parse(line);
+                            handleStreamingResponse(data);
+                        } catch (e) {
+                            console.warn('Failed to parse streaming response:', line);
+                        }
+                    }
+                }
+            }
+        } finally {
+            reader.releaseLock();
+        }
+    };
+
+    // This function is no longer used as we're using the unified approach
+    const handleSimpleRequest = async (query, endpoint) => {
+        console.log('This function is deprecated - using unified request handler instead');
+        // Redirect to unified handler
+        return handleUnifiedRequest(query);
+    };
+
+    const handleStreamingResponse = (data) => {
+        console.log('Received streaming response:', data.status);
+        
+        switch (data.status) {
+            case 'processing':
+                // Show real-time processing updates
+                updateLastMessage({ 
+                    content: data.message || 'Processing your request...',
+                    isStreaming: true 
+                });
+                break;
+            case 'thinking':
+                // Add a new status for showing thinking process
+                updateLastMessage({ 
+                    content: data.message || 'Thinking about your request...',
+                    isStreaming: true 
+                });
+                break;
+            case 'progress':
+                // Add a new status for showing progress updates
+                updateLastMessage({ 
+                    content: data.message || 'Making progress on your request...',
+                    isStreaming: true,
+                    progress: data.progress
+                });
+                break;
+            case 'completed':
+                // Ensure we properly handle the completed response
+                console.log('Completed response received:', data.data);
+                
+                // Handle case where data might be undefined
+                const responseData = data.data || {
+                    message: "I processed your request, but no data was returned.",
+                    summary: "Request processed successfully."
+                };
+                
+                updateLastMessage({
+                    content: formatComplexResponse(responseData),
+                    isStreaming: false,
+                    isLoading: false,
+                    data: responseData
+                });
+                setConversationState('normal');
+                setIsStreaming(false);
+                setIsLoading(false);
+                break;
+            case 'conversational':
+                updateLastMessage({
+                    content: data.data.response,
+                    isStreaming: false
+                });
+                setConversationState('normal');
+                break;
+            case 'clarification_needed':
+                updateLastMessage({
+                    content: formatClarificationRequest(data.data),
+                    isStreaming: false,
+                    needsClarification: true,
+                    clarificationData: data.data
+                });
+                setConversationState('clarification');
+                break;
+            case 'follow_up_response':
+                updateLastMessage({
+                    content: data.data.response || formatComplexResponse(data.data),
+                    isStreaming: false,
+                    data: data.data
+                });
+                setConversationState('follow_up');
+                break;
+            case 'error':
+                updateLastMessage({
+                    content: data.error || 'Sorry, I encountered an error processing your request.',
+                    isStreaming: false,
+                    isError: true
+                });
+                setConversationState('normal');
+                break;
+            default:
+                console.warn('Unknown status in streaming response:', data.status);
+                break;
+        }
+    };
+
+    const formatResponse = (data) => {
+            }
+        }
+    })
+});
+
+if (!response.ok) {
+    console.error('API Error:', response.status, response.statusText);
+    updateLastMessage({
+        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        isLoading: false,
+        isStreaming: false,
+        isError: true
+    });
+    return;
+}
+        let response = data.message || 'I need some clarification to better help you.';
+        
+        if (data.questions && data.questions.length > 0) {
+            response += '\n\n';
+            data.questions.forEach((q, i) => {
+                response += `**${q.question}**\n`;
+                if (q.context) response += `${q.context}\n`;
+            });
+        }
+        
+        return response;
+    };
+
+    const getInputPlaceholder = () => {
+        switch (conversationState) {
+            case 'clarification':
+                return 'Type your clarification here...';
+            case 'follow_up':
+                return 'Ask a follow-up question...';
+            default:
+                return 'Ask me anything...';
+        }
+    };
+
+    const handleQuickResponse = (suggestion) => {
+        setInput(suggestion);
+    };
+
+    const formatMessageContent = (content) => {
+        // Enhanced markdown-like formatting
+        return content
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\n/g, '<br/>')
+            .replace(/•/g, '&bull;')
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+    };
+    
+    // Store user feedback about AI responses to improve future interactions
+    const storeUserFeedback = (messageId, isHelpful) => {
+        const feedback = localStorage.getItem('interactionFeedback') 
+            ? JSON.parse(localStorage.getItem('interactionFeedback')) 
+            : [];
+            
+        feedback.push({
+            messageId,
+            timestamp: new Date().toISOString(),
+            isHelpful,
+            query: messages.find(m => m.id === messageId - 1)?.content || '',
+            response: messages.find(m => m.id === messageId)?.content || ''
+        });
+        
+        // Keep only the last 50 feedback items
+        if (feedback.length > 50) {
+            feedback.shift();
+        }
+        
+        localStorage.setItem('interactionFeedback', JSON.stringify(feedback));
+    };
+
+    const exampleQueries = [
+        "Create a task to review the proposal by Friday",
+        "Find all my urgent tasks due this week",
+        "Schedule a team meeting for tomorrow at 2pm",
+        "Add a due date of August 10th to all my unplanned tasks", // Example of an update operation
+        "Create a project plan for the new feature launch",
+        "Mark all completed tasks as archived" // Another update example
+    ];
+
+    return (
+        <div className="chat-container">
+            {/* Header */}
+            <div className="chat-header">
+                <div className="header-content">
+                    <h1>March AI</h1>
+                    {conversationState !== 'normal' && (
+                        <div className="conversation-state">
+                            {conversationState === 'clarification' ? '💭 Clarifying' : '💬 Continuing'}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Messages */}
+            <div className="messages-container">
+                {messages.length === 0 && (
+                    <div className="welcome-screen">
+                        <div className="welcome-icon">🤖</div>
+                        <h2>Welcome to March AI</h2>
+                        <p>I can help you manage tasks, schedule meetings, and more. Try asking me something!</p>
+                        
+                        <div className="example-prompts">
+                            <h3>Try these examples:</h3>
+                            <div className="example-grid">
+                                {exampleQueries.map((query, index) => (
+                                    <button 
+                                        key={index} 
+                                        className="example-query"
+                                        onClick={() => handleQuickResponse(query)}
+                                    >
+                                        {query}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
+                {messages.map((message) => (
+                    <div key={message.id} className={`message-wrapper ${message.type}`}>
+                        <div className="message-bubble">
+                            {message.isLoading ? (
+                                <div className="typing-indicator">
+                                    <span></span><span></span><span></span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="message-container">
+                                        <div 
+                                            className="message-text"
+                                            dangerouslySetInnerHTML={{ 
+                                                __html: formatMessageContent(message.content) 
+                                            }}
+                                        />
+                                        {message.type === 'assistant' && !message.isLoading && (
+                                            <div className="feedback-buttons">
+                                                <button 
+                                                    className="feedback-btn helpful" 
+                                                    onClick={() => storeUserFeedback(message.id, true)}
+                                                    title="This was helpful"
+                                                >
+                                                    <span>👍</span>
+                                                </button>
+                                                <button 
+                                                    className="feedback-btn unhelpful" 
+                                                    onClick={() => storeUserFeedback(message.id, false)}
+                                                    title="This was not helpful"
+                                                >
+                                                    <span>👎</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {message.needsClarification && message.clarificationData?.questions && (
+                                        <div className="clarification-section">
+                                            {message.clarificationData.questions.map((question, qIndex) => (
+                                                <div key={qIndex} className="clarification-question">
+                                                    {question.suggestions && (
+                                                        <div className="clarification-suggestions">
+                                                            {question.suggestions.map((suggestion, sIndex) => (
+                                                                <button
+                                                                    key={sIndex}
+                                                                    className="clarification-option"
+                                                                    onClick={() => handleQuickResponse(suggestion)}
+                                                                >
+                                                                    {suggestion}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                ))}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Section */}
+            <div className="input-section">
+                <form className="input-form" onSubmit={handleSubmit}>
+                    <div className="input-wrapper">
+                        <input
+                            type="text"
+                            className="message-input"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder={getInputPlaceholder()}
+                            disabled={isLoading}
+                        />
+                        <button 
+                            type="submit" 
+                            className="send-btn"
+                            disabled={!input.trim() || isLoading}
+                        >
+                            {isLoading ? (
+                                <div className="loading-spinner"></div>
+                            ) : (
+                                <span>➤</span>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {/* Styles */}
+            <style jsx>{`
+                .chat-container {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100vh;
+                    max-height: 800px;
+                    width: 100%;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                    background: #f9fafb;
+                }
+
+                .chat-header {
+                    padding: 16px 24px;
+                    background: #ffffff;
+                    border-bottom: 1px solid #e5e5e5;
+                }
+
+                .header-content {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    max-width: 768px;
+                    margin: 0 auto;
+                    width: 100%;
+                }
+
+                .chat-header h1 {
+                    margin: 0;
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: #111827;
+                }
+
+                .conversation-state {
+                    font-size: 14px;
+                    color: #4b5563;
+                    background: #f3f4f6;
+                    padding: 4px 10px;
+                    border-radius: 12px;
+                }
+
+                .messages-container {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 24px 0;
+                    scroll-behavior: smooth;
+                }
+
+                .welcome-screen {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    padding: 24px;
+                    text-align: center;
+                }
+
+                .welcome-icon {
+                    font-size: 48px;
+                    margin-bottom: 16px;
+                }
+
+                .welcome-screen h2 {
+                    margin: 0 0 8px;
+                    font-size: 24px;
+                    font-weight: 600;
+                    color: #111827;
+                }
+
+                .welcome-screen p {
+                    margin: 0 0 24px;
+                    font-size: 16px;
+                    color: #4b5563;
+                    max-width: 500px;
+                }
+
+                .example-prompts {
+                    width: 100%;
+                    max-width: 600px;
+                }
+
+                .example-prompts h3 {
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #4b5563;
+                    margin-bottom: 12px;
+                }
+
+                .example-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                }
+
+                .example-query {
+                    text-align: left;
+                    background: #ffffff;
+                    border: 1px solid #e5e5e5;
+                    border-radius: 8px;
+                    padding: 12px 16px;
+                    font-size: 14px;
+                    color: #111827;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+
+                .example-query:hover {
+                    background: #f9fafb;
+                    border-color: #d1d5db;
+                }
+
+                .message-wrapper {
+                    display: flex;
+                    margin-bottom: 16px;
+                    padding: 0 24px;
+                }
+
+                .message-wrapper.user {
+                    justify-content: flex-end;
+                }
+
+                .message-bubble {
+                    max-width: 80%;
+                    padding: 12px 16px;
+                    border-radius: 12px;
+                    background: #ffffff;
+                    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+                }
+
+                .message-wrapper.user .message-bubble {
+                    background: #2563eb;
+                    color: white;
+                }
+
+                .message-text {
+                    font-size: 15px;
+                    line-height: 1.5;
+                }
+
+                .message-wrapper.user .message-text {
+                    color: white;
+                }
+
+                .typing-indicator {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+
+                .typing-indicator span {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #d1d5db;
+                    animation: typing 1.4s infinite both;
+                }
+
+                .typing-indicator span:nth-child(2) {
+                    animation-delay: 0.2s;
+                }
+
+                .typing-indicator span:nth-child(3) {
+                    animation-delay: 0.4s;
+                }
+
+                @keyframes typing {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.5); }
+                    100% { transform: scale(1); }
+                }
+
+                .clarification-section {
+                    margin-top: 12px;
+                }
+
+                .clarification-question {
+                    margin-bottom: 8px;
+                }
+
+                .clarification-suggestions {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    margin-top: 8px;
+                }
+
+                .clarification-option {
+                    background: #ffffff;
+                    border: 1px solid #d1d5db;
+                    border-radius: 16px;
+                    padding: 6px 12px;
+                    font-size: 14px;
+                    color: #111827;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    font-weight: 500;
+                }
+
+                .clarification-option:hover:not(:disabled) {
+                    background: #f3f4f6;
+                    border-color: #9ca3af;
+                }
+
+                .clarification-option:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                .input-section {
+                    padding: 24px;
+                    border-top: 1px solid #e5e5e5;
+                    background: #ffffff;
+                }
+
+                .input-form {
+                    max-width: 768px;
+                    margin: 0 auto;
+                }
+
+                .input-wrapper {
+                    display: flex;
+                    align-items: center;
+                    background: #ffffff;
+                    border: 1px solid #d1d5db;
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    transition: border-color 0.2s ease;
+                }
+
+                .input-wrapper:focus-within {
+                    border-color: #2563eb;
+                    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+                }
+
+                .message-input {
+                    flex: 1;
+                    border: none;
+                    outline: none;
+                    font-size: 16px;
+                    color: #202123;
+                    background: transparent;
+                    resize: none;
+                    font-family: inherit;
+                }
+
+                .message-input::placeholder {
+                    color: #9ca3af;
+                }
+
+                .send-btn {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 32px;
+                    height: 32px;
+                    border: none;
+                    border-radius: 6px;
+                    background: #2563eb;
+                    color: white;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    margin-left: 8px;
+                }
+
+                .send-btn:hover:not(:disabled) {
+                    background: #1d4ed8;
+                }
+
+                .send-btn:disabled {
+                    background: #d1d5db;
+                    cursor: not-allowed;
+                }
+
+                .loading-spinner {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid #ffffff;
+                    border-top: 2px solid transparent;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+
+                /* Scrollbar styling */
+                .messages-container::-webkit-scrollbar {
+                    width: 6px;
+                }
+
+                .messages-container::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+
+                .messages-container::-webkit-scrollbar-thumb {
+                    background: #d1d5db;
+                    border-radius: 3px;
+                }
+
+                .messages-container::-webkit-scrollbar-thumb:hover {
+                    background: #9ca3af;
+                }
+
+                /* Responsive design */
+                @media (max-width: 768px) {
+                    .chat-container {
+                        height: 100vh;
+                        max-height: none;
+                    }
+
+                    .example-prompts {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .message-wrapper {
+                        padding: 16px;
+                    }
+
+                    .input-section {
+                        padding: 16px;
+                    }
+                }
+            `}</style>
+        </div>
+    );
+};
+
+export default EnhancedAIChat;

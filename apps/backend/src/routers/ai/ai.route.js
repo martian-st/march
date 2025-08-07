@@ -5,8 +5,12 @@ import { SYSTEM_PROMPT } from "../../prompts/system.prompt.js";
 import { saveContent, SearchHandler, pineconeIndex, DayPlanner, PrioritizationHandler } from "../../utils/helper.service.js";
 import { QueryUnderstanding } from "../../utils/query.service.js";
 import { createObjectFromAI } from "../../controllers/lib/object.controller.js";
+import enhancedAIRouter from "./enhanced-ai.route.js";
 
 const router = Router();
+
+// Mount enhanced AI routes
+router.use("/enhanced", enhancedAIRouter);
 
 export const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
 
