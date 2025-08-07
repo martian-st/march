@@ -274,14 +274,14 @@ const EnhancedAIChat = () => {
             return data.response;
         }
         
+        // Prioritize the new conversational response field from chain of thought
+        if (data.response) {
+            return data.response;
+        }
+        
         // Show main result without exposing AI learning details
         if (data.message) {
             response += data.message + '\n\n';
-        }
-        
-        // Show response text if available
-        if (data.response && !data.isConversational) {
-            response += data.response + '\n\n';
         }
         
         // Show created objects
