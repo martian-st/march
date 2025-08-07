@@ -91,6 +91,7 @@ const EnhancedAIChat = () => {
         
         // Get session token
         const session = await getSession();
+        console.log("saju:",session);
         
         const response = await fetch(getIntelligentEndpoint(), {
             method: 'POST',

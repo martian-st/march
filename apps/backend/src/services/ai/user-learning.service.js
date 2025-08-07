@@ -148,7 +148,10 @@ Examples:
 `;
 
             const result = await this.model.generateContent(entityPrompt);
-            return JSON.parse(result.response.text());
+            const responseText = result.response.text();
+            // Remove markdown code blocks if present
+            const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
+            return JSON.parse(cleanedResponse);
             
         } catch (error) {
             console.error('Error extracting entities with AI:', error);

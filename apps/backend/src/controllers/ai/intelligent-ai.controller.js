@@ -10,7 +10,7 @@ import { ENHANCED_SYSTEM_PROMPT } from "../../prompts/enhanced-system.prompt.js"
  * without relying on keyword matching or rigid routing
  */
 export class IntelligentAIController {
-    constructor() {
+    constructor () {
         this.chainOfThought = new ChainOfThoughtService(process.env.GOOGLE_AI_API_KEY, ENHANCED_SYSTEM_PROMPT);
         this.userLearning = new UserLearningService(process.env.GOOGLE_AI_API_KEY);
         this.calendarService = new CalendarIntegrationService(process.env.GOOGLE_AI_API_KEY);

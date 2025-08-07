@@ -148,11 +148,11 @@ Examples:
             const reasoningChain = await this.generateReasoningChain(analysis, context);
             
             // Execute the reasoning chain
-            const results = await this.executeReasoningChain(reasoningChain, userId);
+            const executionResult = await this.executeReasoningChain(reasoningChain, userId);
             
             // Synthesize final result
-            const finalResult = this.synthesizeFinalResult(results);
-            const executionSummary = this.generateExecutionSummary(results);
+            const finalResult = this.synthesizeFinalResult(executionResult.steps);
+            const executionSummary = this.generateExecutionSummary(executionResult.steps);
             
             // Update conversation context
             this.updateConversationContext(userId, {
