@@ -199,9 +199,14 @@ export const useVoiceAssistant = () => {
         context: any = {}
     ) => {
         try {
+            const session = await getSession();
             const response = await axios.post('http://localhost:8080/ai/voice/transcribe', {
                 transcribedText,
                 context
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${session}`
+                }
             });
             return response.data;
         } catch (error) {
@@ -212,7 +217,12 @@ export const useVoiceAssistant = () => {
 
     const checkHealth = useCallback(async () => {
         try {
-            const response = await axios.get('http://localhost:8080/ai/voice/health');
+            const session = await getSession();
+            const response = await axios.get('http://localhost:8080/ai/voice/health', {
+                headers: {
+                    'Authorization': `Bearer ${session}`
+                }
+            });
             return response.data;
         } catch (error) {
             console.error('Voice health check failed:', error);

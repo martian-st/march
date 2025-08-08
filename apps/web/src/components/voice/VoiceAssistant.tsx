@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { MessageSquare, Mic, Brain, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { getSession } from '@/actions/session';
 
 interface VoiceAssistantProps {
   className?: string;
@@ -64,11 +65,16 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
     setConversationHistory(prev => [...prev, userMessage]);
 
     try {
-      const response = await axios.post('/ai/voice/process', {
+      const session = await getSession();
+      const response = await axios.post('http://localhost:8080/ai/voice/process', {
         transcribedText,
         context: {
           ...context,
           conversationHistory: conversationHistory.slice(-5) // Last 5 messages for context
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${session}`
         }
       });
 
@@ -100,7 +106,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
       } else {
         throw new Error(response.data.error || 'Failed to process voice command');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Voice command error:', error);
       
       const errorMessage = error.response?.data?.error || error.message || 'Failed to process voice command';
