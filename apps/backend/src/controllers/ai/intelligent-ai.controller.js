@@ -21,15 +21,15 @@ export class IntelligentAIController {
      * Single intelligent endpoint that handles all user requests
      * Uses user learning and context to understand intent naturally
      */
-    async processIntelligentRequest(req, res) {
+    async processIntelligentRequest (req, res) {
         try {
             const { query, context = {} } = req.body;
             const userId = req.user?._id;
 
             if (!query?.trim()) {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     error: "Query is required",
-                    success: false 
+                    success: false
                 });
             }
 
@@ -40,9 +40,9 @@ export class IntelligentAIController {
             res.setHeader("Connection", "keep-alive");
 
             // Send initial thinking message
-            res.write(JSON.stringify({ 
-                status: "thinking", 
-                message: "Understanding your request..." 
+            res.write(JSON.stringify({
+                status: "thinking",
+                message: "Understanding your request..."
             }) + "\n");
 
             // Step 1: Predict user intent using learned patterns
@@ -65,7 +65,7 @@ export class IntelligentAIController {
                     res.end();
                     return;
                 }
-                
+
                 // Default fallback
                 intentPrediction = {
                     operationType: 'conversational',
@@ -74,18 +74,18 @@ export class IntelligentAIController {
                     suggestedAction: 'Handle as conversation'
                 };
             }
-            
+
             // Send progress update (without exposing learning details)
-            res.write(JSON.stringify({ 
-                status: "progress", 
+            res.write(JSON.stringify({
+                status: "progress",
                 message: "Working on your request..."
             }) + "\n");
 
             // Step 2: Execute the request using the predicted intent
             const result = await this.executeIntelligentRequest(
-                query, 
-                userId, 
-                intentPrediction, 
+                query,
+                userId,
+                intentPrediction,
                 context,
                 res
             );
@@ -101,10 +101,9 @@ export class IntelligentAIController {
             }) + "\n");
 
             res.end();
-
         } catch (error) {
             console.error("Error in processIntelligentRequest:", error);
-            
+
             if (!res.headersSent) {
                 res.status(500).json({
                     error: "An error occurred processing your request",
@@ -125,16 +124,16 @@ export class IntelligentAIController {
     /**
      * Execute request based on predicted intent
      */
-    async executeIntelligentRequest(query, userId, intentPrediction, context, res) {
+    async executeIntelligentRequest (query, userId, intentPrediction, context, res) {
         const { operationType, confidence, suggestedAction } = intentPrediction;
 
         // If confidence is low, still try to help but use chain of thought as backup
         if (confidence < 50) {
-            res.write(JSON.stringify({ 
-                status: "processing", 
-                message: "Let me think about that..." 
+            res.write(JSON.stringify({
+                status: "processing",
+                message: "Let me think about that..."
             }) + "\n");
-            
+
             return await this.chainOfThought.processComplexRequest(query, userId, {
                 ...context,
                 intentPrediction,
@@ -144,46 +143,46 @@ export class IntelligentAIController {
 
         // High confidence - execute based on predicted operation
         switch (operationType) {
-            case 'create':
-                return await this.handleIntelligentCreate(query, userId, intentPrediction, res);
-            
-            case 'update':
-                return await this.handleIntelligentUpdate(query, userId, intentPrediction, res);
-            
-            case 'search':
-                return await this.handleIntelligentSearch(query, userId, intentPrediction, res);
-            
-            case 'schedule':
-                return await this.handleIntelligentSchedule(query, userId, intentPrediction, res);
-            
-            case 'delete':
-                return await this.handleIntelligentDelete(query, userId, intentPrediction, res);
-            
-            default:
-                // Fallback to chain of thought for unknown operations
-                return await this.chainOfThought.processComplexRequest(query, userId, {
-                    ...context,
-                    intentPrediction,
-                    fallbackReason: 'unknown_operation'
-                });
+        case 'create':
+            return await this.handleIntelligentCreate(query, userId, intentPrediction, res);
+
+        case 'update':
+            return await this.handleIntelligentUpdate(query, userId, intentPrediction, res);
+
+        case 'search':
+            return await this.handleIntelligentSearch(query, userId, intentPrediction, res);
+
+        case 'schedule':
+            return await this.handleIntelligentSchedule(query, userId, intentPrediction, res);
+
+        case 'delete':
+            return await this.handleIntelligentDelete(query, userId, intentPrediction, res);
+
+        default:
+            // Fallback to chain of thought for unknown operations
+            return await this.chainOfThought.processComplexRequest(query, userId, {
+                ...context,
+                intentPrediction,
+                fallbackReason: 'unknown_operation'
+            });
         }
     }
 
     /**
      * Handle intelligent object creation
      */
-    async handleIntelligentCreate(query, userId, intentPrediction, res) {
+    async handleIntelligentCreate (query, userId, intentPrediction, res) {
         try {
-            res.write(JSON.stringify({ 
-                status: "processing", 
-                message: "Creating that for you..." 
+            res.write(JSON.stringify({
+                status: "processing",
+                message: "Creating that for you..."
             }) + "\n");
 
             // For very vague requests, make reasonable assumptions and create something useful
             if (this.isVagueCreateRequest(query)) {
                 // Instead of asking for clarification, create a basic task with a helpful title
                 const enhancedQuery = this.enhanceVagueRequest(query);
-                
+
                 const result = await this.objectManager.createIntelligentObject(enhancedQuery, userId, {
                     intentPrediction,
                     originalQuery: query,
@@ -209,7 +208,6 @@ export class IntelligentAIController {
                 operationType: 'create',
                 success: true
             };
-
         } catch (error) {
             console.error('Error in intelligent create:', error);
             return {
@@ -223,17 +221,17 @@ export class IntelligentAIController {
     /**
      * Handle intelligent object updates
      */
-    async handleIntelligentUpdate(query, userId, intentPrediction, res) {
+    async handleIntelligentUpdate (query, userId, intentPrediction, res) {
         try {
-            res.write(JSON.stringify({ 
-                status: "processing", 
-                message: "Finding and updating objects..." 
+            res.write(JSON.stringify({
+                status: "processing",
+                message: "Finding and updating objects..."
             }) + "\n");
 
             // First, find objects that match the update criteria
             const searchResult = await this.objectManager.findIntelligentObjects(
-                this.extractSearchTermsFromUpdate(query), 
-                userId, 
+                this.extractSearchTermsFromUpdate(query),
+                userId,
                 { limit: 50 }
             );
 
@@ -247,7 +245,7 @@ export class IntelligentAIController {
 
             // Extract update parameters from the query
             const updateParams = this.extractUpdateParameters(query, intentPrediction);
-            
+
             if (!updateParams || Object.keys(updateParams).length === 0) {
                 return {
                     needsClarification: true,
@@ -267,8 +265,8 @@ export class IntelligentAIController {
 
             // Perform bulk update
             const updateResults = await this.performBulkUpdate(
-                searchResult.objects, 
-                updateParams, 
+                searchResult.objects,
+                updateParams,
                 userId,
                 res
             );
@@ -280,7 +278,6 @@ export class IntelligentAIController {
                 operationType: 'update',
                 success: updateResults.successCount > 0
             };
-
         } catch (error) {
             console.error('Error in intelligent update:', error);
             return {
@@ -294,11 +291,11 @@ export class IntelligentAIController {
     /**
      * Handle intelligent search
      */
-    async handleIntelligentSearch(query, userId, intentPrediction, res) {
+    async handleIntelligentSearch (query, userId, intentPrediction, res) {
         try {
-            res.write(JSON.stringify({ 
-                status: "processing", 
-                message: "Searching through your objects..." 
+            res.write(JSON.stringify({
+                status: "processing",
+                message: "Searching through your objects..."
             }) + "\n");
 
             const result = await this.objectManager.findIntelligentObjects(query, userId, {
@@ -311,7 +308,6 @@ export class IntelligentAIController {
                 operationType: 'search',
                 success: true
             };
-
         } catch (error) {
             console.error('Error in intelligent search:', error);
             return {
@@ -325,11 +321,11 @@ export class IntelligentAIController {
     /**
      * Handle intelligent scheduling
      */
-    async handleIntelligentSchedule(query, userId, intentPrediction, res) {
+    async handleIntelligentSchedule (query, userId, intentPrediction, res) {
         try {
-            res.write(JSON.stringify({ 
-                status: "processing", 
-                message: "Creating calendar event..." 
+            res.write(JSON.stringify({
+                status: "processing",
+                message: "Creating calendar event..."
             }) + "\n");
 
             const result = await this.calendarService.createIntelligentEvent(query, userId, {
@@ -342,7 +338,6 @@ export class IntelligentAIController {
                 operationType: 'schedule',
                 success: true
             };
-
         } catch (error) {
             console.error('Error in intelligent schedule:', error);
             return {
@@ -356,17 +351,17 @@ export class IntelligentAIController {
     /**
      * Handle intelligent deletion
      */
-    async handleIntelligentDelete(query, userId, intentPrediction, res) {
+    async handleIntelligentDelete (query, userId, intentPrediction, res) {
         try {
-            res.write(JSON.stringify({ 
-                status: "processing", 
-                message: "Finding objects to delete..." 
+            res.write(JSON.stringify({
+                status: "processing",
+                message: "Finding objects to delete..."
             }) + "\n");
 
             // This is a dangerous operation, always ask for confirmation
             const searchResult = await this.objectManager.findIntelligentObjects(
-                this.extractSearchTermsFromDelete(query), 
-                userId, 
+                this.extractSearchTermsFromDelete(query),
+                userId,
                 { limit: 10 }
             );
 
@@ -385,7 +380,6 @@ export class IntelligentAIController {
                 operationType: 'delete',
                 success: true
             };
-
         } catch (error) {
             console.error('Error in intelligent delete:', error);
             return {
@@ -399,7 +393,7 @@ export class IntelligentAIController {
     /**
      * Check if create request is too vague
      */
-    isVagueCreateRequest(query) {
+    isVagueCreateRequest (query) {
         const vaguePhrases = [
             /^(can you |could you |please )?create a task( for me)?$/i,
             /^(can you |could you |please )?add a task( for me)?$/i,
@@ -408,28 +402,28 @@ export class IntelligentAIController {
             /^add something$/i,
             /^make something$/i
         ];
-        
+
         return vaguePhrases.some(pattern => pattern.test(query.trim()));
     }
 
     /**
      * Enhance vague requests with reasonable defaults
      */
-    enhanceVagueRequest(query) {
+    enhanceVagueRequest (query) {
         const lowerQuery = query.toLowerCase();
-        
+
         if (lowerQuery.includes('task')) {
             return "Create a new task - please update the title and details";
         }
-        
+
         if (lowerQuery.includes('note')) {
             return "Create a new note";
         }
-        
+
         if (lowerQuery.includes('meeting')) {
             return "Schedule a new meeting";
         }
-        
+
         // Default enhancement
         return "Create a new task - please update the title and details";
     }
@@ -437,7 +431,7 @@ export class IntelligentAIController {
     /**
      * Extract search terms from update query
      */
-    extractSearchTermsFromUpdate(query) {
+    extractSearchTermsFromUpdate (query) {
         // Remove update-related words to get the search terms
         return query
             .replace(/\b(add|set|change|update|modify|edit)\b/gi, '')
@@ -449,7 +443,7 @@ export class IntelligentAIController {
     /**
      * Extract update parameters from query
      */
-    extractUpdateParameters(query, intentPrediction) {
+    extractUpdateParameters (query, intentPrediction) {
         const params = {};
         const lowerQuery = query.toLowerCase();
 
@@ -483,25 +477,24 @@ export class IntelligentAIController {
     /**
      * Perform bulk update on objects
      */
-    async performBulkUpdate(objects, updateParams, userId, res) {
+    async performBulkUpdate (objects, updateParams, userId, res) {
         const results = { updated: [], failed: [], successCount: 0 };
 
         for (let i = 0; i < objects.length; i++) {
             try {
-                res.write(JSON.stringify({ 
-                    status: "progress", 
-                    message: `Updating object ${i + 1} of ${objects.length}...` 
+                res.write(JSON.stringify({
+                    status: "progress",
+                    message: `Updating object ${i + 1} of ${objects.length}...`
                 }) + "\n");
 
                 const updatedObject = await this.objectManager.updateObject(
-                    objects[i]._id, 
-                    updateParams, 
+                    objects[i]._id,
+                    updateParams,
                     userId
                 );
 
                 results.updated.push(updatedObject);
                 results.successCount++;
-
             } catch (error) {
                 results.failed.push({
                     object: objects[i],
@@ -516,7 +509,7 @@ export class IntelligentAIController {
     /**
      * Extract search terms from delete query
      */
-    extractSearchTermsFromDelete(query) {
+    extractSearchTermsFromDelete (query) {
         return query
             .replace(/\b(delete|remove|trash|destroy)\b/gi, '')
             .replace(/\b(all|my|the)\b/gi, '')
@@ -526,17 +519,16 @@ export class IntelligentAIController {
     /**
      * Get user learning statistics
      */
-    async getUserLearningStats(req, res) {
+    async getUserLearningStats (req, res) {
         try {
             const userId = req.user?._id || 'anonymous-user';
             const stats = this.userLearning.getUserLearningStats(userId);
-            
+
             res.json({
                 success: true,
                 data: stats,
                 message: "Learning statistics retrieved"
             });
-
         } catch (error) {
             console.error("Error getting learning stats:", error);
             res.status(500).json({
@@ -550,25 +542,24 @@ export class IntelligentAIController {
     /**
      * Reset user learning data
      */
-    async resetUserLearning(req, res) {
+    async resetUserLearning (req, res) {
         try {
             const userId = req.user?._id || 'anonymous-user';
-            
+
             // Export current data for backup
             const backup = this.userLearning.exportUserData(userId);
-            
+
             // Clear learning data
             this.userLearning.userPatterns.delete(userId);
             this.userLearning.userContext.delete(userId);
             this.userLearning.userPreferences.delete(userId);
             this.userLearning.interactionHistory.delete(userId);
-            
+
             res.json({
                 success: true,
                 data: { backup },
                 message: "User learning data reset successfully"
             });
-
         } catch (error) {
             console.error("Error resetting learning data:", error);
             res.status(500).json({
@@ -582,7 +573,7 @@ export class IntelligentAIController {
     /**
      * Check if query is a simple greeting (fallback method)
      */
-    isSimpleGreeting(query) {
+    isSimpleGreeting (query) {
         const simpleGreetings = ['hi', 'hello', 'hey', 'hiya', 'good morning', 'good afternoon', 'good evening'];
         const lowerQuery = query.toLowerCase().trim();
         return simpleGreetings.some(greeting => lowerQuery.startsWith(greeting));
@@ -591,7 +582,7 @@ export class IntelligentAIController {
     /**
      * Health check endpoint
      */
-    async healthCheck(req, res) {
+    async healthCheck (req, res) {
         try {
             const status = {
                 chainOfThought: !!this.chainOfThought,
@@ -607,7 +598,6 @@ export class IntelligentAIController {
                 data: status,
                 message: "Intelligent AI services are healthy"
             });
-
         } catch (error) {
             console.error("Error in healthCheck:", error);
             res.status(500).json({
