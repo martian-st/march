@@ -1,6 +1,6 @@
 "use client";
 
-import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+// import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 // import { SearchDialog } from "@/components/dialogs/search/search-dialog";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import {
@@ -20,7 +20,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <main className="w-full bg-white">
             <HeaderWithToggle />
             <div className="container pl-0 pr-0">{children}</div>
-            <AssistantModal />
+            {/* <AssistantModal /> */}
             <Toaster />
           </main>
         </SidebarInset>
