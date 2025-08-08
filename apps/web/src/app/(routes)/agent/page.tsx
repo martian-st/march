@@ -1,6 +1,6 @@
 'use client';
 
-import EnhancedAIChat from '@/components/EnhancedAIChat';
+import VoiceEnabledAIChat from '@/components/VoiceEnabledAIChat';
 import { ErrorBoundary } from "@/components/error/error-boundary";
 
 export default function AgentPage() {
@@ -10,7 +10,7 @@ export default function AgentPage() {
         <ErrorBoundary
           fallback={<div>Error loading AI chat. Please try again later.</div>}
         >
-          <EnhancedAIChat />
+          <VoiceEnabledAIChat />
         </ErrorBoundary>
       </div>
     </section>

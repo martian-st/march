@@ -3,5 +3,6 @@
     {
       "mode": "auto"
     }
-  ]
+  ],
+  "kiroAgent.configureMCP": "Disabled"
 }

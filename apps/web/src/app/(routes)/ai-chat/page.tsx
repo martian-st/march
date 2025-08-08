@@ -1,11 +1,11 @@
 'use client';
 
-import EnhancedAIChat from '@/components/EnhancedAIChat';
+import VoiceEnabledAIChat from '@/components/VoiceEnabledAIChat';
 
 export default function AIChatPage() {
     return (
         <div className="h-full">
-            <EnhancedAIChat />
+            <VoiceEnabledAIChat />
         </div>
     );
 }

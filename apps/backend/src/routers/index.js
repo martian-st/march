@@ -10,6 +10,7 @@ import GithubRoute from "../routers/integration/github.route.js";
 import NotionRoute from "../routers/integration/notion.route.js";
 import XRoute from "../routers/integration/x.route.js";
 import { intelligentAIRouter } from "../routers/ai/intelligent-ai.route.js";
+import { voiceRouter } from "../routers/voice.router.js";
 
 /**
  * @param {import('express').Application} app
@@ -27,6 +28,7 @@ const initRoutes = (app) => {
     app.use('/notion', JWTMiddleware, NotionRoute);
     app.use('/x', JWTMiddleware, XRoute);
     app.use('/ai/intelligent', JWTMiddleware, intelligentAIRouter);
+    app.use('/ai/voice', JWTMiddleware, voiceRouter);
     app.get("/", async (req, res) => {
         res.json({
             "message": "Welcome to  sage "
