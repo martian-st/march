@@ -249,174 +249,174 @@ Respond only with valid JSON.
         };
     }
 
-  buildConversationalResponse(result, voiceMetadata) {
-    // Handle case where result or data might be undefined
-    if (!result || !result.data) {
-      return "I've processed your request. Let me know if you need anything else!";
+    buildConversationalResponse (result, voiceMetadata) {
+        // Handle case where result or data might be undefined
+        if (!result || !result.data) {
+            return "I've processed your request. Let me know if you need anything else!";
+        }
+
+        const { data } = result;
+
+        // Handle greetings first
+        if (data && data.greeting) {
+            return this.getGreetingResponse(voiceMetadata);
+        }
+
+        if (data && data.steps && data.steps.length > 0) {
+            // Multi-step response
+            const successfulSteps = data.steps.filter((step) => step.success).length;
+            const totalSteps = data.steps.length;
+
+            if (successfulSteps === totalSteps) {
+                return `Great! I've completed all ${totalSteps} steps. ${data.finalResult?.summary || "Everything is done."}`;
+            } else {
+                return `I've completed ${successfulSteps} out of ${totalSteps} steps. ${data.finalResult?.summary || "Some tasks may need your attention."}`;
+            }
+        }
+
+        if (data && data.objects && data.objects.length > 0) {
+            // Object finding response
+            const count = data.objects.length;
+            const types = [...new Set(data.objects.map((obj) => obj.type))];
+            return `I found ${count} items: ${types.join(", ")}. Would you like me to show them to you?`;
+        }
+
+        if (data && data.created) {
+            // Object creation response
+            return `Perfect! I've created that for you. It's been added to your workspace.`;
+        }
+
+        // Handle simple greetings and basic responses
+        if (voiceMetadata && voiceMetadata.originalText) {
+            const text = voiceMetadata.originalText.toLowerCase().trim();
+
+            // Handle greetings specifically
+            if (
+                text.includes("hey march") ||
+                text.includes("hi march") ||
+                text.includes("hello march")
+            ) {
+                return "Hey there! I'm March, your AI assistant. What can I help you with today?";
+            }
+            if (
+                text.includes("hello") ||
+                text.includes("hi") ||
+                text.includes("hey")
+            ) {
+                return "Hello! I'm here to help. What would you like to do?";
+            }
+            if (text.includes("thank") || text.includes("thanks")) {
+                return "You're very welcome! Happy to help anytime.";
+            }
+            if (text.includes("how are you")) {
+                return "I'm doing great, thanks for asking! Ready to help you be more productive. What's on your mind?";
+            }
+            if (text.includes("what is march") || text.includes("who are you")) {
+                return "I'm March, your AI-powered productivity assistant! I can help you create tasks, find information, schedule meetings, and much more. Just tell me what you need!";
+            }
+        }
+
+        // Default response
+        return "I've processed your request. Let me know if you need anything else!";
     }
 
-    const { data } = result;
+    getGreetingResponse (voiceMetadata) {
+        if (!voiceMetadata || !voiceMetadata.originalText) {
+            return "Hello! How can I help you today?";
+        }
 
-    // Handle greetings first
-    if (data && data.greeting) {
-      return this.getGreetingResponse(voiceMetadata);
+        const text = voiceMetadata.originalText.toLowerCase().trim();
+
+        // Personalized greeting responses
+        if (
+            text.includes("hey march") ||
+            text.includes("hi march") ||
+            text.includes("hello march")
+        ) {
+            const responses = [
+                "Hey there! I'm March, your AI assistant. What can I help you with today?",
+                "Hi! I'm here and ready to help. What's on your mind?",
+                "Hello! Great to hear from you. How can I make your day more productive?"
+            ];
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        if (
+            text.includes("what is march") ||
+            text.includes("who are you") ||
+            text.includes("what are you")
+        ) {
+            return "I'm March, your AI-powered productivity assistant! I can help you create tasks, find information, schedule meetings, and much more. Just tell me what you need!";
+        }
+
+        if (text.includes("how are you")) {
+            return "I'm doing great, thanks for asking! Ready to help you be more productive. What would you like to work on?";
+        }
+
+        // Default friendly greeting
+        const defaultGreetings = [
+            "Hello! I'm here to help. What would you like to do?",
+            "Hi there! How can I assist you today?",
+            "Hey! Ready to help you get things done. What's up?"
+        ];
+        return defaultGreetings[
+            Math.floor(Math.random() * defaultGreetings.length)
+        ];
     }
 
-    if (data && data.steps && data.steps.length > 0) {
-      // Multi-step response
-      const successfulSteps = data.steps.filter((step) => step.success).length;
-      const totalSteps = data.steps.length;
-
-      if (successfulSteps === totalSteps) {
-        return `Great! I've completed all ${totalSteps} steps. ${data.finalResult?.summary || "Everything is done."}`;
-      } else {
-        return `I've completed ${successfulSteps} out of ${totalSteps} steps. ${data.finalResult?.summary || "Some tasks may need your attention."}`;
-      }
-    }
-
-    if (data && data.objects && data.objects.length > 0) {
-      // Object finding response
-      const count = data.objects.length;
-      const types = [...new Set(data.objects.map((obj) => obj.type))];
-      return `I found ${count} items: ${types.join(", ")}. Would you like me to show them to you?`;
-    }
-
-    if (data && data.created) {
-      // Object creation response
-      return `Perfect! I've created that for you. It's been added to your workspace.`;
-    }
-
-    // Handle simple greetings and basic responses
-    if (voiceMetadata && voiceMetadata.originalText) {
-      const text = voiceMetadata.originalText.toLowerCase().trim();
-
-      // Handle greetings specifically
-      if (
-        text.includes("hey march") ||
-        text.includes("hi march") ||
-        text.includes("hello march")
-      ) {
-        return "Hey there! I'm March, your AI assistant. What can I help you with today?";
-      }
-      if (
-        text.includes("hello") ||
-        text.includes("hi") ||
-        text.includes("hey")
-      ) {
-        return "Hello! I'm here to help. What would you like to do?";
-      }
-      if (text.includes("thank") || text.includes("thanks")) {
-        return "You're very welcome! Happy to help anytime.";
-      }
-      if (text.includes("how are you")) {
-        return "I'm doing great, thanks for asking! Ready to help you be more productive. What's on your mind?";
-      }
-      if (text.includes("what is march") || text.includes("who are you")) {
-        return "I'm March, your AI-powered productivity assistant! I can help you create tasks, find information, schedule meetings, and much more. Just tell me what you need!";
-      }
-    }
-
-    // Default response
-    return "I've processed your request. Let me know if you need anything else!";
-  }
-
-  getGreetingResponse(voiceMetadata) {
-    if (!voiceMetadata || !voiceMetadata.originalText) {
-      return "Hello! How can I help you today?";
-    }
-
-    const text = voiceMetadata.originalText.toLowerCase().trim();
-
-    // Personalized greeting responses
-    if (
-      text.includes("hey march") ||
-      text.includes("hi march") ||
-      text.includes("hello march")
-    ) {
-      const responses = [
-        "Hey there! I'm March, your AI assistant. What can I help you with today?",
-        "Hi! I'm here and ready to help. What's on your mind?",
-        "Hello! Great to hear from you. How can I make your day more productive?"
-      ];
-      return responses[Math.floor(Math.random() * responses.length)];
-    }
-
-    if (
-      text.includes("what is march") ||
-      text.includes("who are you") ||
-      text.includes("what are you")
-    ) {
-      return "I'm March, your AI-powered productivity assistant! I can help you create tasks, find information, schedule meetings, and much more. Just tell me what you need!";
-    }
-
-    if (text.includes("how are you")) {
-      return "I'm doing great, thanks for asking! Ready to help you be more productive. What would you like to work on?";
-    }
-
-    // Default friendly greeting
-    const defaultGreetings = [
-      "Hello! I'm here to help. What would you like to do?",
-      "Hi there! How can I assist you today?",
-      "Hey! Ready to help you get things done. What's up?"
-    ];
-    return defaultGreetings[
-      Math.floor(Math.random() * defaultGreetings.length)
-    ];
-  }
-
-  /**
+    /**
    * Generate simple voice response for intelligent AI results
    */
-  generateSimpleVoiceResponse(assistantResult, originalText) {
-    if (!assistantResult || !assistantResult.success) {
-      return {
-        text: "I'm sorry, I couldn't process that request. Could you try rephrasing it?",
-        shouldSpeak: true,
-        confidence: 0.3
-      };
-    }
+    generateSimpleVoiceResponse (assistantResult, originalText) {
+        if (!assistantResult || !assistantResult.success) {
+            return {
+                text: "I'm sorry, I couldn't process that request. Could you try rephrasing it?",
+                shouldSpeak: true,
+                confidence: 0.3
+            };
+        }
 
-    // Handle greetings
-    if (originalText) {
-      const text = originalText.toLowerCase().trim();
-      if (
-        text.includes("hey march") ||
-        text.includes("hi march") ||
-        text.includes("hello march")
-      ) {
+        // Handle greetings
+        if (originalText) {
+            const text = originalText.toLowerCase().trim();
+            if (
+                text.includes("hey march") ||
+                text.includes("hi march") ||
+                text.includes("hello march")
+            ) {
+                return {
+                    text: "Hey there! I'm March, your AI assistant. What can I help you with today?",
+                    shouldSpeak: true,
+                    confidence: 0.9
+                };
+            }
+            if (
+                text.includes("hello") ||
+                text.includes("hi") ||
+                text.includes("hey")
+            ) {
+                return {
+                    text: "Hello! How can I help you today?",
+                    shouldSpeak: true,
+                    confidence: 0.9
+                };
+            }
+        }
+
+        // Use the response from intelligent AI if available
+        if (assistantResult.data && assistantResult.data.response) {
+            return {
+                text: assistantResult.data.response,
+                shouldSpeak: true,
+                confidence: 0.8
+            };
+        }
+
+        // Fallback response
         return {
-          text: "Hey there! I'm March, your AI assistant. What can I help you with today?",
-          shouldSpeak: true,
-          confidence: 0.9
+            text: "I've processed your request successfully!",
+            shouldSpeak: true,
+            confidence: 0.7
         };
-      }
-      if (
-        text.includes("hello") ||
-        text.includes("hi") ||
-        text.includes("hey")
-      ) {
-        return {
-          text: "Hello! How can I help you today?",
-          shouldSpeak: true,
-          confidence: 0.9
-        };
-      }
     }
-
-    // Use the response from intelligent AI if available
-    if (assistantResult.data && assistantResult.data.response) {
-      return {
-        text: assistantResult.data.response,
-        shouldSpeak: true,
-        confidence: 0.8
-      };
-    }
-
-    // Fallback response
-    return {
-      text: "I've processed your request successfully!",
-      shouldSpeak: true,
-      confidence: 0.7
-    };
-  }
 }
