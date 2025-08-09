@@ -54,6 +54,17 @@ export const processVoiceCommand = async (req, res) => {
 
     try {
       switch (assistantQuery.type) {
+        case "greeting":
+          // Handle greetings directly without calling AI services
+          assistantResult = {
+            success: true,
+            data: {
+              greeting: true,
+              message: 'Greeting processed'
+            }
+          };
+          break;
+
         case "create":
           assistantResult = await objectManagerService.createObject(
             assistantQuery.query,
@@ -343,5 +354,5 @@ export const voiceHealthCheck = async (req, res) => {
       error: "Voice services health check failed",
       timestamp: new Date().toISOString()
     });
-  }
+    }
 };
