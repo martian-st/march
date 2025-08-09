@@ -28,7 +28,7 @@ export class VoiceRecognitionService {
         fallback: {
           intent: "general_query",
           query: transcribedText,
-          confidence: 0.5,
+          confidence: 0.5
         },
       };
     }
@@ -98,7 +98,7 @@ Respond only with valid JSON.
         parameters: parsed.parameters,
         voiceContext: parsed.voice_context,
         suggestedResponse: parsed.suggested_response,
-        processedAt: new Date().toISOString(),
+        processedAt: new Date().toISOString()
       };
     } catch (error) {
       console.error("Failed to parse voice response:", error);
@@ -109,7 +109,7 @@ Respond only with valid JSON.
         fallback: {
           intent: "general_query",
           query: originalText,
-          confidence: 0.3,
+          confidence: 0.3
         },
       };
     }
@@ -132,7 +132,7 @@ Respond only with valid JSON.
       find_objects: this.buildFindObjectsQuery(parameters),
       schedule_meeting: this.buildScheduleMeetingQuery(parameters),
       complex_request: this.buildComplexRequestQuery(parameters),
-      general_query: this.buildGeneralQuery(parameters),
+      general_query: this.buildGeneralQuery(parameters)
     };
 
     const assistantQuery = queryMapping[intent] || queryMapping.general_query;
@@ -143,7 +143,7 @@ Respond only with valid JSON.
         originalText: voiceResult.originalText,
         confidence: voiceResult.confidence,
         voiceContext,
-        processedAt: voiceResult.processedAt,
+        processedAt: voiceResult.processedAt
       },
     };
   }
@@ -154,7 +154,7 @@ Respond only with valid JSON.
       query: parameters.query,
       context: {
         source: "voice",
-        greeting: true,
+        greeting: true
       },
     };
   }
@@ -167,7 +167,7 @@ Respond only with valid JSON.
         urgency: parameters.urgency,
         timeframe: parameters.timeframe,
         entities: parameters.entities,
-        source: "voice",
+        source: "voice"
       },
     };
   }
@@ -180,7 +180,7 @@ Respond only with valid JSON.
         urgency: parameters.urgency,
         timeframe: parameters.timeframe,
         entities: parameters.entities,
-        source: "voice",
+        source: "voice"
       },
     };
   }
@@ -193,7 +193,7 @@ Respond only with valid JSON.
       context: {
         timeframe: parameters.timeframe,
         urgency: parameters.urgency,
-        source: "voice",
+        source: "voice"
       },
     };
   }
@@ -207,7 +207,7 @@ Respond only with valid JSON.
         timeframe: parameters.timeframe,
         entities: parameters.entities,
         source: "voice",
-        multiStep: true,
+        multiStep: true
       },
     };
   }
@@ -218,7 +218,7 @@ Respond only with valid JSON.
       query: parameters.query,
       context: {
         source: "voice",
-        general: true,
+        general: true
       },
     };
   }
@@ -231,7 +231,7 @@ Respond only with valid JSON.
       return {
         text: "I'm sorry, I couldn't process that request. Could you try rephrasing it?",
         shouldSpeak: true,
-        confidence: 0.3,
+        confidence: 0.3
       };
     }
 
@@ -245,7 +245,7 @@ Respond only with valid JSON.
       text: responseText,
       shouldSpeak: true,
       confidence: voiceMetadata?.confidence || 0.5,
-      data: assistantResult.data || {},
+      data: assistantResult.data || {}
     };
   }
 
@@ -336,7 +336,7 @@ Respond only with valid JSON.
       const responses = [
         "Hey there! I'm March, your AI assistant. What can I help you with today?",
         "Hi! I'm here and ready to help. What's on your mind?",
-        "Hello! Great to hear from you. How can I make your day more productive?",
+        "Hello! Great to hear from you. How can I make your day more productive?"
       ];
       return responses[Math.floor(Math.random() * responses.length)];
     }
@@ -357,10 +357,66 @@ Respond only with valid JSON.
     const defaultGreetings = [
       "Hello! I'm here to help. What would you like to do?",
       "Hi there! How can I assist you today?",
-      "Hey! Ready to help you get things done. What's up?",
+      "Hey! Ready to help you get things done. What's up?"
     ];
     return defaultGreetings[
       Math.floor(Math.random() * defaultGreetings.length)
     ];
+  }
+
+  /**
+   * Generate simple voice response for intelligent AI results
+   */
+  generateSimpleVoiceResponse(assistantResult, originalText) {
+    if (!assistantResult || !assistantResult.success) {
+      return {
+        text: "I'm sorry, I couldn't process that request. Could you try rephrasing it?",
+        shouldSpeak: true,
+        confidence: 0.3
+      };
+    }
+
+    // Handle greetings
+    if (originalText) {
+      const text = originalText.toLowerCase().trim();
+      if (
+        text.includes("hey march") ||
+        text.includes("hi march") ||
+        text.includes("hello march")
+      ) {
+        return {
+          text: "Hey there! I'm March, your AI assistant. What can I help you with today?",
+          shouldSpeak: true,
+          confidence: 0.9
+        };
+      }
+      if (
+        text.includes("hello") ||
+        text.includes("hi") ||
+        text.includes("hey")
+      ) {
+        return {
+          text: "Hello! How can I help you today?",
+          shouldSpeak: true,
+          confidence: 0.9
+        };
+      }
+    }
+
+    // Use the response from intelligent AI if available
+    if (assistantResult.data && assistantResult.data.response) {
+      return {
+        text: assistantResult.data.response,
+        shouldSpeak: true,
+        confidence: 0.8
+      };
+    }
+
+    // Fallback response
+    return {
+      text: "I've processed your request successfully!",
+      shouldSpeak: true,
+      confidence: 0.7
+    };
   }
 }
