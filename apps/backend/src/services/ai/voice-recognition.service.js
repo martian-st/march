@@ -376,25 +376,19 @@ Respond only with valid JSON.
             };
         }
 
-        // Handle greetings
+        // Handle ONLY pure greetings, not requests that start with greetings
         if (originalText) {
             const text = originalText.toLowerCase().trim();
-            if (
-                text.includes("hey march") ||
-                text.includes("hi march") ||
-                text.includes("hello march")
-            ) {
-                return {
-                    text: "Hey there! I'm March, your AI assistant. What can I help you with today?",
-                    shouldSpeak: true,
-                    confidence: 0.9
-                };
-            }
-            if (
-                text.includes("hello") ||
-                text.includes("hi") ||
-                text.includes("hey")
-            ) {
+
+            // Only respond with greeting if it's JUST a greeting, not a request
+            const isPureGreeting = (
+                (text === 'hey march' || text === 'hi march' || text === 'hello march') ||
+                (text === 'hello' || text === 'hi' || text === 'hey') ||
+                (text === 'hey there' || text === 'hello there') ||
+                (text === 'good morning' || text === 'good afternoon' || text === 'good evening')
+            );
+
+            if (isPureGreeting) {
                 return {
                     text: "Hello! How can I help you today?",
                     shouldSpeak: true,
