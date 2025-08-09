@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 export class VoiceRecognitionService {
     constructor(apiKey) {
         this.genAI = new GoogleGenerativeAI(apiKey);
-        this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+        this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     }
 
     /**
@@ -17,7 +17,7 @@ export class VoiceRecognitionService {
             const prompt = this.buildVoiceProcessingPrompt(transcribedText, context);
             const result = await this.model.generateContent(prompt);
             const response = result.response.text();
-            
+
             return this.parseVoiceResponse(response, transcribedText);
         } catch (error) {
             console.error('Voice processing error:', error);
@@ -86,7 +86,7 @@ Respond only with valid JSON.
             }
 
             const parsed = JSON.parse(jsonMatch[0]);
-            
+
             return {
                 success: true,
                 originalText,
@@ -121,7 +121,7 @@ Respond only with valid JSON.
         }
 
         const { intent, parameters, voiceContext } = voiceResult;
-        
+
         // Map voice intents to assistant queries
         const queryMapping = {
             create_task: this.buildCreateTaskQuery(parameters),
@@ -132,7 +132,7 @@ Respond only with valid JSON.
         };
 
         const assistantQuery = queryMapping[intent] || queryMapping.general_query;
-        
+
         return {
             ...assistantQuery,
             voiceMetadata: {
@@ -212,7 +212,7 @@ Respond only with valid JSON.
      * Generate voice-friendly response
      */
     generateVoiceResponse(assistantResult, voiceMetadata) {
-        if (!assistantResult.success) {
+        if (!assistantResult || !assistantResult.success) {
             return {
                 text: "I'm sorry, I couldn't process that request. Could you try rephrasing it?",
                 shouldSpeak: true,
@@ -222,43 +222,59 @@ Respond only with valid JSON.
 
         // Generate conversational response based on the result
         const responseText = this.buildConversationalResponse(assistantResult, voiceMetadata);
-        
+
         return {
             text: responseText,
             shouldSpeak: true,
-            confidence: voiceMetadata.confidence,
-            data: assistantResult.data
+            confidence: voiceMetadata?.confidence || 0.5,
+            data: assistantResult.data || {}
         };
     }
 
     buildConversationalResponse(result, voiceMetadata) {
+        // Handle case where result or data might be undefined
+        if (!result || !result.data) {
+            return "I've processed your request. Let me know if you need anything else!";
+        }
+
         const { data } = result;
-        
-        if (data.steps && data.steps.length > 0) {
+
+        if (data && data.steps && data.steps.length > 0) {
             // Multi-step response
             const successfulSteps = data.steps.filter(step => step.success).length;
             const totalSteps = data.steps.length;
-            
+
             if (successfulSteps === totalSteps) {
                 return `Great! I've completed all ${totalSteps} steps. ${data.finalResult?.summary || 'Everything is done.'}`;
             } else {
                 return `I've completed ${successfulSteps} out of ${totalSteps} steps. ${data.finalResult?.summary || 'Some tasks may need your attention.'}`;
             }
         }
-        
-        if (data.objects && data.objects.length > 0) {
+
+        if (data && data.objects && data.objects.length > 0) {
             // Object finding response
             const count = data.objects.length;
             const types = [...new Set(data.objects.map(obj => obj.type))];
             return `I found ${count} items: ${types.join(', ')}. Would you like me to show them to you?`;
         }
-        
-        if (data.created) {
+
+        if (data && data.created) {
             // Object creation response
             return `Perfect! I've created that for you. It's been added to your workspace.`;
         }
-        
+
+        // Handle simple greetings and basic responses
+        if (voiceMetadata && voiceMetadata.originalText) {
+            const text = voiceMetadata.originalText.toLowerCase();
+            if (text.includes('hello') || text.includes('hi') || text.includes('hey')) {
+                return "Hello! How can I help you today?";
+            }
+            if (text.includes('thank') || text.includes('thanks')) {
+                return "You're welcome! Is there anything else I can help you with?";
+            }
+        }
+
         // Default response
-        return "I've processed your request. Check your workspace for the results.";
+        return "I've processed your request. Let me know if you need anything else!";
     }
 }

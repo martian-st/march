@@ -20,6 +20,7 @@ const VoiceEnabledAIChat = () => {
     const [isListeningForWakeWord, setIsListeningForWakeWord] = useState(true);
     const [isVoiceMode, setIsVoiceMode] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
+    const [wakeWordRestarting, setWakeWordRestarting] = useState(false);
 
     const messagesEndRef = useRef(null);
     const wakeWordRecognitionRef = useRef(null);
@@ -44,8 +45,15 @@ const VoiceEnabledAIChat = () => {
         console.log('Voice support check:', { hasWebSpeech, hasSpeechSynthesis, voiceSupported });
     }, [voiceSupported]);
 
-    // Initialize wake word detection
+    // Initialize wake word detection (disabled by default due to browser limitations)
     useEffect(() => {
+        // Disable continuous wake word detection as it causes browser conflicts
+        // Users can still use the microphone button for voice input
+        setIsListeningForWakeWord(false);
+        return;
+
+        // The code below is commented out but kept for reference
+        /*
         if (!voiceSupported && !browserVoiceSupport) return;
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -68,28 +76,43 @@ const VoiceEnabledAIChat = () => {
 
         wakeWordRecognition.onerror = (event) => {
             console.log('Wake word detection error:', event.error);
-            // Restart wake word detection after error
-            if (isListeningForWakeWord && event.error !== 'not-allowed') {
+            setWakeWordRestarting(false);
+            
+            // Only restart for certain errors, not for aborted
+            if (isListeningForWakeWord && !isVoiceMode && event.error !== 'not-allowed' && event.error !== 'aborted') {
+                setWakeWordRestarting(true);
                 setTimeout(() => {
-                    try {
-                        wakeWordRecognition.start();
-                    } catch (e) {
-                        console.log('Failed to restart wake word detection');
+                    if (isListeningForWakeWord && !isVoiceMode && !wakeWordRestarting) {
+                        try {
+                            wakeWordRecognition.start();
+                            setWakeWordRestarting(false);
+                        } catch (e) {
+                            console.log('Failed to restart wake word detection');
+                            setWakeWordRestarting(false);
+                        }
                     }
-                }, 1000);
+                }, 2000); // Increased delay to prevent conflicts
             }
         };
 
         wakeWordRecognition.onend = () => {
-            // Restart wake word detection if it should be listening
-            if (isListeningForWakeWord && !isVoiceMode) {
+            console.log('Wake word detection ended');
+            setWakeWordRestarting(false);
+            
+            // Only restart if we should be listening and not in voice mode
+            if (isListeningForWakeWord && !isVoiceMode && !wakeWordRestarting) {
+                setWakeWordRestarting(true);
                 setTimeout(() => {
-                    try {
-                        wakeWordRecognition.start();
-                    } catch (e) {
-                        console.log('Failed to restart wake word detection');
+                    if (isListeningForWakeWord && !isVoiceMode) {
+                        try {
+                            wakeWordRecognition.start();
+                            setWakeWordRestarting(false);
+                        } catch (e) {
+                            console.log('Failed to restart wake word detection');
+                            setWakeWordRestarting(false);
+                        }
                     }
-                }, 100);
+                }, 1000); // Reasonable delay to prevent conflicts
             }
         };
 
@@ -101,25 +124,43 @@ const VoiceEnabledAIChat = () => {
         }
 
         return () => {
+            setWakeWordRestarting(false);
             if (wakeWordRecognitionRef.current) {
-                wakeWordRecognitionRef.current.stop();
+                try {
+                    wakeWordRecognitionRef.current.stop();
+                } catch (e) {
+                    console.log('Wake word recognition cleanup');
+                }
+            }
+            if (voiceRecognitionRef.current) {
+                try {
+                    voiceRecognitionRef.current.stop();
+                } catch (e) {
+                    console.log('Voice recognition cleanup');
+                }
             }
         };
+        */
     }, [voiceSupported, isListeningForWakeWord, isVoiceMode]);
 
     const startWakeWordDetection = async () => {
-        if (!wakeWordRecognitionRef.current) return;
+        if (!wakeWordRecognitionRef.current || wakeWordRestarting || isVoiceMode) return;
 
         try {
             await navigator.mediaDevices.getUserMedia({ audio: true });
             wakeWordRecognitionRef.current.start();
             console.log('Wake word detection started');
+            setWakeWordRestarting(false);
         } catch (error) {
             console.error('Failed to start wake word detection:', error);
+            setWakeWordRestarting(false);
+            
             if (error.name === 'NotAllowedError') {
                 toast.error('Microphone access denied. Please allow microphone access in your browser settings and refresh the page.', {
                     duration: 5000
                 });
+            } else if (error.name === 'InvalidStateError') {
+                console.log('Speech recognition already running, skipping start');
             } else {
                 toast.error('Voice features disabled. Please check your microphone.');
             }
@@ -130,13 +171,20 @@ const VoiceEnabledAIChat = () => {
         console.log('Wake word "Hey March" detected!');
         toast.success('Hey March detected! Listening...', { duration: 2000 });
 
-        // Stop wake word detection temporarily
+        // Stop wake word detection temporarily and prevent restart
+        setWakeWordRestarting(false);
         if (wakeWordRecognitionRef.current) {
-            wakeWordRecognitionRef.current.stop();
+            try {
+                wakeWordRecognitionRef.current.stop();
+            } catch (e) {
+                console.log('Wake word recognition already stopped');
+            }
         }
 
-        // Start voice command mode
-        startVoiceCommand();
+        // Start voice command mode after a brief delay
+        setTimeout(() => {
+            startVoiceCommand();
+        }, 500);
     };
 
     const startVoiceCommand = async () => {
@@ -213,10 +261,14 @@ const VoiceEnabledAIChat = () => {
     };
 
     const restartWakeWordDetection = () => {
-        if (isListeningForWakeWord) {
+        if (isListeningForWakeWord && !isVoiceMode && !wakeWordRestarting) {
+            setWakeWordRestarting(true);
             setTimeout(() => {
-                startWakeWordDetection();
-            }, 1000);
+                if (isListeningForWakeWord && !isVoiceMode) {
+                    startWakeWordDetection();
+                    setWakeWordRestarting(false);
+                }
+            }, 2000); // Longer delay to prevent conflicts
         }
     };
 
@@ -552,18 +604,12 @@ const VoiceEnabledAIChat = () => {
 
     return (
         <div className="flex flex-col h-screen bg-white text-gray-900">
-            {/* Voice Status Bar */}
-            {(voiceSupported || browserVoiceSupport) && (
+            {/* Voice Status Bar - Only show when actively using voice */}
+            {(isVoiceMode || isSpeaking) && (
                 <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
                     <div className="flex items-center justify-between max-w-4xl mx-auto">
                         <div className="flex items-center space-x-4">
-                            {/* Wake Word Status */}
-                            <div className="flex items-center space-x-2">
-                                <div className={`w-2 h-2 rounded-full ${isListeningForWakeWord ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                                <span className="text-xs text-gray-600">
-                                    {isListeningForWakeWord ? 'Listening for "Hey March"' : 'Wake word disabled'}
-                                </span>
-                            </div>
+
 
                             {/* Voice Mode Status */}
                             {isVoiceMode && (
@@ -571,7 +617,7 @@ const VoiceEnabledAIChat = () => {
                                     <Mic className="w-4 h-4 text-red-500 animate-pulse" />
                                     <span className="text-xs text-red-600">Voice command active</span>
                                     {voiceTranscript && (
-                                        <span className="text-xs text-gray-600 italic">"{voiceTranscript}"</span>
+                                        <span className="text-xs text-gray-600 italic">&quot;{voiceTranscript}&quot;</span>
                                     )}
                                 </div>
                             )}
@@ -587,14 +633,6 @@ const VoiceEnabledAIChat = () => {
 
                         {/* Voice Controls */}
                         <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => setIsListeningForWakeWord(!isListeningForWakeWord)}
-                                className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                                title={isListeningForWakeWord ? 'Disable wake word' : 'Enable wake word'}
-                            >
-                                {isListeningForWakeWord ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-                            </button>
-
                             {isSpeaking && (
                                 <button
                                     onClick={stopSpeaking}
@@ -604,6 +642,7 @@ const VoiceEnabledAIChat = () => {
                                     <VolumeX className="w-4 h-4" />
                                 </button>
                             )}
+
                         </div>
                     </div>
                 </div>
@@ -690,12 +729,7 @@ const VoiceEnabledAIChat = () => {
                         <div className={`rounded-xl bg-gray-100 shadow-sm overflow-hidden ${isVoiceMode ? 'ring-2 ring-red-200 bg-red-50' : ''
                             }`}>
                             <div className="flex items-center px-4 py-3">
-                                {/* Voice ready indicator */}
-                                {(voiceSupported || browserVoiceSupport) && !isVoiceMode && isListeningForWakeWord && (
-                                    <div className="flex items-center mr-2 text-green-500" title="Voice ready - say 'Hey March' or click microphone">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></div>
-                                    </div>
-                                )}
+
 
                                 <input
                                     type="text"
@@ -705,7 +739,7 @@ const VoiceEnabledAIChat = () => {
                                         isVoiceMode
                                             ? "🎤 Listening... Speak now or click mic to stop"
                                             : (voiceSupported || browserVoiceSupport)
-                                                ? "Ask anything, say 'Hey March', or click 🎤 to speak"
+                                                ? "Ask anything or click 🎤 to speak"
                                                 : "Ask anything"
                                     }
                                     disabled={isLoading || isVoiceMode}
