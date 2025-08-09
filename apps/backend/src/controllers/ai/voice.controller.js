@@ -29,7 +29,7 @@ export const processVoiceCommand = async (req, res) => {
                     'Content-Type': 'application/json',
                     'Authorization': req.headers.authorization // Pass through the auth token
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     query: transcribedText // Use the original voice input directly
                 })
             });

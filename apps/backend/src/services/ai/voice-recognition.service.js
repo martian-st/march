@@ -1,44 +1,44 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export class VoiceRecognitionService {
-  constructor(apiKey) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  }
+    constructor (apiKey) {
+        this.genAI = new GoogleGenerativeAI(apiKey);
+        this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    }
 
-  /**
+    /**
    * Process voice input and extract user intent
    * @param {string} transcribedText - The transcribed voice text
    * @param {Object} context - Additional context for better understanding
    * @returns {Object} Processed voice command with intent and parameters
    */
-  async processVoiceCommand(transcribedText, context = {}) {
-    try {
-      const prompt = this.buildVoiceProcessingPrompt(transcribedText, context);
-      const result = await this.model.generateContent(prompt);
-      const response = result.response.text();
+    async processVoiceCommand (transcribedText, context = {}) {
+        try {
+            const prompt = this.buildVoiceProcessingPrompt(transcribedText, context);
+            const result = await this.model.generateContent(prompt);
+            const response = result.response.text();
 
-      return this.parseVoiceResponse(response, transcribedText);
-    } catch (error) {
-      console.error("Voice processing error:", error);
-      return {
-        success: false,
-        error: "Failed to process voice command",
-        originalText: transcribedText,
-        fallback: {
-          intent: "general_query",
-          query: transcribedText,
-          confidence: 0.5
-        },
-      };
+            return this.parseVoiceResponse(response, transcribedText);
+        } catch (error) {
+            console.error("Voice processing error:", error);
+            return {
+                success: false,
+                error: "Failed to process voice command",
+                originalText: transcribedText,
+                fallback: {
+                    intent: "general_query",
+                    query: transcribedText,
+                    confidence: 0.5
+                }
+            };
+        }
     }
-  }
 
-  /**
+    /**
    * Build prompt for voice command processing
    */
-  buildVoiceProcessingPrompt(transcribedText, context) {
-    return `
+    buildVoiceProcessingPrompt (transcribedText, context) {
+        return `
 You are a voice command processor for a productivity AI assistant. Your job is to analyze voice input and extract actionable intent.
 
 Voice Input: "${transcribedText}"
@@ -75,179 +75,179 @@ Consider:
 
 Respond only with valid JSON.
         `;
-  }
+    }
 
-  /**
+    /**
    * Parse the AI response for voice command
    */
-  parseVoiceResponse(response, originalText) {
-    try {
-      // Clean up the response to extract JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON found in response");
-      }
+    parseVoiceResponse (response, originalText) {
+        try {
+            // Clean up the response to extract JSON
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                throw new Error("No JSON found in response");
+            }
 
-      const parsed = JSON.parse(jsonMatch[0]);
+            const parsed = JSON.parse(jsonMatch[0]);
 
-      return {
-        success: true,
-        originalText,
-        intent: parsed.intent,
-        confidence: parsed.confidence,
-        parameters: parsed.parameters,
-        voiceContext: parsed.voice_context,
-        suggestedResponse: parsed.suggested_response,
-        processedAt: new Date().toISOString()
-      };
-    } catch (error) {
-      console.error("Failed to parse voice response:", error);
-      return {
-        success: false,
-        error: "Failed to parse voice command",
-        originalText,
-        fallback: {
-          intent: "general_query",
-          query: originalText,
-          confidence: 0.3
-        },
-      };
+            return {
+                success: true,
+                originalText,
+                intent: parsed.intent,
+                confidence: parsed.confidence,
+                parameters: parsed.parameters,
+                voiceContext: parsed.voice_context,
+                suggestedResponse: parsed.suggested_response,
+                processedAt: new Date().toISOString()
+            };
+        } catch (error) {
+            console.error("Failed to parse voice response:", error);
+            return {
+                success: false,
+                error: "Failed to parse voice command",
+                originalText,
+                fallback: {
+                    intent: "general_query",
+                    query: originalText,
+                    confidence: 0.3
+                }
+            };
+        }
     }
-  }
 
-  /**
+    /**
    * Convert voice command to AI assistant query
    */
-  async convertToAssistantQuery(voiceResult) {
-    if (!voiceResult.success) {
-      return voiceResult.fallback;
+    async convertToAssistantQuery (voiceResult) {
+        if (!voiceResult.success) {
+            return voiceResult.fallback;
+        }
+
+        const { intent, parameters, voiceContext } = voiceResult;
+
+        // Map voice intents to assistant queries
+        const queryMapping = {
+            greeting: this.buildGreetingQuery(parameters),
+            create_task: this.buildCreateTaskQuery(parameters),
+            find_objects: this.buildFindObjectsQuery(parameters),
+            schedule_meeting: this.buildScheduleMeetingQuery(parameters),
+            complex_request: this.buildComplexRequestQuery(parameters),
+            general_query: this.buildGeneralQuery(parameters)
+        };
+
+        const assistantQuery = queryMapping[intent] || queryMapping.general_query;
+
+        return {
+            ...assistantQuery,
+            voiceMetadata: {
+                originalText: voiceResult.originalText,
+                confidence: voiceResult.confidence,
+                voiceContext,
+                processedAt: voiceResult.processedAt
+            }
+        };
     }
 
-    const { intent, parameters, voiceContext } = voiceResult;
+    buildGreetingQuery (parameters) {
+        return {
+            type: "greeting",
+            query: parameters.query,
+            context: {
+                source: "voice",
+                greeting: true
+            }
+        };
+    }
 
-    // Map voice intents to assistant queries
-    const queryMapping = {
-      greeting: this.buildGreetingQuery(parameters),
-      create_task: this.buildCreateTaskQuery(parameters),
-      find_objects: this.buildFindObjectsQuery(parameters),
-      schedule_meeting: this.buildScheduleMeetingQuery(parameters),
-      complex_request: this.buildComplexRequestQuery(parameters),
-      general_query: this.buildGeneralQuery(parameters)
-    };
+    buildCreateTaskQuery (parameters) {
+        return {
+            type: "create",
+            query: parameters.query,
+            context: {
+                urgency: parameters.urgency,
+                timeframe: parameters.timeframe,
+                entities: parameters.entities,
+                source: "voice"
+            }
+        };
+    }
 
-    const assistantQuery = queryMapping[intent] || queryMapping.general_query;
+    buildFindObjectsQuery (parameters) {
+        return {
+            type: "find",
+            query: parameters.query,
+            options: {
+                urgency: parameters.urgency,
+                timeframe: parameters.timeframe,
+                entities: parameters.entities,
+                source: "voice"
+            }
+        };
+    }
 
-    return {
-      ...assistantQuery,
-      voiceMetadata: {
-        originalText: voiceResult.originalText,
-        confidence: voiceResult.confidence,
-        voiceContext,
-        processedAt: voiceResult.processedAt
-      },
-    };
-  }
+    buildScheduleMeetingQuery (parameters) {
+        return {
+            type: "calendar",
+            query: parameters.query,
+            action: "create",
+            context: {
+                timeframe: parameters.timeframe,
+                urgency: parameters.urgency,
+                source: "voice"
+            }
+        };
+    }
 
-  buildGreetingQuery(parameters) {
-    return {
-      type: "greeting",
-      query: parameters.query,
-      context: {
-        source: "voice",
-        greeting: true
-      },
-    };
-  }
+    buildComplexRequestQuery (parameters) {
+        return {
+            type: "process",
+            query: parameters.query,
+            context: {
+                urgency: parameters.urgency,
+                timeframe: parameters.timeframe,
+                entities: parameters.entities,
+                source: "voice",
+                multiStep: true
+            }
+        };
+    }
 
-  buildCreateTaskQuery(parameters) {
-    return {
-      type: "create",
-      query: parameters.query,
-      context: {
-        urgency: parameters.urgency,
-        timeframe: parameters.timeframe,
-        entities: parameters.entities,
-        source: "voice"
-      },
-    };
-  }
+    buildGeneralQuery (parameters) {
+        return {
+            type: "process",
+            query: parameters.query,
+            context: {
+                source: "voice",
+                general: true
+            }
+        };
+    }
 
-  buildFindObjectsQuery(parameters) {
-    return {
-      type: "find",
-      query: parameters.query,
-      options: {
-        urgency: parameters.urgency,
-        timeframe: parameters.timeframe,
-        entities: parameters.entities,
-        source: "voice"
-      },
-    };
-  }
-
-  buildScheduleMeetingQuery(parameters) {
-    return {
-      type: "calendar",
-      query: parameters.query,
-      action: "create",
-      context: {
-        timeframe: parameters.timeframe,
-        urgency: parameters.urgency,
-        source: "voice"
-      },
-    };
-  }
-
-  buildComplexRequestQuery(parameters) {
-    return {
-      type: "process",
-      query: parameters.query,
-      context: {
-        urgency: parameters.urgency,
-        timeframe: parameters.timeframe,
-        entities: parameters.entities,
-        source: "voice",
-        multiStep: true
-      },
-    };
-  }
-
-  buildGeneralQuery(parameters) {
-    return {
-      type: "process",
-      query: parameters.query,
-      context: {
-        source: "voice",
-        general: true
-      },
-    };
-  }
-
-  /**
+    /**
    * Generate voice-friendly response
    */
-  generateVoiceResponse(assistantResult, voiceMetadata) {
-    if (!assistantResult || !assistantResult.success) {
-      return {
-        text: "I'm sorry, I couldn't process that request. Could you try rephrasing it?",
-        shouldSpeak: true,
-        confidence: 0.3
-      };
+    generateVoiceResponse (assistantResult, voiceMetadata) {
+        if (!assistantResult || !assistantResult.success) {
+            return {
+                text: "I'm sorry, I couldn't process that request. Could you try rephrasing it?",
+                shouldSpeak: true,
+                confidence: 0.3
+            };
+        }
+
+        // Generate conversational response based on the result
+        const responseText = this.buildConversationalResponse(
+            assistantResult,
+            voiceMetadata
+        );
+
+        return {
+            text: responseText,
+            shouldSpeak: true,
+            confidence: voiceMetadata?.confidence || 0.5,
+            data: assistantResult.data || {}
+        };
     }
-
-    // Generate conversational response based on the result
-    const responseText = this.buildConversationalResponse(
-      assistantResult,
-      voiceMetadata
-    );
-
-    return {
-      text: responseText,
-      shouldSpeak: true,
-      confidence: voiceMetadata?.confidence || 0.5,
-      data: assistantResult.data || {}
-    };
-  }
 
   buildConversationalResponse(result, voiceMetadata) {
     // Handle case where result or data might be undefined
