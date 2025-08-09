@@ -5,6 +5,8 @@ import { getSession } from '@/actions/session';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
+import { ContinuousVoiceChat } from './voice/ContinuousVoiceChat';
+import { RealtimeVoiceChat } from './voice/RealtimeVoiceChat';
 
 /**
  * Voice-Enabled AI Chat Component
@@ -21,6 +23,8 @@ const VoiceEnabledAIChat = () => {
     const [isVoiceMode, setIsVoiceMode] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
     const [wakeWordRestarting, setWakeWordRestarting] = useState(false);
+    const [showContinuousVoice, setShowContinuousVoice] = useState(false);
+    const [showRealtimeVoice, setShowRealtimeVoice] = useState(false);
 
     const messagesEndRef = useRef(null);
     const wakeWordRecognitionRef = useRef(null);
@@ -154,7 +158,7 @@ const VoiceEnabledAIChat = () => {
         } catch (error) {
             console.error('Failed to start wake word detection:', error);
             setWakeWordRestarting(false);
-            
+
             if (error.name === 'NotAllowedError') {
                 toast.error('Microphone access denied. Please allow microphone access in your browser settings and refresh the page.', {
                     duration: 5000
@@ -722,6 +726,8 @@ const VoiceEnabledAIChat = () => {
                 </div>
             </div>
 
+
+
             {/* Input field */}
             <div className={`${messages.length === 0 ? 'flex items-center justify-center h-full' : 'fixed bottom-0 left-0 right-0 p-4'} bg-white`}>
                 <div className="max-w-2xl w-full mx-auto">
@@ -746,19 +752,48 @@ const VoiceEnabledAIChat = () => {
                                     className="flex-1 bg-transparent border-0 outline-none text-gray-900 placeholder-gray-500"
                                 />
 
-                                {/* Voice button */}
+                                {/* Voice buttons */}
                                 {(voiceSupported || browserVoiceSupport) && (
-                                    <button
-                                        type="button"
-                                        onClick={isVoiceMode ? stopVoiceCommand : startVoiceCommand}
-                                        className={`p-2 mr-2 rounded-full transition-all duration-200 ${isVoiceMode
-                                            ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
-                                            }`}
-                                        title={isVoiceMode ? 'Stop voice input (Click or say your command)' : 'Start voice input (Click to speak)'}
-                                    >
-                                        {isVoiceMode ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                                    </button>
+                                    <div className="flex items-center space-x-1 mr-2">
+                                        {/* Regular voice button */}
+                                        <button
+                                            type="button"
+                                            onClick={isVoiceMode ? stopVoiceCommand : startVoiceCommand}
+                                            className={`p-2 rounded-full transition-all duration-200 ${isVoiceMode
+                                                ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
+                                                : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                                                }`}
+                                            title={isVoiceMode ? "Stop voice input" : "Click to speak once"}
+                                        >
+                                            {isVoiceMode ? (
+                                                <MicOff className="w-5 h-5" />
+                                            ) : (
+                                                <Mic className="w-5 h-5" />
+                                            )}
+                                        </button>
+
+                                        {/* Continuous voice button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowContinuousVoice(true)}
+                                            className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-800 transition-all duration-200"
+                                            title="Start continuous voice conversation (restart-based)"
+                                        >
+                                            <Volume2 className="w-5 h-5" />
+                                        </button>
+
+                                        {/* Real-time WebSocket voice button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowRealtimeVoice(true)}
+                                            className="p-2 rounded-full bg-green-100 text-green-600 hover:bg-green-200 hover:text-green-800 transition-all duration-200"
+                                            title="Start real-time voice chat (WebSocket - instant responses!)"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 )}
 
                                 {/* Send button */}
@@ -796,6 +831,52 @@ const VoiceEnabledAIChat = () => {
                     </form>
                 </div>
             </div>
+
+            {/* Continuous Voice Chat Modal */}
+            {showContinuousVoice && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">Continuous Voice Chat</h2>
+                            <button
+                                onClick={() => setShowContinuousVoice(false)}
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <ContinuousVoiceChat
+                            onResult={(result) => {
+                                // Handle the voice result if needed
+                                console.log('Continuous voice result:', result);
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Real-time Voice Chat Modal */}
+            {showRealtimeVoice && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-semibold">⚡ Real-time Voice Chat</h2>
+                            <button
+                                onClick={() => setShowRealtimeVoice(false)}
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <RealtimeVoiceChat
+                            onResult={(result) => {
+                                // Handle the voice result if needed
+                                console.log('Real-time voice result:', result);
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
