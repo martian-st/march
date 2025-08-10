@@ -11,380 +11,377 @@ const userVoiceStates = new Map(); // Store voice conversation states
 
 // Voice message handler
 const handleVoiceMessage = async (ws, user, message) => {
-  const userId = user.id;
+    const userId = user.id;
 
-  try {
-    switch (message.type) {
-      case "voice_start_conversation":
+    try {
+        switch (message.type) {
+        case "voice_start_conversation":
         // Initialize voice conversation state
-        userVoiceStates.set(userId, {
-          conversationActive: true,
-          conversationHistory: [],
-          startTime: new Date()
-        });
+            userVoiceStates.set(userId, {
+                conversationActive: true,
+                conversationHistory: [],
+                startTime: new Date(),
+            });
 
-        const welcomeMessage =
+            const welcomeMessage =
           "Hi! I'm listening. You can talk to me naturally - this is a real-time conversation!";
 
-        // Add to conversation history
-        const voiceState = userVoiceStates.get(userId);
-        voiceState.conversationHistory.push({
-          role: "assistant",
-          content: welcomeMessage,
-          timestamp: new Date()
-        });
+            // Add to conversation history
+            const voiceState = userVoiceStates.get(userId);
+            voiceState.conversationHistory.push({
+                role: "assistant",
+                content: welcomeMessage,
+                timestamp: new Date(),
+            });
 
-        ws.send(
-          JSON.stringify({
-            type: "voice_conversation_started",
-            message: welcomeMessage,
-            shouldSpeak: true
-          })
-        );
+            ws.send(
+                JSON.stringify({
+                    type: "voice_conversation_started",
+                    message: welcomeMessage,
+                    shouldSpeak: true,
+                })
+            );
 
-        console.log(`Started voice conversation for user: ${userId}`);
-        break;
+            console.log(`Started voice conversation for user: ${userId}`);
+            break;
 
-      case "voice_stop_conversation":
-        const goodbyeMessage =
+        case "voice_stop_conversation":
+            const goodbyeMessage =
           "Goodbye! Feel free to start a new conversation anytime.";
 
-        if (userVoiceStates.has(userId)) {
-          const state = userVoiceStates.get(userId);
-          state.conversationActive = false;
-          state.conversationHistory.push({
-            role: "assistant",
-            content: goodbyeMessage,
-            timestamp: new Date()
-          });
+            if (userVoiceStates.has(userId)) {
+                const state = userVoiceStates.get(userId);
+                state.conversationActive = false;
+                state.conversationHistory.push({
+                    role: "assistant",
+                    content: goodbyeMessage,
+                    timestamp: new Date(),
+                });
+            }
+
+            ws.send(
+                JSON.stringify({
+                    type: "voice_conversation_ended",
+                    message: goodbyeMessage,
+                    shouldSpeak: true,
+                })
+            );
+
+            userVoiceStates.delete(userId);
+            console.log(`Stopped voice conversation for user: ${userId}`);
+            break;
+
+        case "voice_text_input":
+            await processVoiceInput(ws, user, message.text);
+            break;
+
+        case "voice_ping":
+            ws.send(JSON.stringify({ type: "voice_pong" }));
+            break;
+
+        default:
+            ws.send(
+                JSON.stringify({
+                    type: "voice_error",
+                    message: `Unknown voice message type: ${message.type}`,
+                })
+            );
         }
-
+    } catch (error) {
+        console.error("Voice message handling error:", error);
         ws.send(
-          JSON.stringify({
-            type: "voice_conversation_ended",
-            message: goodbyeMessage,
-            shouldSpeak: true
-          })
-        );
-
-        userVoiceStates.delete(userId);
-        console.log(`Stopped voice conversation for user: ${userId}`);
-        break;
-
-      case "voice_text_input":
-        await processVoiceInput(ws, user, message.text);
-        break;
-
-      case "voice_ping":
-        ws.send(JSON.stringify({ type: "voice_pong" }));
-        break;
-
-      default:
-        ws.send(
-          JSON.stringify({
-            type: "voice_error",
-            message: `Unknown voice message type: ${message.type}`
-          })
+            JSON.stringify({
+                type: "voice_error",
+                message: "Failed to process voice message",
+            })
         );
     }
-  } catch (error) {
-    console.error("Voice message handling error:", error);
-    ws.send(
-      JSON.stringify({
-        type: "voice_error",
-        message: "Failed to process voice message"
-      })
-    );
-  }
 };
 
 // Process voice input
 const processVoiceInput = async (ws, user, userInput) => {
-  const userId = user.id;
-  const voiceState = userVoiceStates.get(userId);
+    const userId = user.id;
+    const voiceState = userVoiceStates.get(userId);
 
-  if (!voiceState || !voiceState.conversationActive) {
-    ws.send(
-      JSON.stringify({
-        type: "voice_error",
-        message: "Conversation not active"
-      })
-    );
-    return;
-  }
+    if (!voiceState || !voiceState.conversationActive) {
+        ws.send(
+            JSON.stringify({
+                type: "voice_error",
+                message: "Conversation not active",
+            })
+        );
+        return;
+    }
 
-  // Check for stop commands
-  const lowerInput = userInput.toLowerCase().trim();
-  if (
-    lowerInput.includes("stop") ||
+    // Check for stop commands
+    const lowerInput = userInput.toLowerCase().trim();
+    if (
+        lowerInput.includes("stop") ||
     lowerInput.includes("goodbye") ||
     lowerInput.includes("bye") ||
     lowerInput.includes("end conversation") ||
     lowerInput.includes("turn off")
-  ) {
-    await handleVoiceMessage(ws, user, { type: "voice_stop_conversation" });
-    return;
-  }
+    ) {
+        await handleVoiceMessage(ws, user, { type: "voice_stop_conversation" });
+        return;
+    }
 
-  // Add user message to history
-  voiceState.conversationHistory.push({
-    role: "user",
-    content: userInput,
-    timestamp: new Date()
-  });
+    // Add user message to history
+    voiceState.conversationHistory.push({
+        role: "user",
+        content: userInput,
+        timestamp: new Date(),
+    });
 
-  // Send user message confirmation
-  ws.send(
-    JSON.stringify({
-      type: "voice_user_message",
-      text: userInput,
-      timestamp: new Date()
-    })
-  );
+    // Send user message confirmation
+    ws.send(
+        JSON.stringify({
+            type: "voice_user_message",
+            text: userInput,
+            timestamp: new Date(),
+        })
+    );
 
-  // Send processing indicator
-  ws.send(
-    JSON.stringify({
-      type: "voice_processing",
-      message: "Processing your message..."
-    })
-  );
+    // Send processing indicator
+    ws.send(
+        JSON.stringify({
+            type: "voice_processing",
+            message: "Processing your message...",
+        })
+    );
 
-  try {
+    try {
     // Generate a service token for internal API calls
-    const serviceToken = await generateJWTToken(
-      {
-        id: user.uuid,
-        email:
+        const serviceToken = await generateJWTToken(
+            {
+                id: user.uuid,
+                email:
           user.accounts?.local?.email ||
           user.accounts?.google?.email ||
           user.email,
-        name: user.fullName || user.userName,
-        type: "service",
-        roles: user.roles || []
-      },
-      "1h"
-    );
+                name: user.fullName || user.userName,
+                type: "service",
+                roles: user.roles || [],
+            },
+            "1h"
+        );
 
-    // Call the enhanced intelligent AI endpoint internally (same as voice controller)
-    const intelligentResponse = await fetch(
-      "http://localhost:8080/ai/enhanced",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceToken}`
-        },
-        body: JSON.stringify({
-          query: userInput
-        })
-      }
-    );
-
-    if (!intelligentResponse.ok) {
-      throw new Error(
-        `Intelligent AI API error: ${intelligentResponse.status}`
-      );
-    }
-
-    // Handle streaming response from intelligent AI
-    const reader = intelligentResponse.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let finalResult = null;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-
-      for (const line of lines) {
-        if (line.trim()) {
-          try {
-            const data = JSON.parse(line);
-            if (
-              data.status === "completed" ||
-              data.status === "conversational"
-            ) {
-              finalResult = data;
+        // Call the intelligent AI endpoint internally (same as regular chat)
+        const intelligentResponse = await fetch(
+            "http://localhost:8080/ai/intelligent",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${serviceToken}`,
+                },
+                body: JSON.stringify({
+                    query: userInput,
+                }),
             }
-          } catch (e) {
-            console.warn("Failed to parse streaming response:", line);
-          }
+        );
+
+        if (!intelligentResponse.ok) {
+            throw new Error(
+                `Intelligent AI API error: ${intelligentResponse.status}`
+            );
         }
-      }
+
+        // Handle streaming response from intelligent AI
+        const reader = intelligentResponse.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalResult = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (line.trim()) {
+                    try {
+                        const data = JSON.parse(line);
+                        if (
+                            data.status === "completed" ||
+              data.status === "conversational"
+                        ) {
+                            finalResult = data;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to parse streaming response:", line);
+                    }
+                }
+            }
+        }
+
+        let assistantMessage;
+        let assistantResult;
+
+        if (finalResult) {
+            // Use the actual message from the intelligent AI response
+            assistantMessage =
+        finalResult.message ||
+        finalResult.data?.response ||
+        "I'm here to help!";
+            assistantResult = {
+                success: true,
+                data: finalResult.data,
+            };
+        } else {
+            assistantMessage = "I'm here to help! How can I assist you today?";
+            assistantResult = {
+                success: false,
+                data: null,
+                error: "No final result from intelligent AI",
+            };
+        }
+
+        // Add to conversation history
+        voiceState.conversationHistory.push({
+            role: "assistant",
+            content: assistantMessage,
+            timestamp: new Date(),
+        });
+
+        // Send AI response
+        ws.send(
+            JSON.stringify({
+                type: "voice_ai_response",
+                text: assistantMessage,
+                shouldSpeak: true, // Always speak voice responses
+                timestamp: new Date(),
+                metadata: assistantResult.data || {},
+            })
+        );
+
+        console.log(
+            `Processed voice input for user ${userId}: "${userInput}" -> "${assistantMessage}"`
+        );
+    } catch (error) {
+        console.error("AI processing error:", error);
+
+        const errorMessage = "I'm sorry, I didn't catch that. Could you try again?";
+
+        voiceState.conversationHistory.push({
+            role: "assistant",
+            content: errorMessage,
+            timestamp: new Date(),
+        });
+
+        ws.send(
+            JSON.stringify({
+                type: "voice_ai_response",
+                text: errorMessage,
+                shouldSpeak: true,
+                timestamp: new Date(),
+                isError: true,
+            })
+        );
     }
-
-    let assistantResult;
-    if (finalResult) {
-      assistantResult = {
-        success: true,
-        data: finalResult.data
-      };
-    } else {
-      assistantResult = {
-        success: false,
-        data: null,
-        error: "No final result from intelligent AI"
-      };
-    }
-
-    // Generate voice-friendly response
-    const voiceService = new VoiceRecognitionService(
-      environment.GOOGLE_AI_API_KEY
-    );
-    const voiceResponse = voiceService.generateSimpleVoiceResponse(
-      assistantResult,
-      userInput
-    );
-
-    const assistantMessage = voiceResponse.text;
-
-    // Add to conversation history
-    voiceState.conversationHistory.push({
-      role: "assistant",
-      content: assistantMessage,
-      timestamp: new Date()
-    });
-
-    // Send AI response
-    ws.send(
-      JSON.stringify({
-        type: "voice_ai_response",
-        text: assistantMessage,
-        shouldSpeak: voiceResponse.shouldSpeak,
-        timestamp: new Date(),
-        metadata: assistantResult.data || {}
-      })
-    );
-
-    console.log(
-      `Processed voice input for user ${userId}: "${userInput}" -> "${assistantMessage}"`
-    );
-  } catch (error) {
-    console.error("AI processing error:", error);
-
-    const errorMessage = "I'm sorry, I didn't catch that. Could you try again?";
-
-    voiceState.conversationHistory.push({
-      role: "assistant",
-      content: errorMessage,
-      timestamp: new Date()
-    });
-
-    ws.send(
-      JSON.stringify({
-        type: "voice_ai_response",
-        text: errorMessage,
-        shouldSpeak: true,
-        timestamp: new Date(),
-        isError: true
-      })
-    );
-  }
 };
 
 const initializeWebSocket = (server) => {
-  const wss = new WebSocketServer({
-    server
-  });
+    const wss = new WebSocketServer({
+        server,
+    });
 
-  wss.on("connection", async (ws, req) => {
-    try {
-      const token = req.headers["sec-websocket-protocol"];
-      if (!token) {
-        ws.close(4000, "Authorization token is required");
-        return;
-      }
-
-      const checkIfBlacklisted = await BlackList.findOne({ token });
-      if (checkIfBlacklisted) {
-        ws.close(4001, "This token has expired. Please login");
-        return;
-      }
-
-      const payload = await verifyJWTToken(token);
-      const user = await getUserById(payload.id);
-      if (!user) {
-        ws.close(4002, "Invalid user");
-        return;
-      }
-
-      console.log(`WebSocket connection established for user: ${user.id}`);
-
-      // Close existing connection for the user
-      if (userConnections.has(user.id)) {
-        const existingWs = userConnections.get(user.id);
-        if (existingWs.readyState === WebSocket.OPEN) {
-          existingWs.close();
-        }
-        userConnections.delete(user.id);
-      }
-
-      userConnections.set(user.id, ws);
-      // userConnections.set(user.id, ws);
-      console.log(`New WebSocket connection added for user: ${user.id}`);
-
-      // Heartbeat mechanism
-      let isAlive = true;
-      ws.on("pong", () => {
-        console.log(`Received pong from user: ${user.id}`);
-        isAlive = true;
-      });
-
-      const pingInterval = setInterval(() => {
-        if (!isAlive) {
-          console.log(`Terminating connection for user: ${user.id}`);
-          ws.terminate();
-          clearInterval(pingInterval);
-          userConnections.delete(user.id);
-          return;
-        }
-        isAlive = false;
-        ws.ping();
-        console.log(`Sent ping to user: ${user.id}`);
-      }, 30000); // Ping every 30 seconds
-      ws.on("error", (error) => {
-        console.error(`WebSocket error for user ${user.id}:`, error.message);
-      });
-
-      ws.on("message", async (data, isBinary) => {
+    wss.on("connection", async (ws, req) => {
         try {
-          const message = JSON.parse(data.toString());
+            const token = req.headers["sec-websocket-protocol"];
+            if (!token) {
+                ws.close(4000, "Authorization token is required");
+                return;
+            }
 
-          if (message.type === "ping") {
-            console.log(`Received ping from user: ${user.id}`);
-            ws.send(JSON.stringify({ type: "pong" })); // Respond with pong
-          } else if (message.type && message.type.startsWith("voice_")) {
-            // Handle voice chat messages
-            await handleVoiceMessage(ws, user, message);
-          }
-        } catch (err) {
-          console.error(`Failed to parse message: ${err.message}`);
+            const checkIfBlacklisted = await BlackList.findOne({ token });
+            if (checkIfBlacklisted) {
+                ws.close(4001, "This token has expired. Please login");
+                return;
+            }
+
+            const payload = await verifyJWTToken(token);
+            const user = await getUserById(payload.id);
+            if (!user) {
+                ws.close(4002, "Invalid user");
+                return;
+            }
+
+            console.log(`WebSocket connection established for user: ${user.id}`);
+
+            // Close existing connection for the user
+            if (userConnections.has(user.id)) {
+                const existingWs = userConnections.get(user.id);
+                if (existingWs.readyState === WebSocket.OPEN) {
+                    existingWs.close();
+                }
+                userConnections.delete(user.id);
+            }
+
+            userConnections.set(user.id, ws);
+            // userConnections.set(user.id, ws);
+            console.log(`New WebSocket connection added for user: ${user.id}`);
+
+            // Heartbeat mechanism
+            let isAlive = true;
+            ws.on("pong", () => {
+                console.log(`Received pong from user: ${user.id}`);
+                isAlive = true;
+            });
+
+            const pingInterval = setInterval(() => {
+                if (!isAlive) {
+                    console.log(`Terminating connection for user: ${user.id}`);
+                    ws.terminate();
+                    clearInterval(pingInterval);
+                    userConnections.delete(user.id);
+                    return;
+                }
+                isAlive = false;
+                ws.ping();
+                console.log(`Sent ping to user: ${user.id}`);
+            }, 30000); // Ping every 30 seconds
+            ws.on("error", (error) => {
+                console.error(`WebSocket error for user ${user.id}:`, error.message);
+            });
+
+            ws.on("message", async (data, isBinary) => {
+                try {
+                    const message = JSON.parse(data.toString());
+
+                    if (message.type === "ping") {
+                        console.log(`Received ping from user: ${user.id}`);
+                        ws.send(JSON.stringify({ type: "pong" })); // Respond with pong
+                    } else if (message.type && message.type.startsWith("voice_")) {
+                        // Handle voice chat messages
+                        await handleVoiceMessage(ws, user, message);
+                    }
+                } catch (err) {
+                    console.error(`Failed to parse message: ${err.message}`);
+                }
+            });
+
+            ws.on("close", () => {
+                console.log(`WebSocket connection closed for user: ${user.id}`);
+                clearInterval(pingInterval); // Stop pinging on close
+                userConnections.delete(user.id);
+                userVoiceStates.delete(user.id); // Clean up voice state
+            });
+
+            ws.send(
+                JSON.stringify({
+                    type: "welcome",
+                    message: "WebSocket connection established.",
+                })
+            );
+        } catch (error) {
+            console.error("WebSocket authentication error:", error.message);
+            ws.close(4003, "Unauthorized");
         }
-      });
-
-      ws.on("close", () => {
-        console.log(`WebSocket connection closed for user: ${user.id}`);
-        clearInterval(pingInterval); // Stop pinging on close
-        userConnections.delete(user.id);
-        userVoiceStates.delete(user.id); // Clean up voice state
-      });
-
-      ws.send(
-        JSON.stringify({
-          type: "welcome",
-          message: "WebSocket connection established."
-        })
-      );
-    } catch (error) {
-      console.error("WebSocket authentication error:", error.message);
-      ws.close(4003, "Unauthorized");
-    }
-  });
+    });
 };
 
 // const broadcastToUser = (userId, data, isBinary = false) => {
@@ -409,45 +406,45 @@ const initializeWebSocket = (server) => {
 // };
 
 const broadcastToUser = (userId, data, isBinary = false) => {
-  // console.log(`Broadcasting to user: ${userId}`);
+    // console.log(`Broadcasting to user: ${userId}`);
 
-  const ws = userConnections.get(userId.toString());
-  if (!ws) {
-    console.error(`WebSocket connection for user ${userId} not found.`);
-    return;
-  }
-
-  if (ws.readyState !== WebSocket.OPEN) {
-    console.error(`WebSocket for user ${userId} is not open.`);
-    userConnections.delete(userId); // Remove inactive connection
-    return;
-  }
-
-  let message;
-  try {
-    if (isBinary) {
-      // If binary data is expected
-      if (Buffer.isBuffer(data)) {
-        message = data; // Already a Buffer, use as is
-      } else if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
-        message = Buffer.from(data); // Convert ArrayBuffer or typed array to Buffer
-      } else if (typeof data === "object") {
-        message = Buffer.from(JSON.stringify(data), "utf-8"); // Serialize object to JSON and convert to Buffer
-      } else {
-        throw new TypeError(
-          "Invalid data type for binary broadcast. Must be Buffer, ArrayBuffer, or serializable object."
-        );
-      }
-    } else {
-      // For text data
-      message = typeof data === "object" ? JSON.stringify(data) : data;
+    const ws = userConnections.get(userId.toString());
+    if (!ws) {
+        console.error(`WebSocket connection for user ${userId} not found.`);
+        return;
     }
 
-    ws.send(message, { binary: isBinary });
+    if (ws.readyState !== WebSocket.OPEN) {
+        console.error(`WebSocket for user ${userId} is not open.`);
+        userConnections.delete(userId); // Remove inactive connection
+        return;
+    }
+
+    let message;
+    try {
+        if (isBinary) {
+            // If binary data is expected
+            if (Buffer.isBuffer(data)) {
+                message = data; // Already a Buffer, use as is
+            } else if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+                message = Buffer.from(data); // Convert ArrayBuffer or typed array to Buffer
+            } else if (typeof data === "object") {
+                message = Buffer.from(JSON.stringify(data), "utf-8"); // Serialize object to JSON and convert to Buffer
+            } else {
+                throw new TypeError(
+                    "Invalid data type for binary broadcast. Must be Buffer, ArrayBuffer, or serializable object."
+                );
+            }
+        } else {
+            // For text data
+            message = typeof data === "object" ? JSON.stringify(data) : data;
+        }
+
+        ws.send(message, { binary: isBinary });
     // console.log(`Message sent to user ${userId}:`, isBinary ? "[Binary Data]" : data);
-  } catch (error) {
-    console.error(`Failed to send message to user ${userId}:`, error.message);
-  }
+    } catch (error) {
+        console.error(`Failed to send message to user ${userId}:`, error.message);
+    }
 };
 
 export { initializeWebSocket, broadcastToUser };
