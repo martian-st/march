@@ -1,6 +1,6 @@
 // here im using sec-websocket
 import { WebSocketServer, WebSocket } from "ws";
-import { verifyJWTToken } from "../utils/jwt.service.js";
+import { verifyJWTToken, generateJWTToken } from "../utils/jwt.service.js";
 import { BlackList } from "../models/core/black-list.model.js";
 import { getUserById } from "../services/core/user.service.js";
 import { VoiceRecognitionService } from "../services/ai/voice-recognition.service.js";
@@ -20,7 +20,7 @@ const handleVoiceMessage = async (ws, user, message) => {
         userVoiceStates.set(userId, {
           conversationActive: true,
           conversationHistory: [],
-          startTime: new Date(),
+          startTime: new Date()
         });
 
         const welcomeMessage =
@@ -31,14 +31,14 @@ const handleVoiceMessage = async (ws, user, message) => {
         voiceState.conversationHistory.push({
           role: "assistant",
           content: welcomeMessage,
-          timestamp: new Date(),
+          timestamp: new Date()
         });
 
         ws.send(
           JSON.stringify({
             type: "voice_conversation_started",
             message: welcomeMessage,
-            shouldSpeak: true,
+            shouldSpeak: true
           })
         );
 
@@ -55,7 +55,7 @@ const handleVoiceMessage = async (ws, user, message) => {
           state.conversationHistory.push({
             role: "assistant",
             content: goodbyeMessage,
-            timestamp: new Date(),
+            timestamp: new Date()
           });
         }
 
@@ -63,7 +63,7 @@ const handleVoiceMessage = async (ws, user, message) => {
           JSON.stringify({
             type: "voice_conversation_ended",
             message: goodbyeMessage,
-            shouldSpeak: true,
+            shouldSpeak: true
           })
         );
 
@@ -83,7 +83,7 @@ const handleVoiceMessage = async (ws, user, message) => {
         ws.send(
           JSON.stringify({
             type: "voice_error",
-            message: `Unknown voice message type: ${message.type}`,
+            message: `Unknown voice message type: ${message.type}`
           })
         );
     }
@@ -92,7 +92,7 @@ const handleVoiceMessage = async (ws, user, message) => {
     ws.send(
       JSON.stringify({
         type: "voice_error",
-        message: "Failed to process voice message",
+        message: "Failed to process voice message"
       })
     );
   }
@@ -107,7 +107,7 @@ const processVoiceInput = async (ws, user, userInput) => {
     ws.send(
       JSON.stringify({
         type: "voice_error",
-        message: "Conversation not active",
+        message: "Conversation not active"
       })
     );
     return;
@@ -130,7 +130,7 @@ const processVoiceInput = async (ws, user, userInput) => {
   voiceState.conversationHistory.push({
     role: "user",
     content: userInput,
-    timestamp: new Date(),
+    timestamp: new Date()
   });
 
   // Send user message confirmation
@@ -138,7 +138,7 @@ const processVoiceInput = async (ws, user, userInput) => {
     JSON.stringify({
       type: "voice_user_message",
       text: userInput,
-      timestamp: new Date(),
+      timestamp: new Date()
     })
   );
 
@@ -146,11 +146,26 @@ const processVoiceInput = async (ws, user, userInput) => {
   ws.send(
     JSON.stringify({
       type: "voice_processing",
-      message: "Processing your message...",
+      message: "Processing your message..."
     })
   );
 
   try {
+    // Generate a service token for internal API calls
+    const serviceToken = await generateJWTToken(
+      {
+        id: user.uuid,
+        email:
+          user.accounts?.local?.email ||
+          user.accounts?.google?.email ||
+          user.email,
+        name: user.fullName || user.userName,
+        type: "service",
+        roles: user.roles || []
+      },
+      "1h"
+    );
+
     // Call the enhanced intelligent AI endpoint internally (same as voice controller)
     const intelligentResponse = await fetch(
       "http://localhost:8080/ai/enhanced",
@@ -158,11 +173,11 @@ const processVoiceInput = async (ws, user, userInput) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token || "websocket-internal"}`,
+          Authorization: `Bearer ${serviceToken}`
         },
         body: JSON.stringify({
-          query: userInput,
-        }),
+          query: userInput
+        })
       }
     );
 
@@ -207,13 +222,13 @@ const processVoiceInput = async (ws, user, userInput) => {
     if (finalResult) {
       assistantResult = {
         success: true,
-        data: finalResult.data,
+        data: finalResult.data
       };
     } else {
       assistantResult = {
         success: false,
         data: null,
-        error: "No final result from intelligent AI",
+        error: "No final result from intelligent AI"
       };
     }
 
@@ -232,7 +247,7 @@ const processVoiceInput = async (ws, user, userInput) => {
     voiceState.conversationHistory.push({
       role: "assistant",
       content: assistantMessage,
-      timestamp: new Date(),
+      timestamp: new Date()
     });
 
     // Send AI response
@@ -242,7 +257,7 @@ const processVoiceInput = async (ws, user, userInput) => {
         text: assistantMessage,
         shouldSpeak: voiceResponse.shouldSpeak,
         timestamp: new Date(),
-        metadata: assistantResult.data || {},
+        metadata: assistantResult.data || {}
       })
     );
 
@@ -257,7 +272,7 @@ const processVoiceInput = async (ws, user, userInput) => {
     voiceState.conversationHistory.push({
       role: "assistant",
       content: errorMessage,
-      timestamp: new Date(),
+      timestamp: new Date()
     });
 
     ws.send(
@@ -266,7 +281,7 @@ const processVoiceInput = async (ws, user, userInput) => {
         text: errorMessage,
         shouldSpeak: true,
         timestamp: new Date(),
-        isError: true,
+        isError: true
       })
     );
   }
@@ -274,7 +289,7 @@ const processVoiceInput = async (ws, user, userInput) => {
 
 const initializeWebSocket = (server) => {
   const wss = new WebSocketServer({
-    server,
+    server
   });
 
   wss.on("connection", async (ws, req) => {
@@ -362,7 +377,7 @@ const initializeWebSocket = (server) => {
       ws.send(
         JSON.stringify({
           type: "welcome",
-          message: "WebSocket connection established.",
+          message: "WebSocket connection established."
         })
       );
     } catch (error) {
