@@ -47,11 +47,11 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const speechSynthesis = window.speechSynthesis;
-    
+
     if (SpeechRecognition && speechSynthesis) {
       setIsSupported(true);
       speechSynthesisRef.current = speechSynthesis;
-      
+
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -91,7 +91,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
 
       recognition.onerror = (event) => {
         console.error('Real-time voice recognition error:', event.error);
-        
+
         if (event.error === 'not-allowed') {
           toast.error('Microphone access denied. Please allow microphone access.');
           stopConversation();
@@ -101,7 +101,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       recognition.onend = () => {
         console.log('Voice recognition ended');
         setIsListening(false);
-        
+
         // Restart recognition if conversation is still active
         if (conversationActiveRef.current && !isSpeaking && !isProcessing) {
           setTimeout(() => {
@@ -138,7 +138,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     try {
       setConnectionStatus('connecting');
       const session = await getSession();
-      
+
       // Use the existing WebSocket endpoint with sec-websocket-protocol for auth
       const wsUrl = `ws://localhost:8080`;
       const ws = new WebSocket(wsUrl, session);
@@ -163,7 +163,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
         console.log('WebSocket disconnected:', event.code, event.reason);
         setIsConnected(false);
         setConnectionStatus('disconnected');
-        
+
         // Attempt to reconnect if it was an unexpected closure
         if (conversationActiveRef.current && event.code !== 1000) {
           toast.error('Connection lost. Attempting to reconnect...');
@@ -195,7 +195,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     }
     setIsConnected(false);
     setConnectionStatus('disconnected');
-    
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
@@ -226,7 +226,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
           isVoice: false
         };
         setMessages([welcomeMessage]);
-        
+
         if (message.shouldSpeak) {
           speakText(message.message);
         }
@@ -241,11 +241,11 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
           isVoice: true
         };
         setMessages(prev => [...prev, goodbyeMessage]);
-        
+
         if (message.shouldSpeak) {
           speakText(message.message);
         }
-        
+
         setTimeout(() => {
           stopConversation();
         }, 2000);
@@ -268,7 +268,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
 
       case 'voice_ai_response':
         setIsProcessing(false);
-        
+
         const assistantMessage: VoiceMessage = {
           id: Date.now().toString(),
           type: 'assistant',
@@ -276,13 +276,13 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
           timestamp: new Date(message.timestamp),
           isVoice: true
         };
-        
+
         setMessages(prev => [...prev, assistantMessage]);
-        
+
         if (message.shouldSpeak) {
           speakText(message.text);
         }
-        
+
         onResult?.(message.metadata || {});
         break;
 
@@ -315,33 +315,33 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
 
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      
+
       // Connect WebSocket first
       await connectWebSocket();
-      
+
       // Wait for connection
       const maxWait = 5000; // 5 seconds
       const startTime = Date.now();
-      
+
       while (!isConnected && Date.now() - startTime < maxWait) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      
+
       if (!isConnected) {
         throw new Error('Failed to connect to voice chat service');
       }
-      
+
       setIsActive(true);
       conversationActiveRef.current = true;
-      
+
       // Send start conversation message
       sendMessage({ type: 'voice_start_conversation' });
-      
+
       // Start listening
       if (recognitionRef.current) {
         recognitionRef.current.start();
       }
-      
+
       toast.success('Real-time voice conversation started!');
     } catch (error) {
       console.error('Failed to start conversation:', error);
@@ -355,25 +355,25 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
     setIsListening(false);
     setCurrentTranscript('');
     setIsProcessing(false);
-    
+
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
-    
+
     // Stop any ongoing speech
     if (speechSynthesisRef.current) {
       speechSynthesisRef.current.cancel();
       setIsSpeaking(false);
     }
-    
+
     // Send stop message if connected
     if (isConnected) {
       sendMessage({ type: 'voice_stop_conversation' });
     }
-    
+
     // Disconnect WebSocket
     disconnectWebSocket();
-    
+
     toast.success('Voice conversation ended');
   };
 
@@ -403,11 +403,11 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
         console.log('Started speaking:', text);
         setIsSpeaking(true);
       };
-      
+
       utterance.onend = () => {
         console.log('Finished speaking');
         setIsSpeaking(false);
-        
+
         // Restart listening after speaking if conversation is still active
         if (conversationActiveRef.current && recognitionRef.current) {
           setTimeout(() => {
@@ -420,10 +420,10 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
             }
           }, 1000);
         }
-        
+
         resolve();
       };
-      
+
       utterance.onerror = (error) => {
         console.error('Speech synthesis error:', error);
         setIsSpeaking(false);
@@ -485,7 +485,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                 {connectionStatus === 'error' && 'Connection Error'}
               </span>
             </div>
-            
+
             <Badge variant={connectionStatus === 'connected' ? 'default' : 'secondary'}>
               Real-time WebSocket
             </Badge>
@@ -501,11 +501,10 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
               <Button
                 size="lg"
                 onClick={isActive ? stopConversation : startConversation}
-                className={`h-12 w-12 rounded-full ${
-                  isActive 
-                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                className={`h-12 w-12 rounded-full ${isActive
+                    ? 'bg-red-500 hover:bg-red-600 animate-pulse'
                     : 'bg-green-500 hover:bg-green-600'
-                }`}
+                  }`}
                 disabled={isProcessing || connectionStatus === 'connecting'}
               >
                 {isActive ? (
@@ -514,14 +513,14 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                   <Phone className="h-6 w-6 text-white" />
                 )}
               </Button>
-              
+
               <div>
                 <p className="font-medium">
                   {isActive ? 'Real-time Voice Chat Active' : 'Start Real-time Voice Chat'}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {isActive 
-                    ? 'Talk naturally - real-time WebSocket connection' 
+                  {isActive
+                    ? 'Talk naturally - real-time WebSocket connection'
                     : 'Instant responses via WebSocket - no delays!'
                   }
                 </p>
@@ -571,11 +570,10 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                   className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] p-3 rounded-lg text-sm ${
-                      message.type === 'user'
+                    className={`max-w-[80%] p-3 rounded-lg text-sm ${message.type === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
-                    }`}
+                      }`}
                   >
                     <p>{message.text}</p>
                     <div className="flex items-center justify-between mt-1 text-xs opacity-70">
@@ -595,7 +593,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
                 </div>
               ))}
             </div>
-            
+
             {isSpeaking && (
               <div className="mt-3 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">AI is speaking...</span>

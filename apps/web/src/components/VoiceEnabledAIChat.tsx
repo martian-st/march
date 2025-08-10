@@ -5,8 +5,7 @@ import { getSession } from '@/actions/session';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
-import { ContinuousVoiceChat } from './voice/ContinuousVoiceChat';
-import { RealtimeVoiceChat } from './voice/RealtimeVoiceChat';
+
 
 /**
  * Voice-Enabled AI Chat Component
@@ -23,13 +22,15 @@ const VoiceEnabledAIChat = () => {
     const [isVoiceMode, setIsVoiceMode] = useState(false);
     const [voiceTranscript, setVoiceTranscript] = useState('');
     const [wakeWordRestarting, setWakeWordRestarting] = useState(false);
-    const [showContinuousVoice, setShowContinuousVoice] = useState(false);
-    const [showRealtimeVoice, setShowRealtimeVoice] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const messagesEndRef = useRef(null);
     const wakeWordRecognitionRef = useRef(null);
     const voiceRecognitionRef = useRef(null);
     const speechSynthesisRef = useRef(null);
+    const wsRef = useRef(null);
+    const conversationActiveRef = useRef(false);
 
     const {
         isSupported: voiceSupported,
@@ -191,77 +192,265 @@ const VoiceEnabledAIChat = () => {
         }, 500);
     };
 
-    const startVoiceCommand = async () => {
+    // WebSocket connection management
+    const connectWebSocket = useCallback(async () => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            return Promise.resolve();
+        }
+
+        return new Promise(async (resolve, reject) => {
+            try {
+                const session = await getSession();
+                const wsUrl = `ws://localhost:8080`;
+                console.log('Connecting to WebSocket:', wsUrl);
+                
+                const ws = new WebSocket(wsUrl, session);
+                
+                const connectionTimeout = setTimeout(() => {
+                    ws.close();
+                    reject(new Error('WebSocket connection timeout'));
+                }, 10000);
+
+                ws.onopen = () => {
+                    console.log('WebSocket connected for real-time voice chat');
+                    console.log('WebSocket readyState:', ws.readyState);
+                    clearTimeout(connectionTimeout);
+                    setIsConnected(true);
+                    resolve();
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleWebSocketMessage(message);
+                    } catch (error) {
+                        console.error('Failed to parse WebSocket message:', error);
+                    }
+                };
+
+                ws.onclose = (event) => {
+                    console.log('WebSocket disconnected:', event.code, event.reason);
+                    console.log('Close event details:', event);
+                    clearTimeout(connectionTimeout);
+                    setIsConnected(false);
+                    
+                    if (conversationActiveRef.current && event.code !== 1000) {
+                        toast.error('Connection lost. Attempting to reconnect...');
+                        setTimeout(() => connectWebSocket(), 3000);
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    clearTimeout(connectionTimeout);
+                    setIsConnected(false);
+                    reject(error);
+                };
+
+                wsRef.current = ws;
+            } catch (error) {
+                console.error('Failed to connect WebSocket:', error);
+                reject(error);
+            }
+        });
+    }, []);
+
+    const disconnectWebSocket = useCallback(() => {
+        if (wsRef.current) {
+            wsRef.current.close(1000, 'User disconnected');
+            wsRef.current = null;
+        }
+        setIsConnected(false);
+    }, []);
+
+    const sendMessage = useCallback((message) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(message));
+        }
+    }, []);
+
+    const handleWebSocketMessage = (message) => {
+        switch (message.type) {
+            case 'welcome':
+                console.log('WebSocket connection confirmed');
+                break;
+            case 'voice_conversation_started':
+                toast.success('Real-time voice conversation started!');
+                break;
+            case 'voice_conversation_ended':
+                toast.success('Voice conversation ended');
+                stopRealtimeVoice();
+                break;
+            case 'voice_user_message':
+                // Add user message to chat
+                const userMessage = {
+                    id: Date.now().toString(),
+                    type: 'user',
+                    content: message.text,
+                    timestamp: new Date(),
+                    isVoice: true
+                };
+                setMessages(prev => [...prev, userMessage]);
+                break;
+            case 'voice_processing':
+                setIsProcessing(true);
+                break;
+            case 'voice_ai_response':
+                setIsProcessing(false);
+                // Add AI response to chat
+                const aiMessage = {
+                    id: Date.now().toString(),
+                    type: 'assistant',
+                    content: message.text,
+                    timestamp: new Date(),
+                    isVoice: true
+                };
+                setMessages(prev => [...prev, aiMessage]);
+                
+                // Speak the response
+                if (message.shouldSpeak && speechSynthesisRef.current) {
+                    const utterance = new SpeechSynthesisUtterance(message.text);
+                    utterance.rate = 0.9;
+                    utterance.pitch = 1;
+                    utterance.volume = 0.8;
+                    speechSynthesisRef.current.speak(utterance);
+                }
+                break;
+            case 'voice_error':
+                setIsProcessing(false);
+                toast.error(message.message);
+                break;
+        }
+    };
+
+    const startRealtimeVoice = async () => {
         if (!voiceSupported && !browserVoiceSupport) {
             toast.error('Voice recognition not supported in this browser');
             return;
         }
 
-        setIsVoiceMode(true);
-        setVoiceTranscript('');
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-        recognition.maxAlternatives = 1;
-
-        recognition.onstart = () => {
-            console.log('Voice command recognition started');
-        };
-
-        recognition.onresult = (event) => {
-            let transcript = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
-            setVoiceTranscript(transcript);
-
-            // If final result, process the command
-            if (event.results[event.results.length - 1].isFinal) {
-                handleVoiceCommand(transcript.trim());
-            }
-        };
-
-        recognition.onerror = (event) => {
-            console.error('Voice recognition error:', event.error);
-            setIsVoiceMode(false);
-            restartWakeWordDetection();
-
-            if (event.error === 'no-speech') {
-                toast.error('No speech detected. Try again.');
-            } else if (event.error === 'not-allowed') {
-                toast.error('Microphone access denied.');
-            }
-        };
-
-        recognition.onend = () => {
-            console.log('Voice command recognition ended');
-            setIsVoiceMode(false);
-            setVoiceTranscript('');
-            restartWakeWordDetection();
-        };
-
-        voiceRecognitionRef.current = recognition;
-
         try {
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Connect WebSocket if not already connected
+            if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                console.log('Connecting to WebSocket...');
+                await connectWebSocket();
+                console.log('WebSocket connection attempt completed');
+                
+                // Give a moment for the connection to stabilize
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                    console.error('WebSocket connection failed. ReadyState:', wsRef.current?.readyState);
+                    throw new Error('WebSocket connection failed');
+                }
+                
+                console.log('WebSocket is ready for voice chat');
+            }
+
+            setIsVoiceMode(true);
+            conversationActiveRef.current = true;
+            setVoiceTranscript('');
+
+            // Send start conversation message
+            sendMessage({ type: 'voice_start_conversation' });
+
+            // Setup continuous speech recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                console.log('Real-time voice recognition started');
+            };
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    if (result.isFinal) {
+                        finalTranscript += result[0].transcript;
+                    } else {
+                        interimTranscript += result[0].transcript;
+                    }
+                }
+
+                const currentTranscript = finalTranscript || interimTranscript;
+                setVoiceTranscript(currentTranscript);
+
+                // Send final transcript via WebSocket
+                if (finalTranscript.trim() && wsRef.current?.readyState === WebSocket.OPEN) {
+                    sendMessage({
+                        type: 'voice_text_input',
+                        text: finalTranscript.trim()
+                    });
+                    setVoiceTranscript('');
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Real-time voice recognition error:', event.error);
+                if (event.error === 'not-allowed') {
+                    toast.error('Microphone access denied');
+                    stopRealtimeVoice();
+                }
+            };
+
+            recognition.onend = () => {
+                console.log('Voice recognition ended');
+                // Restart recognition if conversation is still active
+                if (conversationActiveRef.current && !isProcessing) {
+                    setTimeout(() => {
+                        if (conversationActiveRef.current && voiceRecognitionRef.current) {
+                            try {
+                                voiceRecognitionRef.current.start();
+                            } catch (e) {
+                                console.log('Recognition restart failed:', e);
+                            }
+                        }
+                    }, 1000);
+                }
+            };
+
+            voiceRecognitionRef.current = recognition;
             recognition.start();
+
+            toast.success('Real-time voice conversation started!');
+
         } catch (error) {
-            console.error('Failed to start voice recognition:', error);
+            console.error('Failed to start real-time voice:', error);
+            toast.error(`Could not start voice conversation: ${error.message}`);
             setIsVoiceMode(false);
-            restartWakeWordDetection();
+            conversationActiveRef.current = false;
         }
     };
 
-    const stopVoiceCommand = () => {
+    const stopRealtimeVoice = () => {
+        setIsVoiceMode(false);
+        conversationActiveRef.current = false;
+        setVoiceTranscript('');
+        setIsProcessing(false);
+
         if (voiceRecognitionRef.current) {
             voiceRecognitionRef.current.stop();
         }
-        setIsVoiceMode(false);
-        setVoiceTranscript('');
-        restartWakeWordDetection();
+
+        if (speechSynthesisRef.current) {
+            speechSynthesisRef.current.cancel();
+        }
+
+        if (isConnected) {
+            sendMessage({ type: 'voice_stop_conversation' });
+        }
+
+        disconnectWebSocket();
     };
 
     const restartWakeWordDetection = () => {
@@ -276,17 +465,7 @@ const VoiceEnabledAIChat = () => {
         }
     };
 
-    const handleVoiceCommand = async (transcript) => {
-        if (!transcript.trim()) return;
 
-        console.log('Processing voice command:', transcript);
-
-        // Add the voice command as user input
-        setInput(transcript);
-
-        // Process the command
-        await processMessage(transcript, true);
-    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -295,6 +474,36 @@ const VoiceEnabledAIChat = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // Initialize speech synthesis and cleanup
+    useEffect(() => {
+        speechSynthesisRef.current = window.speechSynthesis;
+        
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+            if (voiceRecognitionRef.current) {
+                voiceRecognitionRef.current.stop();
+            }
+            if (speechSynthesisRef.current) {
+                speechSynthesisRef.current.cancel();
+            }
+        };
+    }, []);
+
+    // Keep-alive ping for WebSocket
+    useEffect(() => {
+        if (!isConnected) return;
+
+        const pingInterval = setInterval(() => {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+                sendMessage({ type: 'ping' });
+            }
+        }, 30000); // Ping every 30 seconds
+
+        return () => clearInterval(pingInterval);
+    }, [isConnected, sendMessage]);
 
     const addMessage = (message) => {
         setMessages(prev => [...prev, message]);
@@ -752,48 +961,23 @@ const VoiceEnabledAIChat = () => {
                                     className="flex-1 bg-transparent border-0 outline-none text-gray-900 placeholder-gray-500"
                                 />
 
-                                {/* Voice buttons */}
+                                {/* Voice button */}
                                 {(voiceSupported || browserVoiceSupport) && (
-                                    <div className="flex items-center space-x-1 mr-2">
-                                        {/* Regular voice button */}
-                                        <button
-                                            type="button"
-                                            onClick={isVoiceMode ? stopVoiceCommand : startVoiceCommand}
-                                            className={`p-2 rounded-full transition-all duration-200 ${isVoiceMode
-                                                ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
-                                                : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
-                                                }`}
-                                            title={isVoiceMode ? "Stop voice input" : "Click to speak once"}
-                                        >
-                                            {isVoiceMode ? (
-                                                <MicOff className="w-5 h-5" />
-                                            ) : (
-                                                <Mic className="w-5 h-5" />
-                                            )}
-                                        </button>
-
-                                        {/* Continuous voice button */}
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowContinuousVoice(true)}
-                                            className="p-2 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-800 transition-all duration-200"
-                                            title="Start continuous voice conversation (restart-based)"
-                                        >
-                                            <Volume2 className="w-5 h-5" />
-                                        </button>
-
-                                        {/* Real-time WebSocket voice button */}
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowRealtimeVoice(true)}
-                                            className="p-2 rounded-full bg-green-100 text-green-600 hover:bg-green-200 hover:text-green-800 transition-all duration-200"
-                                            title="Start real-time voice chat (WebSocket - instant responses!)"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                            </svg>
-                                        </button>
-                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={isVoiceMode ? stopRealtimeVoice : startRealtimeVoice}
+                                        className={`p-2 mr-2 rounded-full transition-all duration-200 ${isVoiceMode
+                                            ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
+                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                                            }`}
+                                        title={isVoiceMode ? "Stop real-time voice chat" : "Start real-time voice chat"}
+                                    >
+                                        {isVoiceMode ? (
+                                            <MicOff className="w-5 h-5" />
+                                        ) : (
+                                            <Mic className="w-5 h-5" />
+                                        )}
+                                    </button>
                                 )}
 
                                 {/* Send button */}
@@ -832,51 +1016,7 @@ const VoiceEnabledAIChat = () => {
                 </div>
             </div>
 
-            {/* Continuous Voice Chat Modal */}
-            {showContinuousVoice && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold">Continuous Voice Chat</h2>
-                            <button
-                                onClick={() => setShowContinuousVoice(false)}
-                                className="text-gray-500 hover:text-gray-700 text-2xl"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <ContinuousVoiceChat
-                            onResult={(result) => {
-                                // Handle the voice result if needed
-                                console.log('Continuous voice result:', result);
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
 
-            {/* Real-time Voice Chat Modal */}
-            {showRealtimeVoice && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-semibold">⚡ Real-time Voice Chat</h2>
-                            <button
-                                onClick={() => setShowRealtimeVoice(false)}
-                                className="text-gray-500 hover:text-gray-700 text-2xl"
-                            >
-                                ×
-                            </button>
-                        </div>
-                        <RealtimeVoiceChat
-                            onResult={(result) => {
-                                // Handle the voice result if needed
-                                console.log('Real-time voice result:', result);
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
