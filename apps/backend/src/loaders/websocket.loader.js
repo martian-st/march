@@ -1,10 +1,411 @@
 // here im using sec-websocket
 import { WebSocketServer, WebSocket } from "ws";
-import { verifyJWTToken } from "../utils/jwt.service.js";
+import { verifyJWTToken, generateJWTToken } from "../utils/jwt.service.js";
 import { BlackList } from "../models/core/black-list.model.js";
 import { getUserById } from "../services/core/user.service.js";
+import { VoiceRecognitionService } from "../services/ai/voice-recognition.service.js";
+import { environment } from "../loaders/environment.loader.js";
 
 const userConnections = new Map();
+const userVoiceStates = new Map(); // Store voice conversation states
+
+// Generate immediate acknowledgment based on user input
+const generateAcknowledgment = (userInput) => {
+  const input = userInput.toLowerCase().trim();
+
+  // Greetings - respond immediately without "let me help"
+  if (input.match(/^(hi|hello|hey|good morning|good afternoon|good evening|good day)$/i) ||
+      input.match(/^(hi|hello|hey)\s*$/i)) {
+    return null; // No acknowledgment needed, let the AI respond directly
+  }
+
+  // Basic questions about the AI - respond directly
+  if (input.includes('who are you') || input.includes('what are you') ||
+      input.includes('introduce yourself') || input.includes('tell me about yourself')) {
+    return null; // Let the AI respond directly
+  }
+
+  // Capability questions - respond directly
+  if (input.includes('what can you do') || input.includes('what do you do') ||
+      input.includes('how can you help') || input.includes('what are your capabilities')) {
+    return null; // Let the AI respond directly
+  }
+
+  // Simple status questions - respond directly
+  if (input.match(/^(how are you|how's it going|what's up)$/i)) {
+    return null; // Let the AI respond directly
+  }
+
+  // Task creation patterns
+  if (input.includes('create') && (input.includes('task') || input.includes('todo'))) {
+    return "Got it! Let me create that task for you...";
+  }
+  if (input.includes('add') && (input.includes('task') || input.includes('todo'))) {
+    return "Sure thing! Adding that to your tasks...";
+  }
+  if (input.includes('remind') || input.includes('reminder')) {
+    return "Absolutely! Setting up that reminder...";
+  }
+
+  // Meeting/calendar patterns
+  if (input.includes('schedule') || input.includes('meeting') || input.includes('appointment')) {
+    return "Perfect! Let me schedule that for you...";
+  }
+  if (input.includes('calendar') || input.includes('event')) {
+    return "On it! Working with your calendar...";
+  }
+
+  // Search/find patterns
+  if (input.includes('find') || input.includes('search') || input.includes('show me')) {
+    return "Let me search for that...";
+  }
+
+  // Complex questions that need processing
+  if (input.includes('what') || input.includes('how') || input.includes('when')) {
+    // Only acknowledge if it's a complex question, not a simple greeting-like question
+    if (input.length > 20 || input.includes('should') || input.includes('could') || input.includes('would')) {
+      return "Good question! Let me check that for you...";
+    }
+    return null; // Simple questions get direct responses
+  }
+
+  // Help requests
+  if (input.includes('help') || input.includes('assist')) {
+    return "I'm here to help! Let me see what I can do...";
+  }
+  if (input.includes('tell me') || input.includes('explain')) {
+    return "Sure! Let me explain that...";
+  }
+
+  // For very short inputs (likely simple questions), don't acknowledge
+  if (input.length < 15) {
+    return null;
+  }
+
+  // Default acknowledgments for complex requests
+  const defaultAcknowledgments = [
+    "Got it! Working on that...",
+    "Sure thing! Let me help with that...",
+    "Absolutely! Give me just a moment...",
+    "On it! Processing your request...",
+    "Perfect! Let me take care of that..."
+  ];
+
+  return defaultAcknowledgments[Math.floor(Math.random() * defaultAcknowledgments.length)];
+};
+
+// Voice message handler
+const handleVoiceMessage = async (ws, user, message) => {
+    const userId = user.id;
+
+    try {
+        switch (message.type) {
+        case "voice_start_conversation":
+        // Initialize voice conversation state
+            userVoiceStates.set(userId, {
+                conversationActive: true,
+                conversationHistory: [],
+                startTime: new Date()
+            });
+
+            const welcomeMessage =
+          "Hi! I'm listening. You can talk to me naturally - this is a real-time conversation!";
+
+            // Add to conversation history
+            const voiceState = userVoiceStates.get(userId);
+            voiceState.conversationHistory.push({
+                role: "assistant",
+                content: welcomeMessage,
+                timestamp: new Date()
+            });
+
+            ws.send(
+                JSON.stringify({
+                    type: "voice_conversation_started",
+                    message: welcomeMessage,
+                    shouldSpeak: true
+                })
+            );
+
+            console.log(`Started voice conversation for user: ${userId}`);
+            break;
+
+        case "voice_stop_conversation":
+            const goodbyeMessage =
+          "Goodbye! Feel free to start a new conversation anytime.";
+
+            if (userVoiceStates.has(userId)) {
+                const state = userVoiceStates.get(userId);
+                state.conversationActive = false;
+                state.conversationHistory.push({
+                    role: "assistant",
+                    content: goodbyeMessage,
+                    timestamp: new Date()
+                });
+            }
+
+            ws.send(
+                JSON.stringify({
+                    type: "voice_conversation_ended",
+                    message: goodbyeMessage,
+                    shouldSpeak: true
+                })
+            );
+
+            userVoiceStates.delete(userId);
+            console.log(`Stopped voice conversation for user: ${userId}`);
+            break;
+
+        case "voice_text_input":
+            await processVoiceInput(ws, user, message.text);
+            break;
+
+        case "voice_ping":
+            ws.send(JSON.stringify({ type: "voice_pong" }));
+            break;
+
+        default:
+            ws.send(
+                JSON.stringify({
+                    type: "voice_error",
+                    message: `Unknown voice message type: ${message.type}`
+                })
+            );
+        }
+    } catch (error) {
+        console.error("Voice message handling error:", error);
+        ws.send(
+            JSON.stringify({
+                type: "voice_error",
+                message: "Failed to process voice message"
+            })
+        );
+    }
+};
+
+// Process voice input
+const processVoiceInput = async (ws, user, userInput) => {
+    const userId = user.id;
+    const voiceState = userVoiceStates.get(userId);
+
+    if (!voiceState || !voiceState.conversationActive) {
+        ws.send(
+            JSON.stringify({
+                type: "voice_error",
+                message: "Conversation not active"
+            })
+        );
+        return;
+    }
+
+    // Check for stop commands
+    const lowerInput = userInput.toLowerCase().trim();
+    if (
+        lowerInput.includes("stop") ||
+    lowerInput.includes("goodbye") ||
+    lowerInput.includes("bye") ||
+    lowerInput.includes("end conversation") ||
+    lowerInput.includes("turn off")
+    ) {
+        await handleVoiceMessage(ws, user, { type: "voice_stop_conversation" });
+        return;
+    }
+
+    // Add user message to history
+    voiceState.conversationHistory.push({
+        role: "user",
+        content: userInput,
+        timestamp: new Date()
+    });
+
+    // Send user message confirmation
+    ws.send(
+        JSON.stringify({
+            type: "voice_user_message",
+            text: userInput,
+            timestamp: new Date()
+        })
+    );
+
+    // Send immediate acknowledgment with voice feedback (only if needed)
+    const acknowledgment = generateAcknowledgment(userInput);
+    if (acknowledgment) {
+        ws.send(
+            JSON.stringify({
+                type: "voice_immediate_response",
+                text: acknowledgment,
+                shouldSpeak: true,
+                timestamp: new Date()
+            })
+        );
+    }
+
+    // Send processing indicator
+    ws.send(
+        JSON.stringify({
+            type: "voice_processing",
+            message: "Processing your request..."
+        })
+    );
+
+    try {
+    // Generate a service token for internal API calls
+        const serviceToken = await generateJWTToken(
+            {
+                id: user.uuid,
+                email:
+          user.accounts?.local?.email ||
+          user.accounts?.google?.email ||
+          user.email,
+                name: user.fullName || user.userName,
+                type: "service",
+                roles: user.roles || []
+            },
+            "1h"
+        );
+
+        // Call the intelligent AI endpoint internally (same as regular chat)
+        const intelligentResponse = await fetch(
+            "http://localhost:8080/ai/intelligent",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${serviceToken}`
+                },
+                body: JSON.stringify({
+                    query: userInput
+                })
+            }
+        );
+
+        if (!intelligentResponse.ok) {
+            throw new Error(
+                `Intelligent AI API error: ${intelligentResponse.status}`
+            );
+        }
+
+        // Handle streaming response from intelligent AI
+        const reader = intelligentResponse.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalResult = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (line.trim()) {
+                    try {
+                        const data = JSON.parse(line);
+
+                        // Send progress updates for different statuses
+                        if (data.status === "thinking") {
+                            ws.send(JSON.stringify({
+                                type: "voice_progress_update",
+                                text: "Thinking about your request...",
+                                shouldSpeak: false,
+                                timestamp: new Date()
+                            }));
+                        } else if (data.status === "processing") {
+                            ws.send(JSON.stringify({
+                                type: "voice_progress_update",
+                                text: data.message || "Processing...",
+                                shouldSpeak: false,
+                                timestamp: new Date()
+                            }));
+                        } else if (data.status === "executing") {
+                            ws.send(JSON.stringify({
+                                type: "voice_progress_update",
+                                text: "Executing your request...",
+                                shouldSpeak: false,
+                                timestamp: new Date()
+                            }));
+                        }
+
+                        if (
+                            data.status === "completed" ||
+                            data.status === "conversational"
+                        ) {
+                            finalResult = data;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to parse streaming response:", line);
+                    }
+                }
+            }
+        }
+
+        let assistantMessage;
+        let assistantResult;
+
+        if (finalResult) {
+            // Use the actual message from the intelligent AI response
+            assistantMessage =
+        finalResult.message ||
+        finalResult.data?.response ||
+        "I'm here to help!";
+            assistantResult = {
+                success: true,
+                data: finalResult.data
+            };
+        } else {
+            assistantMessage = "I'm here to help! How can I assist you today?";
+            assistantResult = {
+                success: false,
+                data: null,
+                error: "No final result from intelligent AI"
+            };
+        }
+
+        // Add to conversation history
+        voiceState.conversationHistory.push({
+            role: "assistant",
+            content: assistantMessage,
+            timestamp: new Date()
+        });
+
+        // Send AI response
+        ws.send(
+            JSON.stringify({
+                type: "voice_ai_response",
+                text: assistantMessage,
+                shouldSpeak: true, // Always speak voice responses
+                timestamp: new Date(),
+                metadata: assistantResult.data || {}
+            })
+        );
+
+        console.log(
+            `Processed voice input for user ${userId}: "${userInput}" -> "${assistantMessage}"`
+        );
+    } catch (error) {
+        console.error("AI processing error:", error);
+
+        const errorMessage = "I'm sorry, I didn't catch that. Could you try again?";
+
+        voiceState.conversationHistory.push({
+            role: "assistant",
+            content: errorMessage,
+            timestamp: new Date()
+        });
+
+        ws.send(
+            JSON.stringify({
+                type: "voice_ai_response",
+                text: errorMessage,
+                shouldSpeak: true,
+                timestamp: new Date(),
+                isError: true
+            })
+        );
+    }
+};
 
 const initializeWebSocket = (server) => {
     const wss = new WebSocketServer({
@@ -70,12 +471,16 @@ const initializeWebSocket = (server) => {
                 console.error(`WebSocket error for user ${user.id}:`, error.message);
             });
 
-            ws.on("message", (data, isBinary) => {
+            ws.on("message", async (data, isBinary) => {
                 try {
                     const message = JSON.parse(data.toString());
+
                     if (message.type === "ping") {
                         console.log(`Received ping from user: ${user.id}`);
                         ws.send(JSON.stringify({ type: "pong" })); // Respond with pong
+                    } else if (message.type && message.type.startsWith("voice_")) {
+                        // Handle voice chat messages
+                        await handleVoiceMessage(ws, user, message);
                     }
                 } catch (err) {
                     console.error(`Failed to parse message: ${err.message}`);
@@ -86,9 +491,15 @@ const initializeWebSocket = (server) => {
                 console.log(`WebSocket connection closed for user: ${user.id}`);
                 clearInterval(pingInterval); // Stop pinging on close
                 userConnections.delete(user.id);
+                userVoiceStates.delete(user.id); // Clean up voice state
             });
 
-            ws.send(JSON.stringify({ type: "welcome", message: "WebSocket connection established." }));
+            ws.send(
+                JSON.stringify({
+                    type: "welcome",
+                    message: "WebSocket connection established."
+                })
+            );
         } catch (error) {
             console.error("WebSocket authentication error:", error.message);
             ws.close(4003, "Unauthorized");
@@ -143,7 +554,9 @@ const broadcastToUser = (userId, data, isBinary = false) => {
             } else if (typeof data === "object") {
                 message = Buffer.from(JSON.stringify(data), "utf-8"); // Serialize object to JSON and convert to Buffer
             } else {
-                throw new TypeError("Invalid data type for binary broadcast. Must be Buffer, ArrayBuffer, or serializable object.");
+                throw new TypeError(
+                    "Invalid data type for binary broadcast. Must be Buffer, ArrayBuffer, or serializable object."
+                );
             }
         } else {
             // For text data
@@ -151,7 +564,7 @@ const broadcastToUser = (userId, data, isBinary = false) => {
         }
 
         ws.send(message, { binary: isBinary });
-        // console.log(`Message sent to user ${userId}:`, isBinary ? "[Binary Data]" : data);
+    // console.log(`Message sent to user ${userId}:`, isBinary ? "[Binary Data]" : data);
     } catch (error) {
         console.error(`Failed to send message to user ${userId}:`, error.message);
     }

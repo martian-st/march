@@ -7,7 +7,7 @@ import { Object } from "../../models/lib/object.model.js";
  * This service builds user-specific context and patterns without training the base LLM
  */
 export class UserLearningService {
-    constructor(apiKey) {
+    constructor (apiKey) {
         this.genAI = new GoogleGenerativeAI(apiKey);
         this.model = this.genAI.getGenerativeModel({
             model: "gemini-1.5-flash",
@@ -18,7 +18,7 @@ export class UserLearningService {
                 maxOutputTokens: 2048
             }
         });
-        
+
         // User interaction history and patterns
         this.userPatterns = new Map();
         this.userContext = new Map();
@@ -30,15 +30,15 @@ export class UserLearningService {
      * Learn from user interaction using AI understanding
      * Captures patterns, preferences, and context from each interaction
      */
-    async learnFromInteraction(userId, query, result, feedback = null) {
+    async learnFromInteraction (userId, query, result, feedback = null) {
         try {
             // Get or initialize user data
             const userHistory = this.interactionHistory.get(userId) || [];
             const userPatterns = this.userPatterns.get(userId) || {};
-            
+
             // Detect operation type using AI (not pattern matching)
             const operationType = await this.detectOperationType(query, result);
-            
+
             // Create interaction record
             const interaction = {
                 timestamp: new Date().toISOString(),
@@ -51,25 +51,24 @@ export class UserLearningService {
                 entities: await this.extractEntitiesWithAI(query), // Use AI for entity extraction
                 context: this.getCurrentContext(userId)
             };
-            
+
             // Add to history
             userHistory.push(interaction);
-            
+
             // Keep only last 100 interactions to manage memory
             if (userHistory.length > 100) {
                 userHistory.shift();
             }
-            
+
             // Update patterns using AI understanding
             await this.updateUserPatternsWithAI(userId, interaction, userPatterns);
-            
+
             // Store updated data
             this.interactionHistory.set(userId, userHistory);
             this.userPatterns.set(userId, userPatterns);
-            
+
             // Update user context for future interactions
             await this.updateUserContext(userId, interaction);
-            
         } catch (error) {
             console.error('Error learning from interaction:', error);
         }
@@ -78,7 +77,7 @@ export class UserLearningService {
     /**
      * Detect operation type using AI understanding (no pattern matching)
      */
-    async detectOperationType(query, result) {
+    async detectOperationType (query, result) {
         // First, analyze the result to understand what actually happened
         if (result.object || result.created) {
             return 'create';
@@ -89,7 +88,7 @@ export class UserLearningService {
         } else if (result.meeting || result.scheduled) {
             return 'schedule';
         }
-        
+
         // Use AI to understand the query intent naturally
         try {
             const intentPrompt = `
@@ -111,11 +110,10 @@ Examples:
 
             const result = await this.model.generateContent(intentPrompt);
             const operationType = result.response.text().trim().toLowerCase();
-            
+
             // Validate the response
             const validTypes = ['create', 'search', 'update', 'delete', 'schedule', 'conversational'];
             return validTypes.includes(operationType) ? operationType : 'unknown';
-            
         } catch (error) {
             console.error('Error detecting operation type:', error);
             return 'unknown';
@@ -125,7 +123,7 @@ Examples:
     /**
      * Extract entities using AI (no pattern matching)
      */
-    async extractEntitiesWithAI(query) {
+    async extractEntitiesWithAI (query) {
         try {
             const entityPrompt = `
 Extract important entities from this user query. Focus on dates, priorities, object types, and quantities.
@@ -152,7 +150,6 @@ Examples:
             // Remove markdown code blocks if present
             const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
             return JSON.parse(cleanedResponse);
-            
         } catch (error) {
             console.error('Error extracting entities with AI:', error);
             // Fallback to simple extraction
@@ -170,21 +167,21 @@ Examples:
     /**
      * Update user patterns using AI understanding (no pattern matching)
      */
-    async updateUserPatternsWithAI(userId, interaction, existingPatterns) {
+    async updateUserPatternsWithAI (userId, interaction, existingPatterns) {
         const { query, operationType, entities, success } = interaction;
-        
+
         // Initialize pattern categories
         if (!existingPatterns.phrases) existingPatterns.phrases = {};
         if (!existingPatterns.operations) existingPatterns.operations = {};
         if (!existingPatterns.preferences) existingPatterns.preferences = {};
         if (!existingPatterns.corrections) existingPatterns.corrections = [];
-        
+
         // Learn successful interaction patterns
         if (success && operationType !== 'unknown') {
             if (!existingPatterns.phrases[operationType]) {
                 existingPatterns.phrases[operationType] = [];
             }
-            
+
             // Store the original query (not normalized) for better AI understanding
             const queryPattern = {
                 query: interaction.originalQuery,
@@ -192,24 +189,24 @@ Examples:
                 timestamp: interaction.timestamp,
                 success: true
             };
-            
+
             existingPatterns.phrases[operationType].push(queryPattern);
-            
+
             // Keep only most recent 15 successful patterns per operation
             if (existingPatterns.phrases[operationType].length > 15) {
                 existingPatterns.phrases[operationType].shift();
             }
         }
-        
+
         // Track operation frequency
         if (!existingPatterns.operations[operationType]) {
             existingPatterns.operations[operationType] = 0;
         }
         existingPatterns.operations[operationType]++;
-        
+
         // Learn user preferences from AI-extracted entities
         await this.updatePreferencesFromEntities(existingPatterns, entities);
-        
+
         // Learn from failed interactions
         if (!success) {
             existingPatterns.corrections.push({
@@ -218,7 +215,7 @@ Examples:
                 expectedOperation: operationType,
                 entities: entities
             });
-            
+
             // Keep only last 10 corrections
             if (existingPatterns.corrections.length > 10) {
                 existingPatterns.corrections.shift();
@@ -229,7 +226,7 @@ Examples:
     /**
      * Get current context for user
      */
-    getCurrentContext(userId) {
+    getCurrentContext (userId) {
         return this.userContext.get(userId) || {
             recentOperations: [],
             currentFocus: null,
@@ -240,26 +237,26 @@ Examples:
     /**
      * Update user context based on interaction
      */
-    async updateUserContext(userId, interaction) {
+    async updateUserContext (userId, interaction) {
         const context = this.getCurrentContext(userId);
-        
+
         // Update recent operations
         context.recentOperations.push({
             type: interaction.operationType,
             timestamp: interaction.timestamp,
             query: interaction.query
         });
-        
+
         // Keep only last 5 operations
         if (context.recentOperations.length > 5) {
             context.recentOperations.shift();
         }
-        
+
         // Update current focus based on entities and operations
         if (interaction.entities.types && interaction.entities.types.length > 0) {
             context.currentFocus = interaction.entities.types[0].toLowerCase();
         }
-        
+
         // Track working objects
         if (interaction.result.object) {
             context.workingObjects.push({
@@ -268,31 +265,31 @@ Examples:
                 title: interaction.result.object.title,
                 timestamp: interaction.timestamp
             });
-            
+
             // Keep only last 10 working objects
             if (context.workingObjects.length > 10) {
                 context.workingObjects.shift();
             }
         }
-        
+
         this.userContext.set(userId, context);
     }
 
     /**
      * Predict user intent using AI understanding and learned patterns
      */
-    async predictUserIntent(userId, query) {
+    async predictUserIntent (userId, query) {
         const userPatterns = this.userPatterns.get(userId) || {};
         const userHistory = this.interactionHistory.get(userId) || [];
         const context = this.getCurrentContext(userId);
-        
+
         // Build intelligent context for the AI model
         const contextPrompt = this.buildIntelligentContextPrompt(userId, query, userPatterns, context, userHistory);
-        
+
         try {
             const result = await this.model.generateContent(contextPrompt);
             const prediction = JSON.parse(result.response.text());
-            
+
             return {
                 operationType: prediction.operationType,
                 confidence: prediction.confidence,
@@ -311,15 +308,15 @@ Examples:
     /**
      * Build intelligent context prompt for AI model (no pattern matching)
      */
-    buildIntelligentContextPrompt(userId, query, userPatterns, context, userHistory) {
+    buildIntelligentContextPrompt (userId, query, userPatterns, context, userHistory) {
         const recentInteractions = userHistory
             .slice(-5)
             .map(i => `User: "${i.originalQuery}" → AI performed: ${i.operationType} (${i.success ? 'success' : 'failed'})`)
             .join('\n') || 'No previous interactions';
-        
+
         const userPreferences = this.extractUserPreferences(userPatterns, userHistory);
         const contextInfo = this.buildContextInfo(context);
-        
+
         return `
 You are an intelligent assistant that understands user intent naturally, like ChatGPT. 
 Analyze this user query and predict what they want to do.
@@ -358,7 +355,7 @@ Respond in JSON format:
     /**
      * Simple AI analysis for new users (no pattern matching)
      */
-    async simpleAIAnalysis(query) {
+    async simpleAIAnalysis (query) {
         const prompt = `
 You are an intelligent assistant. Understand what this user wants to do naturally.
 
@@ -407,10 +404,10 @@ Respond in JSON format:
     /**
      * Get user learning statistics
      */
-    getUserLearningStats(userId) {
+    getUserLearningStats (userId) {
         const patterns = this.userPatterns.get(userId) || {};
         const history = this.interactionHistory.get(userId) || [];
-        
+
         return {
             totalInteractions: history.length,
             operationCounts: patterns.operations || {},
@@ -423,7 +420,7 @@ Respond in JSON format:
     /**
      * Calculate learning level based on interactions
      */
-    calculateLearningLevel(interactionCount) {
+    calculateLearningLevel (interactionCount) {
         if (interactionCount < 5) return 'beginner';
         if (interactionCount < 20) return 'learning';
         if (interactionCount < 50) return 'intermediate';
@@ -433,7 +430,7 @@ Respond in JSON format:
     /**
      * Export user learning data (for backup/analysis)
      */
-    exportUserData(userId) {
+    exportUserData (userId) {
         return {
             patterns: this.userPatterns.get(userId),
             context: this.userContext.get(userId),
@@ -445,7 +442,7 @@ Respond in JSON format:
     /**
      * Import user learning data (for restore)
      */
-    importUserData(userId, data) {
+    importUserData (userId, data) {
         if (data.patterns) this.userPatterns.set(userId, data.patterns);
         if (data.context) this.userContext.set(userId, data.context);
         if (data.preferences) this.userPreferences.set(userId, data.preferences);
@@ -455,7 +452,7 @@ Respond in JSON format:
     /**
      * Update user preferences from AI-extracted entities
      */
-    async updatePreferencesFromEntities(existingPatterns, entities) {
+    async updatePreferencesFromEntities (existingPatterns, entities) {
         // Learn priority preferences
         if (entities.priorities && entities.priorities.length > 0) {
             if (!existingPatterns.preferences.priority) {
@@ -463,11 +460,11 @@ Respond in JSON format:
             }
             entities.priorities.forEach(priority => {
                 const normalizedPriority = priority.toLowerCase();
-                existingPatterns.preferences.priority[normalizedPriority] = 
+                existingPatterns.preferences.priority[normalizedPriority] =
                     (existingPatterns.preferences.priority[normalizedPriority] || 0) + 1;
             });
         }
-        
+
         // Learn type preferences
         if (entities.types && entities.types.length > 0) {
             if (!existingPatterns.preferences.types) {
@@ -475,11 +472,11 @@ Respond in JSON format:
             }
             entities.types.forEach(type => {
                 const normalizedType = type.toLowerCase();
-                existingPatterns.preferences.types[normalizedType] = 
+                existingPatterns.preferences.types[normalizedType] =
                     (existingPatterns.preferences.types[normalizedType] || 0) + 1;
             });
         }
-        
+
         // Learn action preferences
         if (entities.actions && entities.actions.length > 0) {
             if (!existingPatterns.preferences.actions) {
@@ -487,7 +484,7 @@ Respond in JSON format:
             }
             entities.actions.forEach(action => {
                 const normalizedAction = action.toLowerCase();
-                existingPatterns.preferences.actions[normalizedAction] = 
+                existingPatterns.preferences.actions[normalizedAction] =
                     (existingPatterns.preferences.actions[normalizedAction] || 0) + 1;
             });
         }
@@ -496,18 +493,18 @@ Respond in JSON format:
     /**
      * Extract user preferences for context prompt
      */
-    extractUserPreferences(userPatterns, userHistory) {
+    extractUserPreferences (userPatterns, userHistory) {
         // Ensure userPatterns is properly initialized
         if (!userPatterns || typeof userPatterns !== 'object') {
             return "No specific preferences learned yet.";
         }
-        
+
         const preferences = userPatterns.preferences || {};
         let prefText = "No specific preferences learned yet.";
-        
+
         if (preferences && typeof preferences === 'object' && Object.keys(preferences).length > 0) {
             const prefParts = [];
-            
+
             if (preferences.priority) {
                 const topPriority = Object.entries(preferences.priority)
                     .sort(([,a], [,b]) => b - a)[0];
@@ -515,7 +512,7 @@ Respond in JSON format:
                     prefParts.push(`Prefers ${topPriority[0]} priority items`);
                 }
             }
-            
+
             if (preferences.types) {
                 const topType = Object.entries(preferences.types)
                     .sort(([,a], [,b]) => b - a)[0];
@@ -523,39 +520,39 @@ Respond in JSON format:
                     prefParts.push(`Often works with ${topType[0]}s`);
                 }
             }
-            
+
             if (prefParts.length > 0) {
                 prefText = prefParts.join(', ');
             }
         }
-        
+
         return prefText;
     }
 
     /**
      * Build context information for prompt
      */
-    buildContextInfo(context) {
+    buildContextInfo (context) {
         // Handle undefined or null context
         if (!context || typeof context !== 'object') {
             return 'No specific context available.';
         }
-        
+
         const parts = [];
-        
+
         if (context.recentOperations && Array.isArray(context.recentOperations) && context.recentOperations.length > 0) {
             const recentOps = context.recentOperations.map(op => op.type || 'unknown').join(', ');
             parts.push(`Recent operations: ${recentOps}`);
         }
-        
+
         if (context.currentFocus) {
             parts.push(`Current focus: ${context.currentFocus}`);
         }
-        
+
         if (context.workingObjects && Array.isArray(context.workingObjects) && context.workingObjects.length > 0) {
             parts.push(`Currently working with ${context.workingObjects.length} objects`);
         }
-        
+
         return parts.length > 0 ? parts.join('\n') : 'No specific context available.';
     }
 }
