@@ -12,7 +12,30 @@ const userVoiceStates = new Map(); // Store voice conversation states
 // Generate immediate acknowledgment based on user input
 const generateAcknowledgment = (userInput) => {
   const input = userInput.toLowerCase().trim();
-  
+
+  // Greetings - respond immediately without "let me help"
+  if (input.match(/^(hi|hello|hey|good morning|good afternoon|good evening|good day)$/i) ||
+      input.match(/^(hi|hello|hey)\s*$/i)) {
+    return null; // No acknowledgment needed, let the AI respond directly
+  }
+
+  // Basic questions about the AI - respond directly
+  if (input.includes('who are you') || input.includes('what are you') ||
+      input.includes('introduce yourself') || input.includes('tell me about yourself')) {
+    return null; // Let the AI respond directly
+  }
+
+  // Capability questions - respond directly
+  if (input.includes('what can you do') || input.includes('what do you do') ||
+      input.includes('how can you help') || input.includes('what are your capabilities')) {
+    return null; // Let the AI respond directly
+  }
+
+  // Simple status questions - respond directly
+  if (input.match(/^(how are you|how's it going|what's up)$/i)) {
+    return null; // Let the AI respond directly
+  }
+
   // Task creation patterns
   if (input.includes('create') && (input.includes('task') || input.includes('todo'))) {
     return "Got it! Let me create that task for you...";
@@ -23,7 +46,7 @@ const generateAcknowledgment = (userInput) => {
   if (input.includes('remind') || input.includes('reminder')) {
     return "Absolutely! Setting up that reminder...";
   }
-  
+
   // Meeting/calendar patterns
   if (input.includes('schedule') || input.includes('meeting') || input.includes('appointment')) {
     return "Perfect! Let me schedule that for you...";
@@ -31,24 +54,35 @@ const generateAcknowledgment = (userInput) => {
   if (input.includes('calendar') || input.includes('event')) {
     return "On it! Working with your calendar...";
   }
-  
+
   // Search/find patterns
   if (input.includes('find') || input.includes('search') || input.includes('show me')) {
     return "Let me search for that...";
   }
+
+  // Complex questions that need processing
   if (input.includes('what') || input.includes('how') || input.includes('when')) {
-    return "Good question! Let me check that for you...";
+    // Only acknowledge if it's a complex question, not a simple greeting-like question
+    if (input.length > 20 || input.includes('should') || input.includes('could') || input.includes('would')) {
+      return "Good question! Let me check that for you...";
+    }
+    return null; // Simple questions get direct responses
   }
-  
-  // General patterns
+
+  // Help requests
   if (input.includes('help') || input.includes('assist')) {
     return "I'm here to help! Let me see what I can do...";
   }
   if (input.includes('tell me') || input.includes('explain')) {
     return "Sure! Let me explain that...";
   }
-  
-  // Default acknowledgments
+
+  // For very short inputs (likely simple questions), don't acknowledge
+  if (input.length < 15) {
+    return null;
+  }
+
+  // Default acknowledgments for complex requests
   const defaultAcknowledgments = [
     "Got it! Working on that...",
     "Sure thing! Let me help with that...",
@@ -56,7 +90,7 @@ const generateAcknowledgment = (userInput) => {
     "On it! Processing your request...",
     "Perfect! Let me take care of that..."
   ];
-  
+
   return defaultAcknowledgments[Math.floor(Math.random() * defaultAcknowledgments.length)];
 };
 
@@ -193,16 +227,18 @@ const processVoiceInput = async (ws, user, userInput) => {
         })
     );
 
-    // Send immediate acknowledgment with voice feedback
+    // Send immediate acknowledgment with voice feedback (only if needed)
     const acknowledgment = generateAcknowledgment(userInput);
-    ws.send(
-        JSON.stringify({
-            type: "voice_immediate_response",
-            text: acknowledgment,
-            shouldSpeak: true,
-            timestamp: new Date()
-        })
-    );
+    if (acknowledgment) {
+        ws.send(
+            JSON.stringify({
+                type: "voice_immediate_response",
+                text: acknowledgment,
+                shouldSpeak: true,
+                timestamp: new Date()
+            })
+        );
+    }
 
     // Send processing indicator
     ws.send(
@@ -267,7 +303,7 @@ const processVoiceInput = async (ws, user, userInput) => {
                 if (line.trim()) {
                     try {
                         const data = JSON.parse(line);
-                        
+
                         // Send progress updates for different statuses
                         if (data.status === "thinking") {
                             ws.send(JSON.stringify({
@@ -278,7 +314,7 @@ const processVoiceInput = async (ws, user, userInput) => {
                             }));
                         } else if (data.status === "processing") {
                             ws.send(JSON.stringify({
-                                type: "voice_progress_update", 
+                                type: "voice_progress_update",
                                 text: data.message || "Processing...",
                                 shouldSpeak: false,
                                 timestamp: new Date()
@@ -291,7 +327,7 @@ const processVoiceInput = async (ws, user, userInput) => {
                                 timestamp: new Date()
                             }));
                         }
-                        
+
                         if (
                             data.status === "completed" ||
                             data.status === "conversational"
