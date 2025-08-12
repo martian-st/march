@@ -9,6 +9,57 @@ import { environment } from "../loaders/environment.loader.js";
 const userConnections = new Map();
 const userVoiceStates = new Map(); // Store voice conversation states
 
+// Generate immediate acknowledgment based on user input
+const generateAcknowledgment = (userInput) => {
+  const input = userInput.toLowerCase().trim();
+  
+  // Task creation patterns
+  if (input.includes('create') && (input.includes('task') || input.includes('todo'))) {
+    return "Got it! Let me create that task for you...";
+  }
+  if (input.includes('add') && (input.includes('task') || input.includes('todo'))) {
+    return "Sure thing! Adding that to your tasks...";
+  }
+  if (input.includes('remind') || input.includes('reminder')) {
+    return "Absolutely! Setting up that reminder...";
+  }
+  
+  // Meeting/calendar patterns
+  if (input.includes('schedule') || input.includes('meeting') || input.includes('appointment')) {
+    return "Perfect! Let me schedule that for you...";
+  }
+  if (input.includes('calendar') || input.includes('event')) {
+    return "On it! Working with your calendar...";
+  }
+  
+  // Search/find patterns
+  if (input.includes('find') || input.includes('search') || input.includes('show me')) {
+    return "Let me search for that...";
+  }
+  if (input.includes('what') || input.includes('how') || input.includes('when')) {
+    return "Good question! Let me check that for you...";
+  }
+  
+  // General patterns
+  if (input.includes('help') || input.includes('assist')) {
+    return "I'm here to help! Let me see what I can do...";
+  }
+  if (input.includes('tell me') || input.includes('explain')) {
+    return "Sure! Let me explain that...";
+  }
+  
+  // Default acknowledgments
+  const defaultAcknowledgments = [
+    "Got it! Working on that...",
+    "Sure thing! Let me help with that...",
+    "Absolutely! Give me just a moment...",
+    "On it! Processing your request...",
+    "Perfect! Let me take care of that..."
+  ];
+  
+  return defaultAcknowledgments[Math.floor(Math.random() * defaultAcknowledgments.length)];
+};
+
 // Voice message handler
 const handleVoiceMessage = async (ws, user, message) => {
     const userId = user.id;
@@ -20,7 +71,7 @@ const handleVoiceMessage = async (ws, user, message) => {
             userVoiceStates.set(userId, {
                 conversationActive: true,
                 conversationHistory: [],
-                startTime: new Date(),
+                startTime: new Date()
             });
 
             const welcomeMessage =
@@ -31,14 +82,14 @@ const handleVoiceMessage = async (ws, user, message) => {
             voiceState.conversationHistory.push({
                 role: "assistant",
                 content: welcomeMessage,
-                timestamp: new Date(),
+                timestamp: new Date()
             });
 
             ws.send(
                 JSON.stringify({
                     type: "voice_conversation_started",
                     message: welcomeMessage,
-                    shouldSpeak: true,
+                    shouldSpeak: true
                 })
             );
 
@@ -55,7 +106,7 @@ const handleVoiceMessage = async (ws, user, message) => {
                 state.conversationHistory.push({
                     role: "assistant",
                     content: goodbyeMessage,
-                    timestamp: new Date(),
+                    timestamp: new Date()
                 });
             }
 
@@ -63,7 +114,7 @@ const handleVoiceMessage = async (ws, user, message) => {
                 JSON.stringify({
                     type: "voice_conversation_ended",
                     message: goodbyeMessage,
-                    shouldSpeak: true,
+                    shouldSpeak: true
                 })
             );
 
@@ -83,7 +134,7 @@ const handleVoiceMessage = async (ws, user, message) => {
             ws.send(
                 JSON.stringify({
                     type: "voice_error",
-                    message: `Unknown voice message type: ${message.type}`,
+                    message: `Unknown voice message type: ${message.type}`
                 })
             );
         }
@@ -92,7 +143,7 @@ const handleVoiceMessage = async (ws, user, message) => {
         ws.send(
             JSON.stringify({
                 type: "voice_error",
-                message: "Failed to process voice message",
+                message: "Failed to process voice message"
             })
         );
     }
@@ -107,7 +158,7 @@ const processVoiceInput = async (ws, user, userInput) => {
         ws.send(
             JSON.stringify({
                 type: "voice_error",
-                message: "Conversation not active",
+                message: "Conversation not active"
             })
         );
         return;
@@ -130,7 +181,7 @@ const processVoiceInput = async (ws, user, userInput) => {
     voiceState.conversationHistory.push({
         role: "user",
         content: userInput,
-        timestamp: new Date(),
+        timestamp: new Date()
     });
 
     // Send user message confirmation
@@ -138,7 +189,18 @@ const processVoiceInput = async (ws, user, userInput) => {
         JSON.stringify({
             type: "voice_user_message",
             text: userInput,
-            timestamp: new Date(),
+            timestamp: new Date()
+        })
+    );
+
+    // Send immediate acknowledgment with voice feedback
+    const acknowledgment = generateAcknowledgment(userInput);
+    ws.send(
+        JSON.stringify({
+            type: "voice_immediate_response",
+            text: acknowledgment,
+            shouldSpeak: true,
+            timestamp: new Date()
         })
     );
 
@@ -146,7 +208,7 @@ const processVoiceInput = async (ws, user, userInput) => {
     ws.send(
         JSON.stringify({
             type: "voice_processing",
-            message: "Processing your message...",
+            message: "Processing your request..."
         })
     );
 
@@ -161,7 +223,7 @@ const processVoiceInput = async (ws, user, userInput) => {
           user.email,
                 name: user.fullName || user.userName,
                 type: "service",
-                roles: user.roles || [],
+                roles: user.roles || []
             },
             "1h"
         );
@@ -173,11 +235,11 @@ const processVoiceInput = async (ws, user, userInput) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${serviceToken}`,
+                    Authorization: `Bearer ${serviceToken}`
                 },
                 body: JSON.stringify({
-                    query: userInput,
-                }),
+                    query: userInput
+                })
             }
         );
 
@@ -205,9 +267,34 @@ const processVoiceInput = async (ws, user, userInput) => {
                 if (line.trim()) {
                     try {
                         const data = JSON.parse(line);
+                        
+                        // Send progress updates for different statuses
+                        if (data.status === "thinking") {
+                            ws.send(JSON.stringify({
+                                type: "voice_progress_update",
+                                text: "Thinking about your request...",
+                                shouldSpeak: false,
+                                timestamp: new Date()
+                            }));
+                        } else if (data.status === "processing") {
+                            ws.send(JSON.stringify({
+                                type: "voice_progress_update", 
+                                text: data.message || "Processing...",
+                                shouldSpeak: false,
+                                timestamp: new Date()
+                            }));
+                        } else if (data.status === "executing") {
+                            ws.send(JSON.stringify({
+                                type: "voice_progress_update",
+                                text: "Executing your request...",
+                                shouldSpeak: false,
+                                timestamp: new Date()
+                            }));
+                        }
+                        
                         if (
                             data.status === "completed" ||
-              data.status === "conversational"
+                            data.status === "conversational"
                         ) {
                             finalResult = data;
                         }
@@ -229,14 +316,14 @@ const processVoiceInput = async (ws, user, userInput) => {
         "I'm here to help!";
             assistantResult = {
                 success: true,
-                data: finalResult.data,
+                data: finalResult.data
             };
         } else {
             assistantMessage = "I'm here to help! How can I assist you today?";
             assistantResult = {
                 success: false,
                 data: null,
-                error: "No final result from intelligent AI",
+                error: "No final result from intelligent AI"
             };
         }
 
@@ -244,7 +331,7 @@ const processVoiceInput = async (ws, user, userInput) => {
         voiceState.conversationHistory.push({
             role: "assistant",
             content: assistantMessage,
-            timestamp: new Date(),
+            timestamp: new Date()
         });
 
         // Send AI response
@@ -254,7 +341,7 @@ const processVoiceInput = async (ws, user, userInput) => {
                 text: assistantMessage,
                 shouldSpeak: true, // Always speak voice responses
                 timestamp: new Date(),
-                metadata: assistantResult.data || {},
+                metadata: assistantResult.data || {}
             })
         );
 
@@ -269,7 +356,7 @@ const processVoiceInput = async (ws, user, userInput) => {
         voiceState.conversationHistory.push({
             role: "assistant",
             content: errorMessage,
-            timestamp: new Date(),
+            timestamp: new Date()
         });
 
         ws.send(
@@ -278,7 +365,7 @@ const processVoiceInput = async (ws, user, userInput) => {
                 text: errorMessage,
                 shouldSpeak: true,
                 timestamp: new Date(),
-                isError: true,
+                isError: true
             })
         );
     }
@@ -286,7 +373,7 @@ const processVoiceInput = async (ws, user, userInput) => {
 
 const initializeWebSocket = (server) => {
     const wss = new WebSocketServer({
-        server,
+        server
     });
 
     wss.on("connection", async (ws, req) => {
@@ -374,7 +461,7 @@ const initializeWebSocket = (server) => {
             ws.send(
                 JSON.stringify({
                     type: "welcome",
-                    message: "WebSocket connection established.",
+                    message: "WebSocket connection established."
                 })
             );
         } catch (error) {

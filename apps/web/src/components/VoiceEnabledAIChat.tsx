@@ -24,6 +24,7 @@ const VoiceEnabledAIChat = () => {
     const [wakeWordRestarting, setWakeWordRestarting] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [currentProgress, setCurrentProgress] = useState('');
 
     const messagesEndRef = useRef(null);
     const wakeWordRecognitionRef = useRef(null);
@@ -203,9 +204,9 @@ const VoiceEnabledAIChat = () => {
                 const session = await getSession();
                 const wsUrl = `ws://localhost:8080`;
                 console.log('Connecting to WebSocket:', wsUrl);
-                
+
                 const ws = new WebSocket(wsUrl, session);
-                
+
                 const connectionTimeout = setTimeout(() => {
                     ws.close();
                     reject(new Error('WebSocket connection timeout'));
@@ -233,7 +234,7 @@ const VoiceEnabledAIChat = () => {
                     console.log('Close event details:', event);
                     clearTimeout(connectionTimeout);
                     setIsConnected(false);
-                    
+
                     if (conversationActiveRef.current && event.code !== 1000) {
                         toast.error('Connection lost. Attempting to reconnect...');
                         setTimeout(() => connectWebSocket(), 3000);
@@ -292,11 +293,28 @@ const VoiceEnabledAIChat = () => {
                 };
                 setMessages(prev => [...prev, userMessage]);
                 break;
+            case 'voice_immediate_response':
+                // Immediate acknowledgment - speak it right away
+                if (message.shouldSpeak && speechSynthesisRef.current) {
+                    const utterance = new SpeechSynthesisUtterance(message.text);
+                    utterance.rate = 1.0; // Slightly faster for acknowledgments
+                    utterance.pitch = 1.1; // Slightly higher pitch for energy
+                    utterance.volume = 0.8;
+                    speechSynthesisRef.current.speak(utterance);
+                }
+                break;
+            case 'voice_progress_update':
+                // Progress updates - show in UI but don't speak
+                setCurrentProgress(message.text);
+                console.log('Progress:', message.text);
+                break;
             case 'voice_processing':
                 setIsProcessing(true);
                 break;
             case 'voice_ai_response':
                 setIsProcessing(false);
+                setCurrentProgress(''); // Clear progress indicator
+
                 // Add AI response to chat
                 const aiMessage = {
                     id: Date.now().toString(),
@@ -306,7 +324,7 @@ const VoiceEnabledAIChat = () => {
                     isVoice: true
                 };
                 setMessages(prev => [...prev, aiMessage]);
-                
+
                 // Speak the response
                 if (message.shouldSpeak && speechSynthesisRef.current) {
                     const utterance = new SpeechSynthesisUtterance(message.text);
@@ -331,21 +349,21 @@ const VoiceEnabledAIChat = () => {
 
         try {
             await navigator.mediaDevices.getUserMedia({ audio: true });
-            
+
             // Connect WebSocket if not already connected
             if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
                 console.log('Connecting to WebSocket...');
                 await connectWebSocket();
                 console.log('WebSocket connection attempt completed');
-                
+
                 // Give a moment for the connection to stabilize
                 await new Promise(resolve => setTimeout(resolve, 500));
-                
+
                 if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
                     console.error('WebSocket connection failed. ReadyState:', wsRef.current?.readyState);
                     throw new Error('WebSocket connection failed');
                 }
-                
+
                 console.log('WebSocket is ready for voice chat');
             }
 
@@ -478,7 +496,7 @@ const VoiceEnabledAIChat = () => {
     // Initialize speech synthesis and cleanup
     useEffect(() => {
         speechSynthesisRef.current = window.speechSynthesis;
-        
+
         return () => {
             if (wsRef.current) {
                 wsRef.current.close();
@@ -828,9 +846,12 @@ const VoiceEnabledAIChat = () => {
                             {isVoiceMode && (
                                 <div className="flex items-center space-x-2">
                                     <Mic className="w-4 h-4 text-red-500 animate-pulse" />
-                                    <span className="text-xs text-red-600">Voice command active</span>
+                                    <span className="text-xs text-red-600">Voice chat active</span>
                                     {voiceTranscript && (
                                         <span className="text-xs text-gray-600 italic">&quot;{voiceTranscript}&quot;</span>
+                                    )}
+                                    {currentProgress && (
+                                        <span className="text-xs text-blue-600 italic">{currentProgress}</span>
                                     )}
                                 </div>
                             )}
