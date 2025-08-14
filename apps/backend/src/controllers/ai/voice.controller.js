@@ -26,16 +26,16 @@ export const processVoiceCommand = async (req, res) => {
 
             // Call the enhanced intelligent AI endpoint internally
             const intelligentResponse = await fetch(
-                "http://localhost:8080/ai/enhanced",
+                `${environment.BACKEND_URL}/ai/enhanced`,
                 {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: req.headers.authorization, // Pass through the auth token
+                        Authorization: req.headers.authorization
                     },
                     body: JSON.stringify({
-                        query: transcribedText, // Use the original voice input directly
-                    }),
+                        query: transcribedText // Use the original voice input directly
+                    })
                 }
             );
 

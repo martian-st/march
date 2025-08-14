@@ -266,7 +266,7 @@ const processVoiceInput = async (ws, user, userInput) => {
 
         // Call the intelligent AI endpoint internally (same as regular chat)
         const intelligentResponse = await fetch(
-            "http://localhost:8080/ai/intelligent",
+            `${environment.BACKEND_URL}/ai/intelligent`,
             {
                 method: "POST",
                 headers: {

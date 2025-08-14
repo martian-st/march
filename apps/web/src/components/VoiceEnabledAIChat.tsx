@@ -5,6 +5,7 @@ import { getSession } from '@/actions/session';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
+import { BACKEND_URL, WEBSOCKET_URL } from '@/lib/constants';
 
 
 /**
@@ -202,7 +203,7 @@ const VoiceEnabledAIChat = () => {
         return new Promise(async (resolve, reject) => {
             try {
                 const session = await getSession();
-                const wsUrl = `ws://localhost:8080`;
+                const wsUrl = `${WEBSOCKET_URL}`;
                 console.log('Connecting to WebSocket:', wsUrl);
 
                 const ws = new WebSocket(wsUrl, session);
@@ -590,8 +591,8 @@ const VoiceEnabledAIChat = () => {
 
         // Use voice endpoint if it's a voice input
         const endpoint = isVoiceInput
-            ? 'http://localhost:8080/ai/voice/process'
-            : 'http://localhost:8080/ai/intelligent';
+            ? `${BACKEND_URL}/ai/voice/process`
+            : `${BACKEND_URL}/ai/intelligent`;
 
         const requestBody = isVoiceInput
             ? { transcribedText: query, context: { source: 'voice' } }
