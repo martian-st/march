@@ -4,6 +4,11 @@ import { getUserById } from "../services/core/user.service.js";
 
 const JWTMiddleware = async (req, res, next) => {
     try {
+        // Skip JWT validation for OPTIONS requests (CORS preflight)
+        if (req.method === 'OPTIONS') {
+            return next();
+        }
+        
         const { authorization: header } = req.headers;
         if (!header) {
             throw new Error("Unauthorized")

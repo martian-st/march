@@ -31,11 +31,20 @@ export class EnhancedIntelligentAIController {
                 });
             }
 
-            // Set up streaming response
+            // Set up streaming response with CORS headers preserved
             res.setHeader("Content-Type", "application/json");
             res.setHeader("Transfer-Encoding", "chunked");
             res.setHeader("Cache-Control", "no-cache");
             res.setHeader("Connection", "keep-alive");
+            
+            // Ensure CORS headers are set for streaming responses
+            const origin = req.headers.origin;
+            if (origin && ['http://localhost:3000', 'https://app.march.cat', 'https://march.cat'].includes(origin)) {
+                res.setHeader("Access-Control-Allow-Origin", origin);
+                res.setHeader("Access-Control-Allow-Credentials", "true");
+                res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, sec-websocket-protocol");
+            }
 
             // Stage 1: Understand user intent with advanced AI
             res.write(JSON.stringify({

@@ -3,13 +3,13 @@ import { environment } from "./src/loaders/environment.loader.js";
 import { createServer } from "http";
 import { initializeWebSocket } from "./src/loaders/websocket.loader.js";
 
-(async function init() {
-  const server = createServer(app);
-  server.listen(environment.PORT, () => {
-    console.log(`Server listening on port ${environment.PORT}`);
-  });
+(async function init () {
+    const server = createServer(app);
+    server.listen(environment.PORT, () => {
+        console.log(`Server listening on port ${environment.PORT}`);
+    });
 
-  initializeWebSocket(server);
+    initializeWebSocket(server);
 })();
 
 // import { app } from "./src/index.js";

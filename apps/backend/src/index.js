@@ -14,7 +14,34 @@ import { XWorker } from "./jobs/x.job.js";
 
 const { ValidationError } = Joi;
 const app = express();
-app.use(cors());
+// Configure CORS to allow requests from your frontend domains
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = [
+            'http://localhost:3000',
+            'https://app.march.cat',
+            'https://march.cat'
+        ];
+
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log('CORS blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'sec-websocket-protocol']
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight OPTIONS requests before any middleware
+app.options('*', cors(corsOptions));
 
 app.use('/linear/webhook', bodyParser.raw({ type: 'application/json' }));
 
