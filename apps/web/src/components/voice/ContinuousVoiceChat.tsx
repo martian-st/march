@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSession } from '@/actions/session';
 import axios from 'axios';
+import { BACKEND_URL } from '@/lib/constants';
 
 interface ContinuousVoiceChatProps {
   className?: string;
@@ -280,7 +281,7 @@ export const ContinuousVoiceChat: React.FC<ContinuousVoiceChatProps> = ({
 
     try {
       const session = await getSession();
-      const response = await axios.post('http://localhost:8080/ai/voice/process', {
+      const response = await axios.post(`${BACKEND_URL}/ai/voice/process`, {
         transcribedText: transcript,
         context: { 
           source: 'continuous_voice',

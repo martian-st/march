@@ -10,6 +10,7 @@ import { MessageSquare, Mic, Brain, CheckCircle, AlertCircle, Clock } from 'luci
 import { toast } from 'sonner';
 import axios from 'axios';
 import { getSession } from '@/actions/session';
+import { BACKEND_URL, } from '@/lib/constants';
 
 interface VoiceAssistantProps {
   className?: string;
@@ -66,7 +67,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({
 
     try {
       const session = await getSession();
-      const response = await axios.post('http://localhost:8080/ai/voice/process', {
+      const response = await axios.post(`${BACKEND_URL}/ai/voice/process`, {
         transcribedText,
         context: {
           ...context,

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { getSession } from "@/actions/session";
 import { api } from "@/lib/api";
+import { BACKEND_URL, WEBSOCKET_URL } from '@/lib/constants';
 
 /**
  * Enhanced AI Chat Component
@@ -83,7 +84,7 @@ const EnhancedAIChat = () => {
   // Single intelligent endpoint - no more routing based on keywords!
   // The AI will learn from user interactions and understand intent naturally
   const getIntelligentEndpoint = () => {
-    return "http://localhost:8080/ai/intelligent";
+    return `${BACKEND_URL}/ai/intelligent`;
   };
 
   // Intelligent request handler - uses AI learning instead of keyword matching

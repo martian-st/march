@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getSession } from '@/actions/session';
+import {  WEBSOCKET_URL } from '@/lib/constants';
 
 interface RealtimeVoiceChatProps {
   className?: string;
@@ -140,7 +141,7 @@ export const RealtimeVoiceChat: React.FC<RealtimeVoiceChatProps> = ({
       const session = await getSession();
 
       // Use the existing WebSocket endpoint with sec-websocket-protocol for auth
-      const wsUrl = `ws://localhost:8080`;
+      const wsUrl = `${WEBSOCKET_URL}`;
       const ws = new WebSocket(wsUrl, session);
 
       ws.onopen = () => {

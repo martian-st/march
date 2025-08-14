@@ -58,5 +58,7 @@ export const environment = {
     X_CLIENT_SECRET: process.env.X_CLIENT_SECRET,
     GOOGLE_AI_API_KEY: process.env.GOOGLE_AI_API_KEY,
     PINECONE_API_KEY: process.env.PINECONE_API_KEY,
-    GOOGLE_EMAIL_REDIRECT_URL: process.env.GOOGLE_EMAIL_REDIRECT_URL
+    GOOGLE_EMAIL_REDIRECT_URL: process.env.GOOGLE_EMAIL_REDIRECT_URL,
+    BACKEND_URL: process.env.BACKEND_URL,
+    WEBSOCKET_URL: process.env.WEBSOCKET_URL
 };

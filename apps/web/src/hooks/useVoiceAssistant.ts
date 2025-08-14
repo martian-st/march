@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { getSession } from '@/actions/session';
+import { BACKEND_URL, WEBSOCKET_URL } from '@/lib/constants';
 
 interface VoiceCapabilities {
     supportedIntents: Array<{
@@ -79,7 +80,7 @@ export const useVoiceAssistant = () => {
     const loadCapabilities = async () => {
         try {
             const session = await getSession();
-            const response = await axios.get('http://localhost:8080/ai/voice/capabilities', {
+            const response = await axios.get(`${BACKEND_URL}/ai/voice/capabilities`, {
                 headers: {
                     'Authorization': `Bearer ${session}`
                 }
@@ -124,7 +125,7 @@ export const useVoiceAssistant = () => {
         setIsProcessing(true);
         try {
             const session = await getSession();
-            const response = await axios.post('http://localhost:8080/ai/voice/process', {
+            const response = await axios.post(`${BACKEND_URL}/ai/voice/process`, {
                 transcribedText,
                 context
             }, {
@@ -200,7 +201,7 @@ export const useVoiceAssistant = () => {
     ) => {
         try {
             const session = await getSession();
-            const response = await axios.post('http://localhost:8080/ai/voice/transcribe', {
+            const response = await axios.post(`${BACKEND_URL}/ai/voice/transcribe`, {
                 transcribedText,
                 context
             }, {
@@ -218,7 +219,7 @@ export const useVoiceAssistant = () => {
     const checkHealth = useCallback(async () => {
         try {
             const session = await getSession();
-            const response = await axios.get('http://localhost:8080/ai/voice/health', {
+            const response = await axios.get(`${BACKEND_URL}/ai/voice/health`, {
                 headers: {
                     'Authorization': `Bearer ${session}`
                 }
