@@ -75,7 +75,7 @@ export class UserLearningService {
     }
 
     /**
-     * Detect operation type using AI understanding (no pattern matching)
+     * Detect operation type using AI understanding with improved search detection
      */
     async detectOperationType (query, result) {
         // First, analyze the result to understand what actually happened
@@ -89,27 +89,55 @@ export class UserLearningService {
             return 'schedule';
         }
 
-        // Use AI to understand the query intent naturally
+        // Use AI to understand the query intent naturally with better search detection
         try {
             const intentPrompt = `
 Analyze this user query and determine what type of operation they want to perform.
+PAY SPECIAL ATTENTION to distinguishing between SEARCH and CREATE operations.
 
 User query: "${query}"
+
+CRITICAL RULES:
+1. SEARCH queries ask about existing items:
+   - "do I have any tasks" → search
+   - "show me my tasks" → search
+   - "what tasks do I have" → search
+   - "find my items" → search
+   - "any overdue tasks" → search
+
+2. CREATE queries want to make new items:
+   - "create a task" → create
+   - "add a new task" → create
+   - "make a reminder" → create
+
+3. Question words usually indicate SEARCH:
+   - "do I have..." → search
+   - "what..." → search
+   - "show me..." → search
 
 Respond with just one word from: create, search, update, delete, schedule, conversational
 
 Examples:
+- "do I have any tasks" → search
+- "show me my tasks" → search
+- "what tasks do I have" → search
+- "find my tasks" → search
+- "any overdue items" → search
+- "create a task" → create
 - "add a task" → create
-- "find my tasks" → search  
+- "make a reminder" → create
 - "change the due date" → update
 - "schedule a meeting" → schedule
 - "hello" → conversational
 - "add due date to all tasks" → update
 - "can you help me" → conversational
+- "can you help me with creating/adding" -> create
+- "can you help me with finding/looking" -> search
+- "can you help me with add a date to " -> update
 `;
 
-            const result = await this.model.generateContent(intentPrompt);
-            const operationType = result.response.text().trim().toLowerCase();
+            const aiResult = await this.model.generateContent(intentPrompt);
+            const operationType = aiResult.response.text().trim().toLowerCase();
 
             // Validate the response
             const validTypes = ['create', 'search', 'update', 'delete', 'schedule', 'conversational'];
@@ -306,7 +334,7 @@ Examples:
     }
 
     /**
-     * Build intelligent context prompt for AI model (no pattern matching)
+     * Build intelligent context prompt for AI model with improved search vs create detection
      */
     buildIntelligentContextPrompt (userId, query, userPatterns, context, userHistory) {
         const recentInteractions = userHistory
@@ -320,6 +348,7 @@ Examples:
         return `
 You are an intelligent assistant that understands user intent naturally, like ChatGPT. 
 Analyze this user query and predict what they want to do.
+CRITICAL: Pay special attention to distinguishing SEARCH from CREATE operations.
 
 CURRENT USER QUERY: "${query}"
 
@@ -331,11 +360,34 @@ ${contextInfo}
 USER PREFERENCES (learned from past interactions):
 ${userPreferences}
 
+CRITICAL DISTINCTION RULES:
+1. SEARCH queries ask about existing items (user wants to find/view):
+   - "do I have any tasks" → search (NOT create)
+   - "show me my tasks" → search
+   - "what tasks do I have" → search
+   - "find my items" → search
+   - "any overdue tasks" → search
+   - "what's due today" → search
+
+2. CREATE queries want to make new items:
+   - "create a task" → create
+   - "add a new task" → create
+   - "make a reminder" → create
+   - "I need to create something" → create
+
+3. Question words usually indicate SEARCH:
+   - "do I have..." → search
+   - "what..." → search
+   - "show me..." → search
+   - "any..." → search
+
 INSTRUCTIONS:
 Understand the user's intent naturally. Don't rely on keywords - understand the meaning like a human would.
+The most common mistake is classifying search queries as create operations.
 
 Consider:
 - What is the user actually trying to accomplish?
+- Are they asking about existing items (search) or wanting to make new ones (create)?
 - Based on their past behavior, what would they typically want?
 - What's the most helpful action to take?
 
@@ -343,7 +395,7 @@ Respond in JSON format:
 {
     "operationType": "create|update|search|schedule|delete|conversational",
     "confidence": 85,
-    "reasoning": "Natural explanation of what the user wants",
+    "reasoning": "Natural explanation focusing on search vs create distinction",
     "suggestedAction": "Specific helpful action to take",
     "parameters": {
         "entities": ["important things mentioned in the query"],
@@ -353,20 +405,32 @@ Respond in JSON format:
     }
 
     /**
-     * Simple AI analysis for new users (no pattern matching)
+     * Simple AI analysis for new users with improved search detection
      */
     async simpleAIAnalysis (query) {
         const prompt = `
 You are an intelligent assistant. Understand what this user wants to do naturally.
+CRITICAL: Correctly distinguish between SEARCH and CREATE operations.
 
 User query: "${query}"
 
 Understand their intent like ChatGPT would - focus on the meaning, not keywords.
+The most common mistake is treating search queries as create requests.
 
-Examples:
+SEARCH vs CREATE Examples:
+- "do I have any tasks" → user wants to SEARCH for existing tasks (NOT create)
+- "show me my tasks" → user wants to SEARCH/find existing tasks
+- "what tasks do I have" → user wants to SEARCH for tasks
+- "find my items" → user wants to SEARCH
+- "any overdue tasks" → user wants to SEARCH for overdue items
+
+- "create a task" → user wants to CREATE something new
+- "add a new task" → user wants to CREATE
+- "make a reminder" → user wants to CREATE
+- "I need to add something" → user wants to CREATE
+
+Other Examples:
 - "add a due date to all my tasks" → user wants to UPDATE existing tasks
-- "can you create a task" → user wants to CREATE something
-- "show me my work" → user wants to SEARCH/find things
 - "hey there" → user is being CONVERSATIONAL
 - "schedule something tomorrow" → user wants to SCHEDULE
 
@@ -374,7 +438,7 @@ Respond in JSON format:
 {
     "operationType": "create|update|search|schedule|delete|conversational",
     "confidence": 80,
-    "reasoning": "Natural explanation of user intent",
+    "reasoning": "Natural explanation focusing on search vs create distinction",
     "suggestedAction": "What would be most helpful",
     "parameters": {
         "entities": ["important things mentioned"],
@@ -384,7 +448,10 @@ Respond in JSON format:
 
         try {
             const result = await this.model.generateContent(prompt);
-            const prediction = JSON.parse(result.response.text());
+            const responseText = result.response.text();
+            // Clean up response to extract JSON
+            const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
+            const prediction = JSON.parse(cleanedResponse);
             return {
                 ...prediction,
                 contextUsed: false
@@ -507,7 +574,7 @@ Respond in JSON format:
 
             if (preferences.priority) {
                 const topPriority = Object.entries(preferences.priority)
-                    .sort(([,a], [,b]) => b - a)[0];
+                    .sort(([, a], [, b]) => b - a)[0];
                 if (topPriority) {
                     prefParts.push(`Prefers ${topPriority[0]} priority items`);
                 }
@@ -515,7 +582,7 @@ Respond in JSON format:
 
             if (preferences.types) {
                 const topType = Object.entries(preferences.types)
-                    .sort(([,a], [,b]) => b - a)[0];
+                    .sort(([, a], [, b]) => b - a)[0];
                 if (topType) {
                     prefParts.push(`Often works with ${topType[0]}s`);
                 }
