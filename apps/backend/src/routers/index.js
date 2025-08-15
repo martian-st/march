@@ -31,6 +31,17 @@ const initRoutes = (app) => {
     app.use('/ai/intelligent', JWTMiddleware, intelligentAIRouter);
     app.use('/ai/enhanced', JWTMiddleware, enhancedIntelligentAIRouter);
     app.use('/ai/voice', JWTMiddleware, voiceRouter);
+    
+    // AI Health monitoring (no JWT required for monitoring)
+    app.get('/ai/health', async (req, res) => {
+        const { aiHealthController } = await import('../controllers/ai/ai-health.controller.js');
+        await aiHealthController.checkHealth(req, res);
+    });
+    
+    app.get('/ai/stats', JWTMiddleware, async (req, res) => {
+        const { aiHealthController } = await import('../controllers/ai/ai-health.controller.js');
+        await aiHealthController.getStats(req, res);
+    });
     app.get("/", async (req, res) => {
         res.json({
             "message": "Welcome to  sage "

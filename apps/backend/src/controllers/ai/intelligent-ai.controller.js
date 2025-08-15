@@ -3,6 +3,7 @@ import { UserLearningService } from "../../services/ai/user-learning.service.js"
 import { CalendarIntegrationService } from "../../services/ai/calendar-integration.service.js";
 import { AdvancedObjectManagerService } from "../../services/ai/advanced-object-manager.service.js";
 import { ENHANCED_SYSTEM_PROMPT } from "../../prompts/enhanced-system.prompt.js";
+import { aiErrorHandler } from "../../utils/ai-error-handler.js";
 
 /**
  * Intelligent AI Controller
@@ -90,9 +91,10 @@ export class IntelligentAIController {
           res.write(
             JSON.stringify({
               status: "completed",
+              message: "Hello! I'm experiencing some technical difficulties right now, but I'm here to help. How can I assist you today?",
               data: {
                 isConversational: true,
-                response: "Hello! How can I help you today?",
+                response: "Hello! I'm experiencing some technical difficulties right now, but I'm here to help. How can I assist you today?",
                 success: true,
               },
               success: true,
@@ -129,7 +131,12 @@ export class IntelligentAIController {
       );
 
       // Step 3: Learn from this interaction (silently in background)
-      await this.userLearning.learnFromInteraction(userId, query, result);
+      try {
+        await this.userLearning.learnFromInteraction(userId, query, result);
+      } catch (learningError) {
+        // Learning failures shouldn't affect the user experience
+        console.error('Learning failed (non-critical):', learningError.message);
+      }
 
       // Send final result (without exposing learning details)
       res.write(
@@ -143,19 +150,29 @@ export class IntelligentAIController {
       res.end();
     } catch (error) {
       console.error("Error in processIntelligentRequest:", error);
+      aiErrorHandler.logError(error, { userId, query, method: 'processIntelligentRequest' });
+
+      // Get user-friendly error message
+      const userError = aiErrorHandler.getUserFriendlyError(error, { query });
 
       if (!res.headersSent) {
         res.status(500).json({
-          error: "An error occurred processing your request",
-          message: error.message,
+          error: userError.message,
           success: false,
+          retryable: userError.retryable,
+          type: userError.type
         });
       } else {
+        // For streaming responses, send fallback response
+        const fallbackResponse = aiErrorHandler.createFallbackResponse(query);
+
         res.write(
           JSON.stringify({
-            status: "error",
-            error: error.message,
-            success: false,
+            status: "completed",
+            message: fallbackResponse.message,
+            data: fallbackResponse.data,
+            success: true,
+            fallback: true
           }) + "\n"
         );
         res.end();
@@ -704,6 +721,27 @@ export class IntelligentAIController {
     ];
     const lowerQuery = query.toLowerCase().trim();
     return simpleGreetings.some((greeting) => lowerQuery.startsWith(greeting));
+  }
+
+  /**
+   * Generate simple conversational response when AI is unavailable
+   */
+  getSimpleConversationalResponse(query) {
+    const lowerQuery = query.toLowerCase().trim();
+
+    if (lowerQuery.includes('hello') || lowerQuery.includes('hi') || lowerQuery.includes('hey')) {
+      return "Hello! I'm March AI, your productivity assistant. I'm experiencing some technical difficulties right now, but I'm here to help. What can I do for you?";
+    }
+
+    if (lowerQuery.includes('who are you') || lowerQuery.includes('what are you')) {
+      return "I'm March AI, your friendly productivity assistant. I can help with scheduling, finding information, managing tasks, and more. I'm having some technical issues at the moment, but please try your request again.";
+    }
+
+    if (lowerQuery.includes('what can you do') || lowerQuery.includes('help')) {
+      return "I'm March AI and I can help with scheduling meetings, finding information, managing tasks, and much more. I'm experiencing some technical difficulties right now, but please try again in a moment.";
+    }
+
+    return "I'm experiencing some technical difficulties at the moment, but I'm here to help. Please try your request again in a few seconds.";
   }
 
   /**

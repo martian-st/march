@@ -386,8 +386,20 @@ const processVoiceInput = async (ws, user, userInput) => {
         );
     } catch (error) {
         console.error("AI processing error:", error);
-
-        const errorMessage = "I'm sorry, I didn't catch that. Could you try again?";
+        
+        // Get user-friendly error message for voice
+        let errorMessage;
+        const errorMsg = error.message.toLowerCase();
+        
+        if (errorMsg.includes('overloaded') || errorMsg.includes('503')) {
+            errorMessage = "I'm experiencing high demand right now. Let me try that again in a moment.";
+        } else if (errorMsg.includes('rate limit') || errorMsg.includes('quota')) {
+            errorMessage = "I'm processing a lot of requests. Please give me a moment and try again.";
+        } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+            errorMessage = "I'm having trouble connecting right now. Could you try that again?";
+        } else {
+            errorMessage = "I'm having some technical difficulties. Could you try rephrasing that?";
+        }
 
         voiceState.conversationHistory.push({
             role: "assistant",
@@ -401,7 +413,8 @@ const processVoiceInput = async (ws, user, userInput) => {
                 text: errorMessage,
                 shouldSpeak: true,
                 timestamp: new Date(),
-                isError: true
+                isError: true,
+                retryable: true
             })
         );
     }

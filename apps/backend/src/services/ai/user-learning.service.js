@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Object } from "../../models/lib/object.model.js";
+import { aiErrorHandler } from "../../utils/ai-error-handler.js";
 
 /**
  * User Learning Service
@@ -108,8 +109,17 @@ Examples:
 - "can you help me" → conversational
 `;
 
-            const result = await this.model.generateContent(intentPrompt);
-            const operationType = result.response.text().trim().toLowerCase();
+            const aiResult = await aiErrorHandler.executeWithRetry(async () => {
+                const result = await this.model.generateContent(intentPrompt);
+                return result.response.text().trim().toLowerCase();
+            }, { method: 'predictOperationType', userPrompt });
+
+            if (!aiResult.success) {
+                console.error('AI operation type prediction failed:', aiResult.error);
+                return 'conversational'; // Safe fallback
+            }
+
+            const operationType = aiResult.data;
 
             // Validate the response
             const validTypes = ['create', 'search', 'update', 'delete', 'schedule', 'conversational'];
@@ -145,10 +155,26 @@ Examples:
 - "schedule meeting tomorrow at 2pm" → {"dates": ["tomorrow", "2pm"], "types": ["meeting"], "actions": ["schedule"]}
 `;
 
-            const result = await this.model.generateContent(entityPrompt);
-            const responseText = result.response.text();
+            const aiResult = await aiErrorHandler.executeWithRetry(async () => {
+                const result = await this.model.generateContent(entityPrompt);
+                return result.response.text();
+            }, { method: 'extractEntitiesWithAI', userPrompt });
+
+            if (!aiResult.success) {
+                console.error('AI entity extraction failed:', aiResult.error);
+                // Return empty entities as fallback
+                return {
+                    dates: [],
+                    priorities: [],
+                    types: [],
+                    quantities: [],
+                    actions: [],
+                    other: []
+                };
+            }
+
             // Remove markdown code blocks if present
-            const cleanedResponse = responseText.replace(/```json\n?|\n?```/g, '').trim();
+            const cleanedResponse = aiResult.data.replace(/```json\n?|\n?```/g, '').trim();
             return JSON.parse(cleanedResponse);
         } catch (error) {
             console.error('Error extracting entities with AI:', error);
@@ -287,8 +313,25 @@ Examples:
         const contextPrompt = this.buildIntelligentContextPrompt(userId, query, userPatterns, context, userHistory);
 
         try {
-            const result = await this.model.generateContent(contextPrompt);
-            const prediction = JSON.parse(result.response.text());
+            const aiResult = await aiErrorHandler.executeWithRetry(async () => {
+                const result = await this.model.generateContent(contextPrompt);
+                return result.response.text();
+            }, { method: 'predictUserIntent', query, userId });
+
+            if (!aiResult.success) {
+                console.error('AI intent prediction failed:', aiResult.error);
+                // Return safe fallback prediction
+                return {
+                    operationType: 'conversational',
+                    confidence: 30,
+                    reasoning: 'Fallback due to AI service unavailability',
+                    suggestedAction: 'Handle as general conversation',
+                    entities: {},
+                    contextualFactors: []
+                };
+            }
+
+            const prediction = JSON.parse(aiResult.data);
 
             return {
                 operationType: prediction.operationType,
@@ -383,8 +426,24 @@ Respond in JSON format:
 }`;
 
         try {
-            const result = await this.model.generateContent(prompt);
-            const prediction = JSON.parse(result.response.text());
+            const aiResult = await aiErrorHandler.executeWithRetry(async () => {
+                const result = await this.model.generateContent(prompt);
+                return result.response.text();
+            }, { method: 'simpleAIAnalysis', query });
+
+            if (!aiResult.success) {
+                console.error('AI simple analysis failed:', aiResult.error);
+                return {
+                    operationType: 'conversational',
+                    confidence: 30,
+                    reasoning: 'AI service temporarily unavailable - treating as conversation',
+                    suggestedAction: 'Provide conversational response',
+                    parameters: { entities: [], context: 'fallback' },
+                    contextUsed: false
+                };
+            }
+
+            const prediction = JSON.parse(aiResult.data);
             return {
                 ...prediction,
                 contextUsed: false

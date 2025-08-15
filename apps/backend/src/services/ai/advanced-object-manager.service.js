@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Object } from "../../models/lib/object.model.js";
+import { aiErrorHandler } from "../../utils/ai-error-handler.js";
 import { saveContent } from "../../utils/helper.service.js";
 
 /**
@@ -86,8 +87,17 @@ export class AdvancedObjectManagerService {
         `;
 
         try {
-            const result = await this.model.generateContent(intentPrompt);
-            const response = result.response.text();
+            const aiResult = await aiErrorHandler.executeWithRetry(async () => {
+                const result = await this.model.generateContent(intentPrompt);
+                return result.response.text();
+            }, { method: 'parseSearchIntent', query });
+
+            if (!aiResult.success) {
+                console.error('AI search intent parsing failed:', aiResult.error);
+                return this.getDefaultSearchIntent(query);
+            }
+
+            const response = aiResult.data;
             return JSON.parse(response.replace(/```json\n?|\n?```/g, ''));
         } catch (error) {
             console.error("Error parsing search intent:", error);
