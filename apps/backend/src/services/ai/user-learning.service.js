@@ -112,7 +112,7 @@ Examples:
             const aiResult = await aiErrorHandler.executeWithRetry(async () => {
                 const result = await this.model.generateContent(intentPrompt);
                 return result.response.text().trim().toLowerCase();
-            }, { method: 'predictOperationType', userPrompt });
+            }, { method: 'predictOperationType', query });
 
             if (!aiResult.success) {
                 console.error('AI operation type prediction failed:', aiResult.error);
@@ -158,7 +158,7 @@ Examples:
             const aiResult = await aiErrorHandler.executeWithRetry(async () => {
                 const result = await this.model.generateContent(entityPrompt);
                 return result.response.text();
-            }, { method: 'extractEntitiesWithAI', userPrompt });
+            }, { method: 'extractEntitiesWithAI', query });
 
             if (!aiResult.success) {
                 console.error('AI entity extraction failed:', aiResult.error);
@@ -194,7 +194,7 @@ Examples:
      * Update user patterns using AI understanding (no pattern matching)
      */
     async updateUserPatternsWithAI (userId, interaction, existingPatterns) {
-        const { query, operationType, entities, success } = interaction;
+        const { operationType, entities, success } = interaction;
 
         // Initialize pattern categories
         if (!existingPatterns.phrases) existingPatterns.phrases = {};
@@ -211,7 +211,7 @@ Examples:
             // Store the original query (not normalized) for better AI understanding
             const queryPattern = {
                 query: interaction.originalQuery,
-                entities: entities,
+                entities,
                 timestamp: interaction.timestamp,
                 success: true
             };
@@ -239,7 +239,7 @@ Examples:
                 query: interaction.originalQuery,
                 timestamp: interaction.timestamp,
                 expectedOperation: operationType,
-                entities: entities
+                entities
             });
 
             // Keep only last 10 corrections
@@ -566,7 +566,7 @@ Respond in JSON format:
 
             if (preferences.priority) {
                 const topPriority = Object.entries(preferences.priority)
-                    .sort(([,a], [,b]) => b - a)[0];
+                    .sort(([, a], [, b]) => b - a)[0];
                 if (topPriority) {
                     prefParts.push(`Prefers ${topPriority[0]} priority items`);
                 }
@@ -574,7 +574,7 @@ Respond in JSON format:
 
             if (preferences.types) {
                 const topType = Object.entries(preferences.types)
-                    .sort(([,a], [,b]) => b - a)[0];
+                    .sort(([, a], [, b]) => b - a)[0];
                 if (topType) {
                     prefParts.push(`Often works with ${topType[0]}s`);
                 }
