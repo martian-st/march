@@ -26,9 +26,10 @@ export class IntelligentAIController {
      * Uses user learning and context to understand intent naturally
      */
     async processIntelligentRequest (req, res) {
+        const { query, context = {} } = req.body;
+        const userId = req.user?._id;
+
         try {
-            const { query, context = {} } = req.body;
-            const userId = req.user?._id;
 
             if (!query?.trim()) {
                 return res.status(400).json({
@@ -330,7 +331,7 @@ export class IntelligentAIController {
             }) + "\n");
 
             // First, find objects that match the update criteria
-            const searchResult = await this.objectManager.findIntelligentObjects(
+            const searchResult = await this.objectManager.findObjects(
                 this.extractSearchTermsFromUpdate(query),
                 userId,
                 { limit: 50 }
@@ -393,33 +394,33 @@ export class IntelligentAIController {
      * Handle intelligent search with improved error handling and user feedback
      */
     async handleIntelligentSearch (query, userId, intentPrediction, res) {
+        // Extract search parameters from the intent prediction (declare outside try block)
+        const searchOptions = {
+            intentPrediction,
+            includeContext: true,
+            limit: 50
+        };
+
+        // Add specific filters based on the query
+        if (intentPrediction.parameters) {
+            if (intentPrediction.parameters.time_filter) {
+                searchOptions.timeFilter = intentPrediction.parameters.time_filter;
+            }
+            if (intentPrediction.parameters.source_filter) {
+                searchOptions.sourceFilter = intentPrediction.parameters.source_filter;
+            }
+            if (intentPrediction.parameters.object_type) {
+                searchOptions.objectType = intentPrediction.parameters.object_type;
+            }
+        }
+
         try {
             res.write(JSON.stringify({
                 status: "processing",
                 message: "Searching through your items..."
             }) + "\n");
 
-            // Extract search parameters from the intent prediction
-            const searchOptions = {
-                intentPrediction,
-                includeContext: true,
-                limit: 50
-            };
-
-            // Add specific filters based on the query
-            if (intentPrediction.parameters) {
-                if (intentPrediction.parameters.time_filter) {
-                    searchOptions.timeFilter = intentPrediction.parameters.time_filter;
-                }
-                if (intentPrediction.parameters.source_filter) {
-                    searchOptions.sourceFilter = intentPrediction.parameters.source_filter;
-                }
-                if (intentPrediction.parameters.object_type) {
-                    searchOptions.objectType = intentPrediction.parameters.object_type;
-                }
-            }
-
-            const result = await this.objectManager.findIntelligentObjects(query, userId, searchOptions);
+            const result = await this.objectManager.findObjects(query, userId, searchOptions);
 
             // Provide helpful feedback based on results
             if (!result.objects || result.objects.length === 0) {
@@ -460,7 +461,7 @@ export class IntelligentAIController {
             if (errorHandling.alternativeSearches && errorHandling.alternativeSearches.length > 0) {
                 // Try the first alternative
                 try {
-                    const alternativeResult = await this.objectManager.findIntelligentObjects(
+                    const alternativeResult = await this.objectManager.findObjects(
                         query, userId, errorHandling.alternativeSearches[0].criteria
                     );
                     
@@ -533,7 +534,7 @@ export class IntelligentAIController {
             }) + "\n");
 
             // This is a dangerous operation, always ask for confirmation
-            const searchResult = await this.objectManager.findIntelligentObjects(
+            const searchResult = await this.objectManager.findObjects(
                 this.extractSearchTermsFromDelete(query),
                 userId,
                 { limit: 10 }

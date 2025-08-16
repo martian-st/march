@@ -569,7 +569,7 @@ Respond in JSON format:
         const preferences = userPatterns.preferences || {};
         let prefText = "No specific preferences learned yet.";
 
-        if (preferences && typeof preferences === 'object' && Object.keys(preferences).length > 0) {
+        if (preferences && typeof preferences === 'object' && preferences !== null && Object.keys(preferences).length > 0) {
             const prefParts = [];
 
             if (preferences.priority) {
