@@ -53,10 +53,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       setLangState(saved);
       return;
     }
-    if (typeof navigator !== "undefined") {
-      const nav = navigator.language.toLowerCase();
-      if (nav.startsWith("ca")) setLangState("ca");
-    }
   }, []);
 
   const setLang = (l: Lang) => {
