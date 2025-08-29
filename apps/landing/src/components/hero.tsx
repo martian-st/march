@@ -93,8 +93,10 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import { useLanguage } from "./LanguageContext";
 
 export default function Hero() {
+  const { t } = useLanguage();
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -123,22 +125,21 @@ export default function Hero() {
           className="max-w-2xl text-pretty text-4xl !leading-tight md:text-6xl dark:text-white"
           variants={itemVariants}
         >
-          <span className="text-black dark:text-black">second brain for people living</span>{" "}
-          <span className="dark:text-polar-500 text-gray-400">on mars</span>
+          <span className="text-black dark:text-black">{t("hero.title.line1")}</span>{" "}
+          <span className="dark:text-polar-500 text-gray-400">{t("hero.title.line2")}</span>
         </motion.h1>
         <motion.p
           className="text-pretty text-sm leading-relaxed"
           variants={itemVariants}
         >
-          write, plan or capture action items from connected tools in a simple
-          clean interface.
+          {t("hero.subtitle")}
         </motion.p>
         <motion.div
           className="flex flex-row items-center gap-x-4"
           variants={itemVariants}
         >
           <Button className="bg-black text-white">
-            <Link href="https://app.march.cat/signin">join public beta</Link>
+            <Link href="https://app.march.cat/signin">{t("hero.cta")}</Link>
           </Button>
         </motion.div>
       </motion.div>
