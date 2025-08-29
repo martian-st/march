@@ -5,10 +5,10 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * Uses multiple LLM strategies for superior intent recognition
  */
 export class EnhancedIntentUnderstandingService {
-    constructor(apiKey) {
+    constructor (apiKey) {
         this.genAI = new GoogleGenerativeAI(apiKey);
         this.primaryModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        this.reasoningModel = this.genAI.getGenerativeModel({ 
+        this.reasoningModel = this.genAI.getGenerativeModel({
             model: 'gemini-1.5-flash',
             generationConfig: { temperature: 0.1 } // Lower temperature for more consistent reasoning
         });
@@ -17,17 +17,17 @@ export class EnhancedIntentUnderstandingService {
     /**
      * Multi-stage intent understanding with fallback strategies
      */
-    async understandUserIntent(query, userId, context = {}) {
+    async understandUserIntent (query, userId, context = {}) {
         try {
             // Stage 1: Primary intent analysis with detailed reasoning
             const primaryAnalysis = await this.performPrimaryIntentAnalysis(query, context);
-            
+
             // Stage 2: Validate and enhance with reasoning model
             const enhancedAnalysis = await this.enhanceWithReasoning(query, primaryAnalysis, context);
-            
+
             // Stage 3: Apply user context and learning
             const contextualAnalysis = await this.applyUserContext(enhancedAnalysis, userId, context);
-            
+
             return {
                 success: true,
                 intent: contextualAnalysis.intent,
@@ -39,7 +39,7 @@ export class EnhancedIntentUnderstandingService {
             };
         } catch (error) {
             console.error('Enhanced intent understanding error:', error);
-            
+
             // Fallback to rule-based analysis
             return this.fallbackIntentAnalysis(query);
         }
@@ -48,19 +48,47 @@ export class EnhancedIntentUnderstandingService {
     /**
      * Primary intent analysis with comprehensive understanding
      */
-    async performPrimaryIntentAnalysis(query, context) {
+    async performPrimaryIntentAnalysis (query, context) {
         const prompt = `
 You are an advanced AI assistant that understands user intent with human-like comprehension. 
-Analyze this user request and provide detailed intent understanding.
+Your PRIMARY TASK is to correctly distinguish between SEARCH queries and CREATE requests.
 
 User Query: "${query}"
 Context: ${JSON.stringify(context)}
+
+CRITICAL DISTINCTION RULES:
+1. SEARCH QUERIES - User wants to find/view existing items:
+   - "do I have any tasks" → SEARCH (find_items)
+   - "show me my tasks" → SEARCH (find_items)  
+   - "what tasks do I have" → SEARCH (find_items)
+   - "find my overdue items" → SEARCH (find_items)
+   - "any new emails" → SEARCH (find_items)
+   - "show me what's due today" → SEARCH (find_items)
+
+2. CREATE QUERIES - User wants to make new items:
+   - "create a task" → CREATE (create_task)
+   - "add a new task" → CREATE (create_task)
+   - "make a task to call John" → CREATE (create_task)
+   - "I need to add a reminder" → CREATE (create_task)
+
+3. QUESTION WORDS indicate SEARCH:
+   - "do I have..." → SEARCH
+   - "what..." → SEARCH  
+   - "show me..." → SEARCH
+   - "find..." → SEARCH
+   - "any..." → SEARCH
+
+4. ACTION WORDS indicate CREATE:
+   - "create..." → CREATE
+   - "add..." → CREATE
+   - "make..." → CREATE
+   - "I need to..." → CREATE
 
 Analyze this request and respond with a JSON object:
 {
     "intent": "one of: create_task, create_note, create_meeting, find_items, update_items, delete_items, schedule_event, general_question, conversational, complex_workflow",
     "confidence": 0.0-1.0,
-    "reasoning": "detailed explanation of why you chose this intent",
+    "reasoning": "detailed explanation focusing on search vs create distinction",
     "parameters": {
         "action": "specific action to take",
         "object_type": "task|note|meeting|event|etc",
@@ -70,7 +98,8 @@ Analyze this request and respond with a JSON object:
         "due_date": "extracted date information",
         "search_terms": "terms to search for",
         "update_fields": "fields to update",
-        "time_context": "when this should happen"
+        "time_context": "when this should happen",
+        "source_filter": "specific source if mentioned (linear, gmail, github, twitter, calendar)"
     },
     "suggestedResponse": "natural, conversational response to acknowledge the request",
     "actionPlan": [
@@ -82,25 +111,23 @@ Analyze this request and respond with a JSON object:
     "clarificationQuestions": []
 }
 
-Key principles:
-1. UNDERSTAND CONTEXT: "hey can you add a task for me" is clearly a task creation request, not a greeting
-2. BE HELPFUL: If the request is vague, make reasonable assumptions and offer to refine later
-3. EXTRACT MEANING: Look beyond keywords to understand true intent
-4. CONVERSATIONAL: Respond naturally like a human assistant would
-5. PROACTIVE: Anticipate what the user might need
+SEARCH EXAMPLES:
+- "do I have any tasks" → intent: "find_items", search_terms: "tasks", reasoning: "Question word 'do I have' indicates search for existing items"
+- "show me my items" → intent: "find_items", search_terms: "items", reasoning: "Show me indicates search/display request"
+- "what's overdue" → intent: "find_items", search_terms: "overdue", reasoning: "What's indicates search query"
+- "any new Linear tasks" → intent: "find_items", search_terms: "tasks", source_filter: "linear"
 
-Examples:
-- "hey can you add a task for me" → intent: "create_task", response: "Of course! I'd be happy to create a task for you. What would you like the task to be about?"
-- "create a task to call John tomorrow" → intent: "create_task", title: "Call John", due_date: "tomorrow"
-- "find my urgent tasks" → intent: "find_items", search_terms: "urgent tasks"
-- "schedule a meeting with the team" → intent: "create_meeting", title: "Team meeting"
+CREATE EXAMPLES:
+- "create a task to call John" → intent: "create_task", title: "Call John", reasoning: "Create indicates new item creation"
+- "add a reminder for tomorrow" → intent: "create_task", title: "Reminder", due_date: "tomorrow"
+- "I need to make a note" → intent: "create_note", reasoning: "Make indicates creation intent"
 
 Respond only with valid JSON.
         `;
 
         const result = await this.primaryModel.generateContent(prompt);
         const response = result.response.text();
-        
+
         try {
             const jsonMatch = response.match(/\{[\s\S]*\}/);
             if (!jsonMatch) {
@@ -116,7 +143,7 @@ Respond only with valid JSON.
     /**
      * Enhance analysis with reasoning model for validation
      */
-    async enhanceWithReasoning(query, primaryAnalysis, context) {
+    async enhanceWithReasoning (query, primaryAnalysis, context) {
         const prompt = `
 You are a reasoning validator. Review this intent analysis and improve it if needed.
 
@@ -138,17 +165,17 @@ Respond only with valid JSON.
         try {
             const result = await this.reasoningModel.generateContent(prompt);
             const response = result.response.text();
-            
+
             const jsonMatch = response.match(/\{[\s\S]*\}/);
             if (!jsonMatch) {
                 return primaryAnalysis; // Fallback to primary if validation fails
             }
-            
+
             const enhanced = JSON.parse(jsonMatch[0]);
-            
+
             // Ensure confidence is reasonable
             enhanced.confidence = Math.max(0.7, Math.min(1.0, enhanced.confidence || 0.8));
-            
+
             return enhanced;
         } catch (error) {
             console.error('Reasoning enhancement failed:', error);
@@ -159,10 +186,10 @@ Respond only with valid JSON.
     /**
      * Apply user context and learning patterns
      */
-    async applyUserContext(analysis, userId, context) {
+    async applyUserContext (analysis, userId, context) {
         // For now, return the enhanced analysis
         // In the future, this could incorporate user patterns, preferences, etc.
-        
+
         // Add user-specific enhancements
         if (context.userPreferences) {
             // Apply user preferences to the analysis
@@ -170,7 +197,7 @@ Respond only with valid JSON.
                 analysis.parameters.priority = analysis.parameters.priority || context.userPreferences.defaultPriority;
             }
         }
-        
+
         // Enhance confidence based on user patterns
         if (context.previousInteractions) {
             // If user frequently creates tasks, boost confidence for task creation
@@ -179,47 +206,114 @@ Respond only with valid JSON.
                 analysis.confidence = Math.min(1.0, analysis.confidence + 0.1);
             }
         }
-        
+
         return analysis;
     }
 
     /**
-     * Fallback rule-based intent analysis
+     * Fallback rule-based intent analysis with improved search detection
      */
-    fallbackIntentAnalysis(query) {
+    fallbackIntentAnalysis (query) {
         const lowerQuery = query.toLowerCase().trim();
-        
-        // Task creation patterns
+
+        // SEARCH PATTERNS - High priority to fix the core issue
         if (this.matchesPattern(lowerQuery, [
-            /(?:can you |could you |please )?(?:add|create|make) (?:a )?task/i,
-            /(?:i need|i want) (?:to )?(?:add|create|make) (?:a )?task/i,
-            /task for me/i
+            /^(?:do i have|do we have|have i got|have we got)/i,
+            /^(?:show me|show us|display|list)/i,
+            /^(?:what|which|where|when|how many)/i,
+            /^(?:find|search|get|fetch|retrieve)/i,
+            /^(?:any|are there|is there)/i,
+            /(?:tasks|items|notes|meetings|events|reminders)(?:\s+(?:do|are|exist|available))?$/i
+        ])) {
+            return {
+                success: true,
+                intent: 'find_items',
+                confidence: 0.9,
+                reasoning: 'Matched search/query patterns - user wants to find existing items',
+                parameters: {
+                    action: 'search',
+                    search_terms: this.extractSearchTerms(query),
+                    object_type: this.extractObjectType(query)
+                },
+                suggestedResponse: "Let me search for your items.",
+                actionPlan: ['Search existing items', 'Present results', 'Offer refinement options']
+            };
+        }
+
+        // OVERDUE/UPCOMING SEARCH PATTERNS
+        if (this.matchesPattern(lowerQuery, [
+            /(?:overdue|past due|late|missed)/i,
+            /(?:upcoming|due soon|due today|due tomorrow)/i,
+            /(?:what's due|what is due)/i
+        ])) {
+            return {
+                success: true,
+                intent: 'find_items',
+                confidence: 0.9,
+                reasoning: 'Time-based search query for overdue or upcoming items',
+                parameters: {
+                    action: 'search',
+                    search_terms: this.extractSearchTerms(query),
+                    time_filter: this.extractTimeFilter(query)
+                },
+                suggestedResponse: "Let me find your time-sensitive items.",
+                actionPlan: ['Search by time criteria', 'Present results with urgency', 'Suggest actions']
+            };
+        }
+
+        // SOURCE-SPECIFIC SEARCH PATTERNS
+        if (this.matchesPattern(lowerQuery, [
+            /(?:linear|github|gmail|twitter|calendar|cal)\s+(?:tasks|items|issues|emails|events)/i,
+            /(?:any|new|recent)\s+(?:linear|github|gmail|twitter|calendar)/i,
+            /from\s+(?:linear|github|gmail|twitter|calendar)/i
+        ])) {
+            return {
+                success: true,
+                intent: 'find_items',
+                confidence: 0.9,
+                reasoning: 'Source-specific search query',
+                parameters: {
+                    action: 'search',
+                    search_terms: this.extractSearchTerms(query),
+                    source_filter: this.extractSourceFilter(query)
+                },
+                suggestedResponse: "Let me search your integrated platforms.",
+                actionPlan: ['Search specific source', 'Present results', 'Show integration status']
+            };
+        }
+
+        // TASK CREATION PATTERNS - Only clear creation intents
+        if (this.matchesPattern(lowerQuery, [
+            /^(?:create|add|make|new)\s+(?:a\s+)?(?:task|todo|reminder)/i,
+            /^(?:i need to|i want to|i have to)\s+(?:create|add|make)/i,
+            /^(?:can you|could you|please)\s+(?:create|add|make)\s+(?:a\s+)?(?:task|todo)/i
         ])) {
             return {
                 success: true,
                 intent: 'create_task',
                 confidence: 0.8,
-                reasoning: 'Matched task creation patterns',
+                reasoning: 'Clear task creation request with explicit action words',
                 parameters: {
                     action: 'create',
                     object_type: 'task',
-                    title: 'New task'
+                    title: this.extractTitle(query) || 'New task'
                 },
                 suggestedResponse: "I'd be happy to create a task for you! What would you like the task to be about?",
-                actionPlan: ['Ask for task details', 'Create the task', 'Confirm creation']
+                actionPlan: ['Extract task details', 'Create the task', 'Confirm creation']
             };
         }
-        
-        // Note creation patterns
+
+        // NOTE CREATION PATTERNS
         if (this.matchesPattern(lowerQuery, [
-            /(?:add|create|make) (?:a )?note/i,
-            /take (?:a )?note/i
+            /^(?:create|add|make|new)\s+(?:a\s+)?note/i,
+            /^(?:take|write)\s+(?:a\s+)?note/i,
+            /^(?:i need to|i want to)\s+(?:note|write down|jot down)/i
         ])) {
             return {
                 success: true,
                 intent: 'create_note',
                 confidence: 0.8,
-                reasoning: 'Matched note creation patterns',
+                reasoning: 'Clear note creation request',
                 parameters: {
                     action: 'create',
                     object_type: 'note'
@@ -228,26 +322,7 @@ Respond only with valid JSON.
                 actionPlan: ['Ask for note content', 'Create the note', 'Confirm creation']
             };
         }
-        
-        // Search patterns
-        if (this.matchesPattern(lowerQuery, [
-            /(?:find|search|show|get) (?:my )?(?:tasks|notes|items)/i,
-            /what (?:tasks|notes|items)/i
-        ])) {
-            return {
-                success: true,
-                intent: 'find_items',
-                confidence: 0.7,
-                reasoning: 'Matched search patterns',
-                parameters: {
-                    action: 'search',
-                    search_terms: this.extractSearchTerms(query)
-                },
-                suggestedResponse: "I'll search for your items. Let me find what you're looking for.",
-                actionPlan: ['Search items', 'Present results', 'Offer refinement options']
-            };
-        }
-        
+
         // Default conversational fallback
         return {
             success: true,
@@ -263,46 +338,92 @@ Respond only with valid JSON.
     /**
      * Check if query matches any of the given patterns
      */
-    matchesPattern(query, patterns) {
+    matchesPattern (query, patterns) {
         return patterns.some(pattern => pattern.test(query));
     }
 
     /**
      * Extract search terms from query
      */
-    extractSearchTerms(query) {
+    extractSearchTerms (query) {
         return query
-            .replace(/(?:find|search|show|get|what|my|the|a|an)\s+/gi, '')
+            .replace(/(?:find|search|show|get|what|my|the|a|an|do|i|have|any|are|there)\s+/gi, '')
+            .replace(/(?:tasks|items|notes|meetings|events|reminders)$/gi, '')
             .trim();
+    }
+
+    /**
+     * Extract object type from query
+     */
+    extractObjectType (query) {
+        const lowerQuery = query.toLowerCase();
+        if (/tasks?|todos?/i.test(lowerQuery)) return 'task';
+        if (/notes?/i.test(lowerQuery)) return 'note';
+        if (/meetings?|events?/i.test(lowerQuery)) return 'meeting';
+        if (/reminders?/i.test(lowerQuery)) return 'task';
+        return 'item';
+    }
+
+    /**
+     * Extract time filter from query
+     */
+    extractTimeFilter (query) {
+        const lowerQuery = query.toLowerCase();
+        if (/overdue|past due|late|missed/i.test(lowerQuery)) return 'overdue';
+        if (/due today|today/i.test(lowerQuery)) return 'today';
+        if (/due tomorrow|tomorrow/i.test(lowerQuery)) return 'tomorrow';
+        if (/upcoming|due soon/i.test(lowerQuery)) return 'upcoming';
+        return null;
+    }
+
+    /**
+     * Extract source filter from query
+     */
+    extractSourceFilter (query) {
+        const lowerQuery = query.toLowerCase();
+        if (/linear/i.test(lowerQuery)) return 'linear';
+        if (/github/i.test(lowerQuery)) return 'github';
+        if (/gmail/i.test(lowerQuery)) return 'gmail';
+        if (/twitter/i.test(lowerQuery)) return 'twitter';
+        if (/calendar|cal/i.test(lowerQuery)) return 'cal';
+        return null;
+    }
+
+    /**
+     * Extract title from creation query
+     */
+    extractTitle (query) {
+        const match = query.match(/(?:create|add|make)\s+(?:a\s+)?(?:task|todo|note|reminder)\s+(?:to\s+|for\s+|about\s+)?(.+)/i);
+        return match ? match[1].trim() : null;
     }
 
     /**
      * Generate contextual follow-up questions
      */
-    generateFollowUpQuestions(intent, parameters) {
+    generateFollowUpQuestions (intent, parameters) {
         switch (intent) {
-            case 'create_task':
-                return [
-                    "What should the task be about?",
-                    "When would you like this completed?",
-                    "How important is this task?"
-                ];
-            case 'create_note':
-                return [
-                    "What would you like to note down?",
-                    "Is this related to a specific project?"
-                ];
-            case 'find_items':
-                return [
-                    "What specific items are you looking for?",
-                    "Any particular time period?",
-                    "Should I filter by priority or status?"
-                ];
-            default:
-                return [
-                    "Could you tell me more about what you need?",
-                    "What would you like me to help you with?"
-                ];
+        case 'create_task':
+            return [
+                "What should the task be about?",
+                "When would you like this completed?",
+                "How important is this task?"
+            ];
+        case 'create_note':
+            return [
+                "What would you like to note down?",
+                "Is this related to a specific project?"
+            ];
+        case 'find_items':
+            return [
+                "What specific items are you looking for?",
+                "Any particular time period?",
+                "Should I filter by priority or status?"
+            ];
+        default:
+            return [
+                "Could you tell me more about what you need?",
+                "What would you like me to help you with?"
+            ];
         }
     }
 }

@@ -9,14 +9,14 @@
         "ecmaVersion": "latest"
     },
     "rules": {
-        "no-tabs": "off",
+        // "no-tabs": "off",
         "indent": [
             "error",
             4
         ],
-        "quotes": "off",
-        "quote-props": "off",
-        "semi": "off",
-        "multiline-ternary": "off"
+        // "quotes": "off",
+        // "quote-props": "off",
+        // "semi": "off",
+        // "multiline-ternary": "off"
     }
 }

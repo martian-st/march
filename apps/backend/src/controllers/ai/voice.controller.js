@@ -5,17 +5,147 @@ import { environment } from "../../loaders/environment.loader.js";
 const voiceService = new VoiceRecognitionService(environment.GOOGLE_AI_API_KEY);
 
 /**
- * Process voice command and execute AI assistant action
+ * Execute a confirmed operation (bulk update, delete, etc.)
+ */
+async function executeConfirmedOperation(operationData, authHeader) {
+    try {
+        // Call the intelligent AI service to execute the confirmed operation
+        const response = await fetch(
+            `${environment.BACKEND_URL}/ai/enhanced`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: authHeader
+                },
+                body: JSON.stringify({
+                    query: operationData.originalQuery || "Execute confirmed operation",
+                    context: {
+                        ...operationData,
+                        confirmed: true,
+                        skipConfirmation: true
+                    }
+                })
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`Operation execution failed: ${response.status}`);
+        }
+
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalResult = null;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (line.trim()) {
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.status === "completed") {
+                            finalResult = data;
+                        }
+                    } catch (e) {
+                        console.warn("Failed to parse streaming response:", line);
+                    }
+                }
+            }
+        }
+
+        return finalResult?.data || { success: true, message: "Operation completed" };
+    } catch (error) {
+        console.error("Error executing confirmed operation:", error);
+        throw error;
+    }
+}
+
+/**
+ * Process voice command and execute AI assistant action with confirmation support
  */
 export const processVoiceCommand = async (req, res) => {
     try {
-        const { transcribedText, context = {}, sessionId } = req.body;
+        const { transcribedText, context = {}, sessionId, confirmationData } = req.body;
 
         if (!transcribedText) {
             return res.status(400).json({
                 success: false,
                 error: "Transcribed text is required",
             });
+        }
+
+        // Handle confirmation responses
+        if (confirmationData) {
+            const confirmationResult = voiceService.processConfirmationResponse(transcribedText, confirmationData);
+            
+            if (confirmationResult.confirmed === true) {
+                // Proceed with the confirmed operation
+                try {
+                    const operationResult = await executeConfirmedOperation(confirmationResult.operationData, req.headers.authorization);
+                    
+                    const audioSummary = voiceService.generateAudioSummaryWithSources(operationResult, confirmationData.operationType);
+                    
+                    return res.json({
+                        success: true,
+                        data: {
+                            confirmed: true,
+                            operationResult,
+                            voiceResponse: {
+                                text: audioSummary,
+                                shouldSpeak: true,
+                                confidence: 0.9
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error("Error executing confirmed operation:", error);
+                    return res.json({
+                        success: false,
+                        data: {
+                            voiceResponse: {
+                                text: "I'm sorry, there was an error executing the operation. Please try again.",
+                                shouldSpeak: true,
+                                confidence: 0.8
+                            }
+                        }
+                    });
+                }
+            } else if (confirmationResult.confirmed === false) {
+                // Operation cancelled
+                return res.json({
+                    success: true,
+                    data: {
+                        cancelled: true,
+                        voiceResponse: {
+                            text: confirmationResult.message,
+                            shouldSpeak: confirmationResult.shouldSpeak,
+                            confidence: 0.9
+                        }
+                    }
+                });
+            } else {
+                // Need clarification
+                return res.json({
+                    success: true,
+                    data: {
+                        needsClarification: true,
+                        voiceResponse: {
+                            text: confirmationResult.message,
+                            shouldSpeak: confirmationResult.shouldSpeak,
+                            confidence: 0.8
+                        },
+                        confirmationData // Keep the same confirmation data
+                    }
+                });
+            }
         }
 
         // Use existing intelligent AI API instead of separate voice logic
@@ -194,11 +324,35 @@ export const getVoiceCapabilities = async (req, res) => {
                 },
                 {
                     intent: "find_objects",
-                    description: "Search for existing items",
+                    description: "Search for existing items with source awareness",
                     examples: [
                         "Find my tasks for this week",
-                        "Show me notes about the project launch",
+                        "Show me notes about the project launch", 
                         "What are my urgent todos?",
+                        "Do I have any Linear tasks?",
+                        "Show me new Gmail items",
+                        "Any GitHub issues assigned to me?",
+                        "What's in my calendar today?"
+                    ],
+                },
+                {
+                    intent: "source_query",
+                    description: "Query specific platforms or cross-platform data",
+                    examples: [
+                        "What's new from all my integrations?",
+                        "Show me everything from Linear and GitHub",
+                        "Any updates from my connected apps?",
+                        "What happened in Gmail today?"
+                    ],
+                },
+                {
+                    intent: "integration_status", 
+                    description: "Check integration health and connectivity",
+                    examples: [
+                        "Are my integrations working?",
+                        "Is Linear connected properly?",
+                        "Check my Gmail integration status",
+                        "How are my connected apps doing?"
                     ],
                 },
                 {
@@ -231,18 +385,26 @@ export const getVoiceCapabilities = async (req, res) => {
             ],
             voiceFeatures: [
                 "Natural language processing",
-                "Intent recognition",
+                "Intent recognition", 
                 "Context awareness",
                 "Multi-step command execution",
                 "Conversational responses",
                 "Error handling and clarification",
+                "Source-aware queries (Linear, Gmail, GitHub, Twitter, Calendar)",
+                "Cross-platform search and operations",
+                "Integration status monitoring",
+                "Platform-specific voice commands",
+                "Audio feedback for integration queries"
             ],
             tips: [
                 "Speak clearly and at a normal pace",
-                "Use natural language - no need for specific commands",
+                "Use natural language - no need for specific commands", 
                 "Be specific about timeframes and priorities",
                 "You can ask follow-up questions",
                 "The system learns from context in your conversation",
+                "Mention platform names for source-specific queries (Linear, Gmail, GitHub, etc.)",
+                "Ask about integration status to check connectivity",
+                "Use cross-platform queries like 'what's new from all my apps'"
             ],
         };
 

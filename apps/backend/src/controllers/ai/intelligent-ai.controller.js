@@ -2,6 +2,8 @@ import { ChainOfThoughtService } from "../../services/ai/chain-of-thought.servic
 import { UserLearningService } from "../../services/ai/user-learning.service.js";
 import { CalendarIntegrationService } from "../../services/ai/calendar-integration.service.js";
 import { AdvancedObjectManagerService } from "../../services/ai/advanced-object-manager.service.js";
+import { EnhancedErrorHandlerService } from "../../services/ai/enhanced-error-handler.service.js";
+import { IntegrationErrorRecoveryService } from "../../services/ai/integration-error-recovery.service.js";
 import { ENHANCED_SYSTEM_PROMPT } from "../../prompts/enhanced-system.prompt.js";
 
 /**
@@ -15,6 +17,8 @@ export class IntelligentAIController {
         this.userLearning = new UserLearningService(process.env.GOOGLE_AI_API_KEY);
         this.calendarService = new CalendarIntegrationService(process.env.GOOGLE_AI_API_KEY);
         this.objectManager = new AdvancedObjectManagerService(process.env.GOOGLE_AI_API_KEY);
+        this.errorHandler = new EnhancedErrorHandlerService();
+        this.recoveryService = new IntegrationErrorRecoveryService();
     }
 
     /**
@@ -22,9 +26,10 @@ export class IntelligentAIController {
      * Uses user learning and context to understand intent naturally
      */
     async processIntelligentRequest (req, res) {
+        const { query, context = {} } = req.body;
+        const userId = req.user?._id;
+
         try {
-            const { query, context = {} } = req.body;
-            const userId = req.user?._id;
 
             if (!query?.trim()) {
                 return res.status(400).json({
@@ -49,30 +54,69 @@ export class IntelligentAIController {
             let intentPrediction;
             try {
                 intentPrediction = await this.userLearning.predictUserIntent(userId, query);
+
+                // Add confidence boost for clear search patterns to fix misclassification
+                if (this.isLikelySearchQuery(query) && intentPrediction.operationType !== 'search') {
+                    console.log(`Correcting misclassified search query: "${query}" was classified as ${intentPrediction.operationType}`);
+                    intentPrediction = {
+                        operationType: 'search',
+                        confidence: 0.9,
+                        reasoning: 'Corrected misclassification - clear search pattern detected',
+                        suggestedAction: 'Search for existing items',
+                        parameters: {
+                            search_terms: query.replace(/^(do i have|show me|what|find|any)\s+/i, '').trim()
+                        }
+                    };
+                }
             } catch (error) {
                 console.error('Error predicting intent:', error);
-                // Fallback for simple conversations
-                if (this.isSimpleGreeting(query)) {
-                    res.write(JSON.stringify({
-                        status: "completed",
-                        data: {
-                            isConversational: true,
-                            response: "Hello! How can I help you today?",
-                            success: true
-                        },
-                        success: true
-                    }) + "\n");
-                    res.end();
-                    return;
-                }
 
-                // Default fallback
-                intentPrediction = {
-                    operationType: 'conversational',
-                    confidence: 50,
-                    reasoning: 'Fallback due to prediction error',
-                    suggestedAction: 'Handle as conversation'
-                };
+                // Use enhanced error handler for intent errors
+                const errorHandling = await this.errorHandler.handleIntentError(error, query, userId, context);
+                
+                if (errorHandling.fallbackIntent) {
+                    intentPrediction = errorHandling.fallbackIntent;
+                    
+                    // Send clarification if needed
+                    if (errorHandling.clarificationQuestions && errorHandling.clarificationQuestions.length > 0) {
+                        res.write(JSON.stringify({
+                            status: "clarification",
+                            message: errorHandling.userMessage,
+                            questions: errorHandling.clarificationQuestions,
+                            suggestions: errorHandling.suggestions
+                        }) + "\n");
+                    }
+                } else {
+                    // Improved fallback with search detection
+                    if (this.isLikelySearchQuery(query)) {
+                        intentPrediction = {
+                            operationType: 'search',
+                            confidence: 0.8,
+                            reasoning: 'Fallback search detection',
+                            suggestedAction: 'Search for items'
+                        };
+                    } else if (this.isSimpleGreeting(query)) {
+                        res.write(JSON.stringify({
+                            status: "completed",
+                            data: {
+                                isConversational: true,
+                                response: "Hello! How can I help you today?",
+                                success: true
+                            },
+                            success: true
+                        }) + "\n");
+                        res.end();
+                        return;
+                    } else {
+                        // Default fallback
+                        intentPrediction = {
+                            operationType: 'conversational',
+                            confidence: 50,
+                            reasoning: 'Fallback due to prediction error',
+                            suggestedAction: 'Handle as conversation'
+                        };
+                    }
+                }
             }
 
             // Send progress update (without exposing learning details)
@@ -104,16 +148,29 @@ export class IntelligentAIController {
         } catch (error) {
             console.error("Error in processIntelligentRequest:", error);
 
+            // Use enhanced error handler for general errors
+            const errorHandling = await this.errorHandler.generateUserFriendlyError(error, {
+                query,
+                userId,
+                context,
+                operation: 'process_request'
+            });
+
             if (!res.headersSent) {
                 res.status(500).json({
-                    error: "An error occurred processing your request",
-                    message: error.message,
+                    error: errorHandling.userMessage,
+                    suggestions: errorHandling.suggestions,
+                    canRetry: errorHandling.canRetry,
+                    nextSteps: errorHandling.nextSteps,
+                    helpfulLinks: errorHandling.helpfulLinks,
                     success: false
                 });
             } else {
                 res.write(JSON.stringify({
                     status: "error",
-                    error: error.message,
+                    error: errorHandling.userMessage,
+                    suggestions: errorHandling.suggestions,
+                    canRetry: errorHandling.canRetry,
                     success: false
                 }) + "\n");
                 res.end();
@@ -122,12 +179,18 @@ export class IntelligentAIController {
     }
 
     /**
-     * Execute request based on predicted intent
+     * Execute request based on predicted intent with improved search routing
      */
     async executeIntelligentRequest (query, userId, intentPrediction, context, res) {
         const { operationType, confidence, suggestedAction } = intentPrediction;
 
-        // If confidence is low, still try to help but use chain of thought as backup
+        // For search operations, always try to handle them even with lower confidence
+        // This fixes the core issue where search queries were being misrouted
+        if (operationType === 'search') {
+            return await this.handleIntelligentSearch(query, userId, intentPrediction, res);
+        }
+
+        // If confidence is low for non-search operations, use chain of thought as backup
         if (confidence < 50) {
             res.write(JSON.stringify({
                 status: "processing",
@@ -149,14 +212,20 @@ export class IntelligentAIController {
         case 'update':
             return await this.handleIntelligentUpdate(query, userId, intentPrediction, res);
 
-        case 'search':
-            return await this.handleIntelligentSearch(query, userId, intentPrediction, res);
-
         case 'schedule':
             return await this.handleIntelligentSchedule(query, userId, intentPrediction, res);
 
         case 'delete':
             return await this.handleIntelligentDelete(query, userId, intentPrediction, res);
+
+        case 'conversational':
+            // Handle conversational queries directly
+            return {
+                isConversational: true,
+                response: this.generateConversationalResponse(query, intentPrediction),
+                operationType: 'conversational',
+                success: true
+            };
 
         default:
             // Fallback to chain of thought for unknown operations
@@ -210,9 +279,42 @@ export class IntelligentAIController {
             };
         } catch (error) {
             console.error('Error in intelligent create:', error);
+            
+            // Check if this is an integration-specific error
+            const integrationError = this.detectIntegrationError(error);
+            if (integrationError) {
+                const recovery = await this.recoveryService.implementFallbackStrategy(
+                    integrationError.integration,
+                    'create',
+                    error,
+                    { query, userId, intentPrediction }
+                );
+                
+                if (recovery.success) {
+                    return {
+                        ...recovery.result,
+                        message: recovery.userMessage,
+                        fallbackUsed: true,
+                        alternativeSources: recovery.alternativeSources,
+                        operationType: 'create',
+                        success: true
+                    };
+                }
+            }
+            
+            // Use enhanced error handler for general create errors
+            const errorHandling = await this.errorHandler.generateUserFriendlyError(error, {
+                query,
+                userId,
+                operation: 'create',
+                intentPrediction
+            });
+            
             return {
                 error: true,
-                message: "I had trouble creating that. Could you try rephrasing your request?",
+                message: errorHandling.userMessage,
+                suggestions: errorHandling.suggestions,
+                canRetry: errorHandling.canRetry,
                 success: false
             };
         }
@@ -229,7 +331,7 @@ export class IntelligentAIController {
             }) + "\n");
 
             // First, find objects that match the update criteria
-            const searchResult = await this.objectManager.findIntelligentObjects(
+            const searchResult = await this.objectManager.findObjects(
                 this.extractSearchTermsFromUpdate(query),
                 userId,
                 { limit: 50 }
@@ -289,30 +391,103 @@ export class IntelligentAIController {
     }
 
     /**
-     * Handle intelligent search
+     * Handle intelligent search with improved error handling and user feedback
      */
     async handleIntelligentSearch (query, userId, intentPrediction, res) {
+        // Extract search parameters from the intent prediction (declare outside try block)
+        const searchOptions = {
+            intentPrediction,
+            includeContext: true,
+            limit: 50
+        };
+
+        // Add specific filters based on the query
+        if (intentPrediction.parameters) {
+            if (intentPrediction.parameters.time_filter) {
+                searchOptions.timeFilter = intentPrediction.parameters.time_filter;
+            }
+            if (intentPrediction.parameters.source_filter) {
+                searchOptions.sourceFilter = intentPrediction.parameters.source_filter;
+            }
+            if (intentPrediction.parameters.object_type) {
+                searchOptions.objectType = intentPrediction.parameters.object_type;
+            }
+        }
+
         try {
             res.write(JSON.stringify({
                 status: "processing",
-                message: "Searching through your objects..."
+                message: "Searching through your items..."
             }) + "\n");
 
-            const result = await this.objectManager.findIntelligentObjects(query, userId, {
-                intentPrediction,
-                includeContext: true
-            });
+            const result = await this.objectManager.findObjects(query, userId, searchOptions);
+
+            // Provide helpful feedback based on results
+            if (!result.objects || result.objects.length === 0) {
+                return {
+                    message: "I couldn't find any items matching your search. Would you like me to help you create something instead?",
+                    objects: [],
+                    suggestions: [
+                        "Try a broader search term",
+                        "Check if you have any items at all",
+                        "Create a new item"
+                    ],
+                    operationType: 'search',
+                    success: true
+                };
+            }
+
+            // Generate a helpful summary
+            const summary = this.generateSearchSummary(result.objects, query, intentPrediction);
 
             return {
                 ...result,
+                summary,
                 operationType: 'search',
                 success: true
             };
         } catch (error) {
             console.error('Error in intelligent search:', error);
+
+            // Use enhanced error handler for search errors
+            const errorHandling = await this.errorHandler.handleSearchError(error, {
+                query,
+                sourceFilter: searchOptions.sourceFilter,
+                timeFilter: searchOptions.timeFilter,
+                objectType: searchOptions.objectType
+            }, userId, { query, intentPrediction });
+
+            // Check if we can use alternative sources
+            if (errorHandling.alternativeSearches && errorHandling.alternativeSearches.length > 0) {
+                // Try the first alternative
+                try {
+                    const alternativeResult = await this.objectManager.findObjects(
+                        query, userId, errorHandling.alternativeSearches[0].criteria
+                    );
+                    
+                    return {
+                        ...alternativeResult,
+                        message: `${errorHandling.userMessage} I searched using alternative sources instead.`,
+                        alternativeUsed: true,
+                        originalError: errorHandling.errorType,
+                        suggestions: errorHandling.suggestions,
+                        operationType: 'search',
+                        success: true
+                    };
+                } catch (alternativeError) {
+                    // Alternative also failed, provide graceful degradation
+                }
+            }
+
+            // Provide user-friendly error handling with integration-specific suggestions
             return {
-                error: true,
-                message: error.message,
+                error: false, // Don't treat as hard error
+                message: errorHandling.userMessage,
+                suggestions: errorHandling.suggestions,
+                integrationStatus: errorHandling.integrationStatus,
+                alternativeSearches: errorHandling.alternativeSearches,
+                canRetry: errorHandling.canRetry,
+                operationType: 'search',
                 success: false
             };
         }
@@ -359,7 +534,7 @@ export class IntelligentAIController {
             }) + "\n");
 
             // This is a dangerous operation, always ask for confirmation
-            const searchResult = await this.objectManager.findIntelligentObjects(
+            const searchResult = await this.objectManager.findObjects(
                 this.extractSearchTermsFromDelete(query),
                 userId,
                 { limit: 10 }
@@ -571,12 +746,106 @@ export class IntelligentAIController {
     }
 
     /**
+     * Generate conversational response for non-task queries
+     */
+    generateConversationalResponse (query, intentPrediction) {
+        const lowerQuery = query.toLowerCase().trim();
+
+        if (this.isSimpleGreeting(query)) {
+            return "Hello! I'm here to help you manage your tasks, notes, and schedule. What would you like to do today?";
+        }
+
+        if (lowerQuery.includes('help')) {
+            return "I can help you with:\n• Creating and managing tasks\n• Taking notes\n• Scheduling meetings\n• Finding your items\n• Updating existing items\n\nWhat would you like to start with?";
+        }
+
+        return intentPrediction.suggestedResponse || "I'm here to help! What would you like me to do for you?";
+    }
+
+    /**
+     * Generate search summary based on results
+     */
+    generateSearchSummary (objects, query, intentPrediction) {
+        const count = objects.length;
+        const types = [...new Set(objects.map(obj => obj.type || 'item'))];
+
+        let summary = `Found ${count} ${count === 1 ? 'item' : 'items'}`;
+
+        if (types.length === 1) {
+            summary += ` (${types[0]}s)`;
+        } else if (types.length > 1) {
+            summary += ` including ${types.join(', ')}`;
+        }
+
+        // Add time-based context if relevant
+        if (intentPrediction.parameters?.time_filter) {
+            const timeFilter = intentPrediction.parameters.time_filter;
+            if (timeFilter === 'overdue') {
+                const overdueCount = objects.filter(obj => obj.due && new Date(obj.due.date) < new Date()).length;
+                if (overdueCount > 0) {
+                    summary += `. ${overdueCount} ${overdueCount === 1 ? 'is' : 'are'} overdue`;
+                }
+            }
+        }
+
+        return summary;
+    }
+
+    /**
+     * Detect likely search queries to prevent misclassification
+     */
+    isLikelySearchQuery (query) {
+        const lowerQuery = query.toLowerCase().trim();
+        const searchPatterns = [
+            /^do i have/i,
+            /^do we have/i,
+            /^show me/i,
+            /^what.*do i have/i,
+            /^what.*tasks/i,
+            /^what.*items/i,
+            /^find my/i,
+            /^any.*tasks/i,
+            /^any.*items/i,
+            /^list my/i,
+            /overdue/i,
+            /due today/i,
+            /due tomorrow/i
+        ];
+
+        return searchPatterns.some(pattern => pattern.test(lowerQuery));
+    }
+
+    /**
      * Check if query is a simple greeting (fallback method)
      */
     isSimpleGreeting (query) {
         const simpleGreetings = ['hi', 'hello', 'hey', 'hiya', 'good morning', 'good afternoon', 'good evening'];
         const lowerQuery = query.toLowerCase().trim();
         return simpleGreetings.some(greeting => lowerQuery.startsWith(greeting));
+    }
+
+    /**
+     * Detect if an error is integration-specific
+     */
+    detectIntegrationError(error) {
+        const errorMessage = error.message.toLowerCase();
+        
+        // Check for integration-specific error patterns
+        const integrationPatterns = {
+            'linear': /linear|issue|ticket/i,
+            'gmail': /gmail|email|mail/i,
+            'github': /github|repo|repository/i,
+            'twitter': /twitter|tweet|x\.com/i,
+            'calendar': /calendar|meeting|event/i
+        };
+        
+        for (const [integration, pattern] of Object.entries(integrationPatterns)) {
+            if (pattern.test(errorMessage) || error.integration === integration) {
+                return { integration, error };
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -589,8 +858,10 @@ export class IntelligentAIController {
                 userLearning: !!this.userLearning,
                 calendarService: !!this.calendarService,
                 objectManager: !!this.objectManager,
+                errorHandler: !!this.errorHandler,
+                recoveryService: !!this.recoveryService,
                 timestamp: new Date().toISOString(),
-                version: "2.0.0-intelligent"
+                version: "2.1.0-enhanced-error-handling"
             };
 
             res.json({

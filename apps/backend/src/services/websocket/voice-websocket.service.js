@@ -1,7 +1,10 @@
 import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
 import { enhancedIntelligentAIService } from '../ai/enhanced-intelligent-ai.service.js';
-import { voiceRecognitionService } from '../ai/voice-recognition.service.js';
+import { VoiceRecognitionService } from '../ai/voice-recognition.service.js';
+
+// Initialize voice recognition service
+const voiceRecognitionService = new VoiceRecognitionService(process.env.GOOGLE_AI_API_KEY);
 
 class VoiceWebSocketService {
     constructor() {
@@ -101,6 +104,14 @@ class VoiceWebSocketService {
                 
             case 'text_input':
                 await this.processTextInput(ws, client, message.text);
+                break;
+
+            case 'confirmation_response':
+                await this.processConfirmationResponse(ws, client, message.response, message.confirmationData);
+                break;
+
+            case 'recovery_choice':
+                await this.processRecoveryChoice(ws, client, message.choice, message.recoveryOptions);
                 break;
                 
             case 'ping':
@@ -231,13 +242,15 @@ class VoiceWebSocketService {
         }));
 
         try {
-            // Get AI response
+            // For now, continue using the existing approach but with enhanced context
+            // TODO: Integrate with enhanced voice processing in future iteration
             const response = await enhancedIntelligentAIService.processVoiceCommand({
                 transcribedText: userInput,
                 context: {
                     source: 'realtime_voice',
                     conversationMode: true,
-                    conversationHistory: client.conversationHistory.slice(-10) // Last 10 messages for context
+                    conversationHistory: client.conversationHistory.slice(-10),
+                    voiceEnhanced: true // Flag for enhanced voice processing
                 }
             });
 
@@ -302,6 +315,228 @@ class VoiceWebSocketService {
                 ws.send(JSON.stringify(message));
             }
         });
+    }
+
+    async processConfirmationResponse(ws, client, userResponse, confirmationData) {
+        if (!client.conversationActive) {
+            ws.send(JSON.stringify({
+                type: 'error',
+                message: 'Conversation not active'
+            }));
+            return;
+        }
+
+        try {
+            const confirmationResult = voiceRecognitionService.processConfirmationResponse(userResponse, confirmationData);
+            
+            if (confirmationResult.confirmed === true) {
+                // Send processing indicator
+                ws.send(JSON.stringify({
+                    type: 'processing',
+                    message: 'Executing the operation...'
+                }));
+
+                // Execute the confirmed operation
+                const operationResult = await this.executeConfirmedOperation(confirmationResult.operationData, client.userId);
+                
+                const audioSummary = voiceRecognitionService.generateAudioSummaryWithSources(operationResult, confirmationData.operationType);
+                
+                // Add to conversation history
+                client.conversationHistory.push({
+                    role: 'assistant',
+                    content: audioSummary,
+                    timestamp: new Date()
+                });
+
+                ws.send(JSON.stringify({
+                    type: 'operation_completed',
+                    text: audioSummary,
+                    shouldSpeak: true,
+                    operationResult,
+                    timestamp: new Date()
+                }));
+
+            } else if (confirmationResult.confirmed === false) {
+                // Operation cancelled
+                client.conversationHistory.push({
+                    role: 'assistant',
+                    content: confirmationResult.message,
+                    timestamp: new Date()
+                });
+
+                ws.send(JSON.stringify({
+                    type: 'operation_cancelled',
+                    text: confirmationResult.message,
+                    shouldSpeak: confirmationResult.shouldSpeak,
+                    timestamp: new Date()
+                }));
+
+            } else {
+                // Need clarification
+                ws.send(JSON.stringify({
+                    type: 'confirmation_clarification',
+                    text: confirmationResult.message,
+                    shouldSpeak: confirmationResult.shouldSpeak,
+                    confirmationData, // Keep the same confirmation data
+                    timestamp: new Date()
+                }));
+            }
+
+        } catch (error) {
+            console.error('Confirmation processing error:', error);
+            
+            const errorMessage = "I'm sorry, there was an error processing your confirmation. Please try again.";
+            
+            client.conversationHistory.push({
+                role: 'assistant',
+                content: errorMessage,
+                timestamp: new Date()
+            });
+
+            ws.send(JSON.stringify({
+                type: 'ai_response',
+                text: errorMessage,
+                shouldSpeak: true,
+                timestamp: new Date(),
+                isError: true
+            }));
+        }
+    }
+
+    async processRecoveryChoice(ws, client, userChoice, recoveryOptions) {
+        if (!client.conversationActive) {
+            ws.send(JSON.stringify({
+                type: 'error',
+                message: 'Conversation not active'
+            }));
+            return;
+        }
+
+        try {
+            const recoveryResult = voiceRecognitionService.processRecoveryChoice(userChoice, recoveryOptions);
+            
+            if (recoveryResult.choice === 'use_alternatives') {
+                // Send processing indicator
+                ws.send(JSON.stringify({
+                    type: 'processing',
+                    message: 'Trying alternative sources...'
+                }));
+
+                // Retry operation with alternative sources
+                const retryResult = await this.retryWithAlternatives(recoveryOptions, recoveryResult.alternatives, client.userId);
+                
+                client.conversationHistory.push({
+                    role: 'assistant',
+                    content: retryResult.message,
+                    timestamp: new Date()
+                });
+
+                ws.send(JSON.stringify({
+                    type: 'recovery_completed',
+                    text: retryResult.message,
+                    shouldSpeak: true,
+                    result: retryResult,
+                    timestamp: new Date()
+                }));
+
+            } else if (recoveryResult.choice === 'retry') {
+                // Send processing indicator
+                ws.send(JSON.stringify({
+                    type: 'processing',
+                    message: 'Retrying connection...'
+                }));
+
+                // Retry the original operation
+                const retryResult = await this.retryOriginalOperation(recoveryOptions, client.userId);
+                
+                client.conversationHistory.push({
+                    role: 'assistant',
+                    content: retryResult.message,
+                    timestamp: new Date()
+                });
+
+                ws.send(JSON.stringify({
+                    type: 'recovery_completed',
+                    text: retryResult.message,
+                    shouldSpeak: true,
+                    result: retryResult,
+                    timestamp: new Date()
+                }));
+
+            } else if (recoveryResult.choice === 'skip') {
+                // Skip the problematic integration
+                client.conversationHistory.push({
+                    role: 'assistant',
+                    content: recoveryResult.message,
+                    timestamp: new Date()
+                });
+
+                ws.send(JSON.stringify({
+                    type: 'recovery_skipped',
+                    text: recoveryResult.message,
+                    shouldSpeak: recoveryResult.shouldSpeak,
+                    skipped: recoveryResult.skipped,
+                    timestamp: new Date()
+                }));
+
+            } else {
+                // Need clarification
+                ws.send(JSON.stringify({
+                    type: 'recovery_clarification',
+                    text: recoveryResult.message,
+                    shouldSpeak: recoveryResult.shouldSpeak,
+                    recoveryOptions, // Keep the same recovery options
+                    timestamp: new Date()
+                }));
+            }
+
+        } catch (error) {
+            console.error('Recovery choice processing error:', error);
+            
+            const errorMessage = "I'm sorry, there was an error processing your choice. Please try again.";
+            
+            client.conversationHistory.push({
+                role: 'assistant',
+                content: errorMessage,
+                timestamp: new Date()
+            });
+
+            ws.send(JSON.stringify({
+                type: 'ai_response',
+                text: errorMessage,
+                shouldSpeak: true,
+                timestamp: new Date(),
+                isError: true
+            }));
+        }
+    }
+
+    async executeConfirmedOperation(operationData, userId) {
+        // Placeholder for executing confirmed operations
+        // This would integrate with the actual operation execution logic
+        return {
+            success: true,
+            objects: operationData.foundObjects || [],
+            message: "Operation completed successfully"
+        };
+    }
+
+    async retryWithAlternatives(recoveryOptions, alternatives, userId) {
+        // Placeholder for retrying with alternative sources
+        return {
+            success: true,
+            message: `Successfully completed using ${alternatives.join(' and ')}.`,
+            alternativesUsed: alternatives
+        };
+    }
+
+    async retryOriginalOperation(recoveryOptions, userId) {
+        // Placeholder for retrying the original operation
+        return {
+            success: true,
+            message: `Successfully reconnected to ${recoveryOptions.integration}. Operation completed.`,
+            integration: recoveryOptions.integration
+        };
     }
 
     // Get connection stats

@@ -35,33 +35,57 @@ export class VoiceRecognitionService {
     }
 
     /**
-   * Build prompt for voice command processing
+   * Build prompt for voice command processing with source awareness
    */
     buildVoiceProcessingPrompt (transcribedText, context) {
         return `
-You are a voice command processor for a productivity AI assistant. Your job is to analyze voice input and extract actionable intent.
+You are a voice command processor for a productivity AI assistant. Your job is to analyze voice input and extract actionable intent with source awareness.
 
 Voice Input: "${transcribedText}"
 Context: ${JSON.stringify(context)}
 
 Analyze this voice command and respond with a JSON object containing:
 {
-    "intent": "one of: greeting, create_task, find_objects, schedule_meeting, general_query, complex_request",
+    "intent": "one of: greeting, create_task, find_objects, schedule_meeting, general_query, complex_request, source_query, integration_status",
     "confidence": 0.0-1.0,
     "parameters": {
         "query": "cleaned up version of the user's request",
         "urgency": "low|medium|high",
         "timeframe": "extracted time information if any",
         "entities": ["extracted important entities"],
-        "action_type": "specific action if clear"
+        "action_type": "specific action if clear",
+        "source_filter": "detected source platform if mentioned",
+        "cross_platform": "true if query involves multiple sources"
+    },
+    "source_context": {
+        "mentioned_platforms": ["list of platforms mentioned: linear, gmail, github, twitter, calendar, march"],
+        "platform_specific": "true if query is specific to one platform",
+        "integration_query": "true if asking about integration status or health",
+        "bulk_operation": "true if operation affects multiple sources"
     },
     "voice_context": {
         "speaking_style": "formal|casual|urgent",
         "clarity": "clear|unclear|partial",
         "completeness": "complete|incomplete"
     },
-    "suggested_response": "Natural, conversational response that sounds human-like"
+    "suggested_response": "Natural, conversational response that sounds human-like and acknowledges source context"
 }
+
+Platform Recognition Patterns:
+- "Linear" or "Linear tasks" → source: linear
+- "Gmail" or "email" or "emails" → source: gmail  
+- "GitHub" or "Git" or "repositories" or "repos" → source: github
+- "Twitter" or "X" or "tweets" → source: twitter
+- "Calendar" or "meetings" or "events" → source: cal
+- "March" or "my tasks" (without platform) → source: march
+
+Source-Specific Query Examples:
+- "Do I have any Linear tasks?" → intent: find_objects, source_filter: linear
+- "Show me new Gmail items" → intent: find_objects, source_filter: gmail, timeframe: recent
+- "Any GitHub issues assigned to me?" → intent: find_objects, source_filter: github
+- "What's new from all my integrations?" → intent: source_query, cross_platform: true
+- "Are my integrations working?" → intent: integration_status
+- "Create a task from this Twitter thread" → intent: create_task, source_context: twitter
 
 Consider:
 - Voice commands are often more casual and conversational
@@ -70,8 +94,10 @@ Consider:
 - Handle common voice command patterns like "Hey, can you...", "I need to...", "Find me..."
 - Identify urgency from tone indicators like "urgent", "ASAP", "when you get a chance"
 - Greetings like "hey March", "hello", "hi" should be classified as "greeting" intent
+- Platform names might be mispronounced or abbreviated (e.g., "Git" for "GitHub")
 - Responses should be warm, natural, and human-like - avoid robotic language
 - Use contractions and casual language when appropriate
+- Acknowledge source context in responses when relevant
 
 Respond only with valid JSON.
         `;
@@ -97,6 +123,7 @@ Respond only with valid JSON.
                 confidence: parsed.confidence,
                 parameters: parsed.parameters,
                 voiceContext: parsed.voice_context,
+                sourceContext: parsed.source_context,
                 suggestedResponse: parsed.suggested_response,
                 processedAt: new Date().toISOString()
             };
@@ -123,7 +150,7 @@ Respond only with valid JSON.
             return voiceResult.fallback;
         }
 
-        const { intent, parameters, voiceContext } = voiceResult;
+        const { intent, parameters, voiceContext, sourceContext } = voiceResult;
 
         // Map voice intents to assistant queries
         const queryMapping = {
@@ -132,6 +159,8 @@ Respond only with valid JSON.
             find_objects: this.buildFindObjectsQuery(parameters),
             schedule_meeting: this.buildScheduleMeetingQuery(parameters),
             complex_request: this.buildComplexRequestQuery(parameters),
+            source_query: this.buildSourceQuery(parameters, voiceResult.sourceContext),
+            integration_status: this.buildIntegrationStatusQuery(parameters, voiceResult.sourceContext),
             general_query: this.buildGeneralQuery(parameters)
         };
 
@@ -143,6 +172,7 @@ Respond only with valid JSON.
                 originalText: voiceResult.originalText,
                 confidence: voiceResult.confidence,
                 voiceContext,
+                sourceContext,
                 processedAt: voiceResult.processedAt
             }
         };
@@ -167,7 +197,9 @@ Respond only with valid JSON.
                 urgency: parameters.urgency,
                 timeframe: parameters.timeframe,
                 entities: parameters.entities,
-                source: "voice"
+                source: "voice",
+                sourceContext: parameters.source_filter,
+                crossPlatform: parameters.cross_platform === "true"
             }
         };
     }
@@ -180,7 +212,9 @@ Respond only with valid JSON.
                 urgency: parameters.urgency,
                 timeframe: parameters.timeframe,
                 entities: parameters.entities,
-                source: "voice"
+                source: "voice",
+                sourceFilter: parameters.source_filter,
+                crossPlatform: parameters.cross_platform === "true"
             }
         };
     }
@@ -218,7 +252,35 @@ Respond only with valid JSON.
             query: parameters.query,
             context: {
                 source: "voice",
-                general: true
+                general: true,
+                sourceFilter: parameters.source_filter,
+                crossPlatform: parameters.cross_platform === "true"
+            }
+        };
+    }
+
+    buildSourceQuery (parameters, sourceContext) {
+        return {
+            type: "source_query",
+            query: parameters.query,
+            context: {
+                source: "voice",
+                sourceFilter: parameters.source_filter,
+                crossPlatform: parameters.cross_platform === "true",
+                mentionedPlatforms: sourceContext?.mentioned_platforms || [],
+                bulkOperation: sourceContext?.bulk_operation === "true"
+            }
+        };
+    }
+
+    buildIntegrationStatusQuery (parameters, sourceContext) {
+        return {
+            type: "integration_status",
+            query: parameters.query,
+            context: {
+                source: "voice",
+                mentionedPlatforms: sourceContext?.mentioned_platforms || [],
+                integrationQuery: true
             }
         };
     }
@@ -235,6 +297,11 @@ Respond only with valid JSON.
             };
         }
 
+        // Check if confirmation is needed for bulk or cross-platform operations
+        if (assistantResult.data && assistantResult.data.needsConfirmation) {
+            return this.generateConfirmationResponse(assistantResult.data, voiceMetadata);
+        }
+
         // Generate conversational response based on the result
         const responseText = this.buildConversationalResponse(
             assistantResult,
@@ -245,7 +312,8 @@ Respond only with valid JSON.
             text: responseText,
             shouldSpeak: true,
             confidence: voiceMetadata?.confidence || 0.5,
-            data: assistantResult.data || {}
+            data: assistantResult.data || {},
+            needsConfirmation: false
         };
     }
 
@@ -275,10 +343,25 @@ Respond only with valid JSON.
         }
 
         if (data && data.objects && data.objects.length > 0) {
-            // Object finding response
+            // Object finding response with source awareness
             const count = data.objects.length;
             const types = [...new Set(data.objects.map((obj) => obj.type))];
-            return `I found ${count} items: ${types.join(", ")}. Would you like me to show them to you?`;
+            const sources = [...new Set(data.objects.map((obj) => obj.source).filter(Boolean))];
+            
+            let response = `I found ${count} ${count === 1 ? 'item' : 'items'}`;
+            
+            if (types.length > 0) {
+                response += ` (${types.join(", ")})`;
+            }
+            
+            if (sources.length > 1) {
+                response += ` from ${sources.join(", ")}`;
+            } else if (sources.length === 1 && sources[0] !== 'march') {
+                response += ` from ${this.formatSourceName(sources[0])}`;
+            }
+            
+            response += ". Would you like me to show them to you?";
+            return response;
         }
 
         if (data && data.created) {
@@ -316,8 +399,78 @@ Respond only with valid JSON.
             }
         }
 
+        // Handle source-specific responses
+        if (data && data.sourceBreakdown) {
+            return this.generateSourceBreakdownResponse(data.sourceBreakdown);
+        }
+
+        if (data && data.integrationStatus) {
+            return this.generateIntegrationStatusResponse(data.integrationStatus);
+        }
+
         // Default response
         return "I've processed your request. Let me know if you need anything else!";
+    }
+
+    /**
+     * Format source names for voice responses
+     */
+    formatSourceName(source) {
+        const sourceNames = {
+            'linear': 'Linear',
+            'gmail': 'Gmail',
+            'github': 'GitHub', 
+            'twitter': 'Twitter',
+            'cal': 'Calendar',
+            'march': 'March',
+            'march-ai': 'March AI'
+        };
+        return sourceNames[source] || source;
+    }
+
+    /**
+     * Generate voice response for source breakdown
+     */
+    generateSourceBreakdownResponse(sourceBreakdown) {
+        const sources = Object.keys(sourceBreakdown);
+        if (sources.length === 0) {
+            return "I didn't find any items from your integrations.";
+        }
+
+        if (sources.length === 1) {
+            const source = sources[0];
+            const count = sourceBreakdown[source].count;
+            return `I found ${count} ${count === 1 ? 'item' : 'items'} from ${this.formatSourceName(source)}.`;
+        }
+
+        let response = "Here's what I found: ";
+        const sourceSummaries = sources.map(source => {
+            const count = sourceBreakdown[source].count;
+            return `${count} from ${this.formatSourceName(source)}`;
+        });
+        
+        response += sourceSummaries.join(", ");
+        return response + ".";
+    }
+
+    /**
+     * Generate voice response for integration status
+     */
+    generateIntegrationStatusResponse(integrationStatus) {
+        const workingIntegrations = integrationStatus.filter(status => status.healthy).length;
+        const totalIntegrations = integrationStatus.length;
+
+        if (workingIntegrations === totalIntegrations) {
+            return `All ${totalIntegrations} of your integrations are working properly!`;
+        } else if (workingIntegrations === 0) {
+            return "It looks like there are some issues with your integrations. Would you like me to help troubleshoot?";
+        } else {
+            const problematicSources = integrationStatus
+                .filter(status => !status.healthy)
+                .map(status => this.formatSourceName(status.source));
+            
+            return `${workingIntegrations} out of ${totalIntegrations} integrations are working. There seem to be issues with ${problematicSources.join(" and ")}.`;
+        }
     }
 
     getGreetingResponse (voiceMetadata) {
@@ -411,6 +564,209 @@ Respond only with valid JSON.
             text: "I've processed your request successfully!",
             shouldSpeak: true,
             confidence: 0.7
+        };
+    }
+
+    /**
+     * Generate voice confirmation response for bulk operations
+     */
+    generateConfirmationResponse(data, voiceMetadata) {
+        const { foundObjects = [], operationType, crossPlatform, sourceBreakdown } = data;
+        const count = foundObjects.length;
+        
+        let confirmationText = "";
+        
+        if (operationType === 'delete') {
+            confirmationText = `I found ${count} ${count === 1 ? 'item' : 'items'} to delete`;
+        } else if (operationType === 'update') {
+            confirmationText = `I found ${count} ${count === 1 ? 'item' : 'items'} to update`;
+        } else {
+            confirmationText = `This operation will affect ${count} ${count === 1 ? 'item' : 'items'}`;
+        }
+
+        // Add source breakdown for cross-platform operations
+        if (crossPlatform && sourceBreakdown) {
+            const sources = Object.keys(sourceBreakdown);
+            if (sources.length > 1) {
+                const sourceSummary = sources.map(source => 
+                    `${sourceBreakdown[source].count} from ${this.formatSourceName(source)}`
+                ).join(", ");
+                confirmationText += ` across multiple platforms: ${sourceSummary}`;
+            }
+        }
+
+        confirmationText += ". Would you like me to proceed? Say 'yes' to confirm or 'no' to cancel.";
+
+        return {
+            text: confirmationText,
+            shouldSpeak: true,
+            confidence: 0.9,
+            needsConfirmation: true,
+            confirmationData: {
+                operationType,
+                affectedItems: count,
+                crossPlatform,
+                sourceBreakdown,
+                pendingOperation: data
+            }
+        };
+    }
+
+    /**
+     * Process confirmation response
+     */
+    processConfirmationResponse(userResponse, confirmationData) {
+        const response = userResponse.toLowerCase().trim();
+        
+        // Positive confirmations
+        const positiveResponses = [
+            'yes', 'yeah', 'yep', 'sure', 'ok', 'okay', 'proceed', 
+            'go ahead', 'do it', 'confirm', 'continue', 'affirmative'
+        ];
+        
+        // Negative confirmations  
+        const negativeResponses = [
+            'no', 'nope', 'cancel', 'stop', 'abort', 'nevermind', 
+            'never mind', 'don\'t', 'negative'
+        ];
+
+        if (positiveResponses.some(phrase => response.includes(phrase))) {
+            return {
+                confirmed: true,
+                message: "Confirmed! I'll proceed with the operation.",
+                shouldSpeak: true,
+                operationData: confirmationData.pendingOperation
+            };
+        }
+
+        if (negativeResponses.some(phrase => response.includes(phrase))) {
+            return {
+                confirmed: false,
+                message: "Operation cancelled. No changes were made.",
+                shouldSpeak: true,
+                cancelled: true
+            };
+        }
+
+        // Unclear response - ask for clarification
+        return {
+            confirmed: null,
+            message: "I didn't catch that. Please say 'yes' to confirm or 'no' to cancel the operation.",
+            shouldSpeak: true,
+            needsClarification: true
+        };
+    }
+
+    /**
+     * Generate audio summary with source breakdown
+     */
+    generateAudioSummaryWithSources(results, operation = 'operation') {
+        if (!results || !results.objects || results.objects.length === 0) {
+            return `No items found for this ${operation}.`;
+        }
+
+        const count = results.objects.length;
+        const sources = [...new Set(results.objects.map(obj => obj.source).filter(Boolean))];
+        
+        let summary = `${operation} completed successfully. `;
+        
+        if (count === 1) {
+            summary += "1 item was processed";
+        } else {
+            summary += `${count} items were processed`;
+        }
+
+        if (sources.length > 1) {
+            const sourceCounts = {};
+            results.objects.forEach(obj => {
+                if (obj.source) {
+                    sourceCounts[obj.source] = (sourceCounts[obj.source] || 0) + 1;
+                }
+            });
+
+            const sourceDetails = Object.entries(sourceCounts)
+                .map(([source, count]) => `${count} from ${this.formatSourceName(source)}`)
+                .join(", ");
+            
+            summary += ` across multiple platforms: ${sourceDetails}`;
+        } else if (sources.length === 1 && sources[0] !== 'march') {
+            summary += ` from ${this.formatSourceName(sources[0])}`;
+        }
+
+        return summary + ".";
+    }
+
+    /**
+     * Generate voice-guided error recovery for integration issues
+     */
+    generateIntegrationErrorRecovery(error, context) {
+        const { integration, operation, alternativeSources = [] } = context;
+        
+        let recoveryMessage = `I'm having trouble with ${this.formatSourceName(integration)}. `;
+        
+        if (alternativeSources.length > 0) {
+            const alternatives = alternativeSources.map(source => this.formatSourceName(source)).join(" or ");
+            recoveryMessage += `Would you like me to try using ${alternatives} instead? `;
+            recoveryMessage += "Say 'yes' to use alternatives or 'retry' to try again.";
+        } else {
+            recoveryMessage += "Would you like me to retry the connection or skip this integration for now? ";
+            recoveryMessage += "Say 'retry' to try again or 'skip' to continue without it.";
+        }
+
+        return {
+            text: recoveryMessage,
+            shouldSpeak: true,
+            confidence: 0.8,
+            needsRecoveryChoice: true,
+            recoveryOptions: {
+                integration,
+                operation,
+                alternativeSources,
+                canRetry: true,
+                canSkip: true
+            }
+        };
+    }
+
+    /**
+     * Process recovery choice response
+     */
+    processRecoveryChoice(userResponse, recoveryOptions) {
+        const response = userResponse.toLowerCase().trim();
+        
+        if (response.includes('yes') || response.includes('alternative') || response.includes('use')) {
+            return {
+                choice: 'use_alternatives',
+                message: "I'll use the alternative sources instead.",
+                shouldSpeak: true,
+                alternatives: recoveryOptions.alternativeSources
+            };
+        }
+
+        if (response.includes('retry') || response.includes('try again')) {
+            return {
+                choice: 'retry',
+                message: "I'll retry the connection now.",
+                shouldSpeak: true,
+                integration: recoveryOptions.integration
+            };
+        }
+
+        if (response.includes('skip') || response.includes('continue') || response.includes('without')) {
+            return {
+                choice: 'skip',
+                message: "I'll continue without this integration for now.",
+                shouldSpeak: true,
+                skipped: recoveryOptions.integration
+            };
+        }
+
+        // Unclear response
+        return {
+            choice: null,
+            message: "I didn't understand. Please say 'retry' to try again, 'yes' for alternatives, or 'skip' to continue without it.",
+            shouldSpeak: true,
+            needsClarification: true
         };
     }
 }
