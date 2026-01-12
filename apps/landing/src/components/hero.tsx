@@ -94,6 +94,7 @@ import { motion } from "framer-motion";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { useLanguage } from "./LanguageContext";
+import EmailDashboard from "./email-dashboard";
 
 export default function Hero() {
   const { t } = useLanguage();
@@ -122,25 +123,50 @@ export default function Hero() {
         viewport={{ once: true }}
       >
         <motion.h1
-          className="max-w-2xl text-pretty text-4xl !leading-tight md:text-6xl dark:text-white"
+          className="max-w-2xl text-pretty text-3xl !leading-tight md:text-5xl dark:text-white"
           variants={itemVariants}
         >
           <span className="text-black dark:text-black">{t("hero.title.line1")}</span>{" "}
           <span className="dark:text-polar-500 text-gray-400">{t("hero.title.line2")}</span>
         </motion.h1>
         <motion.p
-          className="text-pretty text-sm leading-relaxed"
+          className="text-pretty text-sm leading-relaxed max-w-xl text-gray-600"
           variants={itemVariants}
         >
-          {t("hero.subtitle")}
+          march connects your tools and uses AI to surface priorities, decisions, and next actions so you can stay focused on what matters.
         </motion.p>
+
+        {/* Background image section with dashboard */}
         <motion.div
-          className="flex flex-row items-center gap-x-4"
+          className="relative w-full max-w-4xl mt-8"
           variants={itemVariants}
         >
-          <Button className="bg-black text-white">
-            <Link href="https://app.march.cat/signin">{t("hero.cta")}</Link>
-          </Button>
+          <img
+            src="/mono_light_distortion_1.jpg"
+            alt=""
+            className="w-full h-auto object-cover rounded-lg"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <EmailDashboard />
+          </div>
+        </motion.div>
+
+        {/* Beta signup section */}
+        <motion.div
+          className="flex flex-col items-center gap-4 mt-12"
+          variants={itemVariants}
+        >
+          <p className="text-gray-500 text-sm">Get notified when we push this to prod.</p>
+          <div className="flex items-center">
+            <input
+              type="email"
+              placeholder="Your email address"
+              className="px-4 py-2.5 text-sm text-gray-700 bg-white border border-gray-200 rounded-l-md focus:outline-none focus:border-gray-300 w-72"
+            />
+            <button className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-l-0 border-gray-200 rounded-r-md hover:bg-gray-50 transition-colors">
+              subscribe
+            </button>
+          </div>
         </motion.div>
       </motion.div>
     </>
