@@ -3,7 +3,7 @@ import { EmptyState } from "./empty-state";
 import type { EmailObjectListItem } from "@/types";
 
 const EMPTY_MESSAGES: Record<string, string> = {
-  INBOX: "No emails in inbox. Click Sync Emails to fetch new messages.",
+  INBOX: "No emails in inbox. Sync to fetch new messages.",
   LATER: "No emails marked for later.",
   ARCHIVED: "No archived emails.",
 };
@@ -20,7 +20,7 @@ export function ObjectList({
   }
 
   return (
-    <div className="divide-y divide-border">
+    <div className="divide-y divide-gray-100">
       {objects.map((object) => (
         <ObjectRow key={object.id} object={object} />
       ))}
