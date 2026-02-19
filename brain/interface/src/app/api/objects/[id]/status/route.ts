@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { EmailStatus } from "@/generated/prisma";
+import { EmailStatus } from "@/generated/prisma/enums";
 import { VALID_TRANSITIONS } from "@/types";
 
 export async function PATCH(

@@ -1,4 +1,4 @@
-import type { EmailStatus } from "@/generated/prisma";
+import type { EmailStatus } from "@/generated/prisma/enums";
 
 export type { EmailStatus };
 

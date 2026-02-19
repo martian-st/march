@@ -1,5 +1,5 @@
 import { formatDate } from "@/lib/utils";
-import type { EmailObject } from "@/generated/prisma";
+import type { EmailObject } from "@/generated/prisma/client";
 
 export function ObjectDetail({ object }: { object: EmailObject }) {
   return (

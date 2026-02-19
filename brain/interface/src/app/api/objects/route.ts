@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { EmailStatus } from "@/generated/prisma";
+import { EmailStatus } from "@/generated/prisma/enums";
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthenticatedUser();
