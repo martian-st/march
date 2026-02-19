@@ -47,18 +47,21 @@ export async function fetchFullMessage(
 // --- Parsing ---
 
 export function parseSenderField(from: string): ParsedSender {
-  // Handle formats:
-  //   "Display Name <email@example.com>"
-  //   "<email@example.com>"
-  //   "email@example.com"
-  //   '"Last, First" <email@example.com>'
-  const match = from.match(/^(?:"?([^"<]*)"?\s*)?<?([^>]+@[^>]+)>?$/);
-  if (match) {
-    const name = (match[1] || "").trim();
-    const email = match[2].trim();
+  // Handle "Display Name <email>" or '"Name" <email>' format
+  const bracketMatch = from.match(/^"?([^"<]*)"?\s*<([^>]+)>$/);
+  if (bracketMatch) {
+    const name = bracketMatch[1].trim();
+    const email = bracketMatch[2].trim();
     return { name: name || email, email };
   }
-  return { name: from.trim(), email: from.trim() };
+
+  // Handle bare email (no angle brackets)
+  const bareEmail = from.trim();
+  if (bareEmail.includes("@")) {
+    return { name: bareEmail, email: bareEmail };
+  }
+
+  return { name: bareEmail, email: bareEmail };
 }
 
 export function parseEmailHeaders(
