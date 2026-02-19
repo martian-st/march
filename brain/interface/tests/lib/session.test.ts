@@ -1,4 +1,10 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock next/headers (not available outside Next.js)
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(),
+}));
 
 // Mock environment
 vi.stubEnv("SESSION_SECRET", "test-secret-that-is-at-least-32-chars-long");
