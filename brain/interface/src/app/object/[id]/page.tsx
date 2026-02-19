@@ -25,11 +25,11 @@ export default async function ObjectPage({
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="max-w-4xl mx-auto py-4 px-4">
-        <div className="flex items-center justify-between mb-4">
+      <main className="pl-[80px] pr-8 py-10 max-w-3xl">
+        <div className="flex items-center justify-between mb-8">
           <Link
             href={object.status === "LATER" ? "/later" : object.status === "ARCHIVED" ? "/archived" : "/"}
-            className="text-sm text-muted hover:text-foreground transition-colors"
+            className="text-xs text-gray-400 hover:text-gray-900 transition-colors"
           >
             &larr; Back
           </Link>
