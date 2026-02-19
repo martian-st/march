@@ -7,7 +7,7 @@ import type { EmailStatus } from "@/types";
 import { VALID_TRANSITIONS } from "@/types";
 
 const STATUS_LABELS: Record<string, string> = {
-  INBOX: "Move to Inbox",
+  INBOX: "Inbox",
   LATER: "Later",
   ARCHIVED: "Archive",
 };
@@ -49,7 +49,7 @@ export function StatusActions({
             handleStatusChange(status);
           }}
           disabled={isPending}
-          className="px-2 py-1 text-xs border border-border rounded hover:bg-foreground hover:text-background transition-colors disabled:opacity-50"
+          className="px-2.5 py-1 text-xs text-gray-400 hover:text-gray-900 transition-colors disabled:opacity-50"
         >
           {STATUS_LABELS[status]}
         </button>
