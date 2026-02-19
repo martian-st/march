@@ -8,21 +8,19 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  gmailTokens GmailTokens?
+  id          String        @id @default(cuid())
+  email       String        @unique
+  name        String?
+  avatarUrl   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   objects     EmailObject[]
+  gmailTokens GmailTokens?
 }
 
 model GmailTokens {
   id           String    @id @default(cuid())
   userId       String    @unique
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken  String
   refreshToken String
   expiresAt    DateTime?
@@ -30,6 +28,7 @@ model GmailTokens {
   email        String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -38,7 +37,6 @@ model EmailObject {
   id              String      @id @default(cuid())
   gmailId         String      @unique
   userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   subject         String
   senderName      String
   senderEmail     String
@@ -50,6 +48,7 @@ model EmailObject {
   statusChangedAt DateTime    @default(now())
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, status])
   @@index([receivedAt])
