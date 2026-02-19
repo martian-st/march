@@ -2,10 +2,10 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --accent: #2563eb;
+  --foreground: #111111;
+  --muted: #9ca3af;
+  --border: #f0f0f0;
+  --accent: #111111;
 }
 
 @theme inline {
@@ -17,7 +17,11 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  background: #ffffff;
+  color: #111111;
+}
+
+::selection {
+  background: #111111;
+  color: #ffffff;
 }
