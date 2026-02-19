@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 import { VALID_TRANSITIONS } from "@/types";
 
 // Mock prisma
@@ -46,7 +47,7 @@ const mockObject = {
 };
 
 function createRequest(url: string, options?: RequestInit) {
-  return new Request(`http://localhost:3000${url}`, options) as any;
+  return new NextRequest(`http://localhost:3000${url}`, options);
 }
 
 describe("GET /api/objects", () => {
