@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gmailTokens GmailTokens?
+  objects     EmailObject[]
+}
+
+model GmailTokens {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime?
+  historyId    String?
+  email        String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model EmailObject {
+  id              String      @id @default(cuid())
+  gmailId         String      @unique
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject         String
+  senderName      String
+  senderEmail     String
+  bodyText        String
+  receivedAt      DateTime
+  gmailUrl        String
+  metadata        Json?
+  status          EmailStatus @default(INBOX)
+  statusChangedAt DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([receivedAt])
+}
+
+enum EmailStatus {
+  INBOX
+  LATER
+  ARCHIVED
+}
