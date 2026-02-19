@@ -1,33 +1,26 @@
-import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { Nav } from "@/components/nav";
-import { ObjectList } from "@/components/object-list";
+import { NoteEditor } from "@/components/note-editor";
 
-export default async function InboxPage() {
+export default async function TodayPage() {
   const auth = await getAuthenticatedUser();
   if (!auth) redirect("/signin");
 
-  const objects = await prisma.emailObject.findMany({
-    where: { userId: auth.userId, status: "INBOX" },
-    orderBy: { receivedAt: "desc" },
-    select: {
-      id: true,
-      subject: true,
-      senderName: true,
-      senderEmail: true,
-      receivedAt: true,
-      status: true,
-      bodyText: true,
-    },
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
   });
 
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="pl-[80px] pr-8 py-10 max-w-3xl">
-        <h1 className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-6">Inbox</h1>
-        <ObjectList objects={objects} status="INBOX" />
+      <main className="flex-1 flex items-start justify-center p-6">
+        <div className="max-w-2xl w-full mx-auto px-4 py-10">
+          <p className="text-xs text-gray-400 mb-8">{today}</p>
+          <NoteEditor />
+        </div>
       </main>
     </div>
   );
