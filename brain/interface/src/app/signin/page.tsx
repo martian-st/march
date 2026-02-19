@@ -22,15 +22,15 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-6">
+    <div className="flex flex-col items-center justify-center min-h-screen gap-8">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold mb-1">Brain</h1>
-        <p className="text-sm text-muted">Your second brain for email</p>
+        <h1 className="text-lg font-medium text-gray-900 mb-1">Brain</h1>
+        <p className="text-xs text-gray-400">Your second brain for email</p>
       </div>
 
       <button
         onClick={handleGoogleLogin}
-        className="px-6 py-2.5 text-sm font-medium border border-border rounded-lg hover:bg-foreground hover:text-background transition-colors"
+        className="px-5 py-2 text-sm text-gray-400 hover:text-gray-900 transition-colors"
       >
         Sign in with Google
       </button>
