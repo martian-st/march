@@ -7,6 +7,7 @@ export const GOOGLE_SCOPES = [
   "email",
   "profile",
   "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
 export const PUBLIC_PATHS = ["/signin"];

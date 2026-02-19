@@ -25,17 +25,19 @@ export default async function ObjectPage({
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="pl-[80px] pr-8 py-10 max-w-3xl">
-        <div className="flex items-center justify-between mb-8">
-          <Link
-            href={object.status === "LATER" ? "/later" : object.status === "ARCHIVED" ? "/archived" : "/"}
-            className="text-xs text-gray-400 hover:text-gray-900 transition-colors"
-          >
-            &larr; Back
-          </Link>
-          <StatusActions objectId={object.id} currentStatus={object.status} />
+      <main className="flex-1 flex items-start justify-center p-6">
+        <div className="max-w-2xl w-full mx-auto px-4 py-10">
+          <div className="flex items-center justify-between mb-8">
+            <Link
+              href={object.status === "LATER" ? "/later" : object.status === "ARCHIVED" ? "/archived" : "/inbox"}
+              className="text-xs text-gray-400 hover:text-gray-900 transition-colors"
+            >
+              &larr; Back
+            </Link>
+            <StatusActions objectId={object.id} currentStatus={object.status} />
+          </div>
+          <ObjectDetail object={object} />
         </div>
-        <ObjectDetail object={object} />
       </main>
     </div>
   );

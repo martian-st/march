@@ -25,9 +25,11 @@ export default async function LaterPage() {
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="pl-[80px] pr-8 py-10 max-w-3xl">
-        <h1 className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-6">Later</h1>
-        <ObjectList objects={objects} status="LATER" />
+      <main className="flex-1 flex items-start justify-center p-6">
+        <div className="max-w-2xl w-full mx-auto px-4 py-10">
+          <h1 className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-6">Later</h1>
+          <ObjectList objects={objects} status="LATER" />
+        </div>
       </main>
     </div>
   );
