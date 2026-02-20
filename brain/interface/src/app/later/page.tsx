@@ -32,6 +32,7 @@ export default async function LaterPage() {
           <ObjectList objects={objects} status="LATER" />
         </div>
       </main>
+      <CommandBar />
     </div>
   );
 }

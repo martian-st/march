@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { ObjectDetail } from "@/components/object-detail";
 import { StatusActions } from "@/components/status-actions";
+import { CommandBar } from "@/components/command-bar";
 import Link from "next/link";
 
 export default async function ObjectPage({
@@ -39,6 +40,7 @@ export default async function ObjectPage({
           <ObjectDetail object={object} />
         </div>
       </main>
+      <CommandBar />
     </div>
   );
 }

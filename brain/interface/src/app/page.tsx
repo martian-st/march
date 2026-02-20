@@ -23,6 +23,7 @@ export default async function TodayPage() {
           <NoteEditor />
         </div>
       </main>
+      <CommandBar />
     </div>
   );
 }

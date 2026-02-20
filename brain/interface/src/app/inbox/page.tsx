@@ -32,6 +32,7 @@ export default async function InboxPage() {
           <ObjectList objects={objects} status="INBOX" />
         </div>
       </main>
+      <CommandBar />
     </div>
   );
 }
