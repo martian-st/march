@@ -14,16 +14,6 @@ export interface AuthenticatedUser {
   email: string;
 }
 
-export interface SyncResult {
-  synced: number;
-  errors: number;
-}
-
-export interface ParsedSender {
-  name: string;
-  email: string;
-}
-
 export interface EmailObjectListItem {
   id: string;
   subject: string;
