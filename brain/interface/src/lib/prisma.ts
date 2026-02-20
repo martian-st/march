@@ -8,12 +8,15 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL!;
+  const isLocalhost = !connectionString.includes("railway.internal");
+
   const pool = globalForPrisma.pool ?? new Pool({
-    connectionString: process.env.DATABASE_URL!,
+    connectionString,
     max: 5,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
-    ssl: { rejectUnauthorized: false },
+    ...(isLocalhost && { ssl: true }),
   });
 
   pool.on("error", (err) => {
