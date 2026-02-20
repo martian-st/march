@@ -14,7 +14,7 @@ function createPrismaClient(): PrismaClient {
   });
   globalForPrisma.pool = pool;
 
-  const adapter = new PrismaPg({ pool });
+  const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
 
