@@ -11,8 +11,15 @@ function createPrismaClient(): PrismaClient {
   const pool = globalForPrisma.pool ?? new Pool({
     connectionString: process.env.DATABASE_URL!,
     max: 5,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
     ssl: { rejectUnauthorized: false },
   });
+
+  pool.on("error", (err) => {
+    console.error("Unexpected pool error:", err.message);
+  });
+
   globalForPrisma.pool = pool;
 
   const adapter = new PrismaPg(pool);
