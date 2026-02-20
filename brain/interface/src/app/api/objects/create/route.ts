@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/session";
+import { getGmailClient, sendToGmail } from "@/lib/gmail";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -15,9 +16,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
 
-  const trimmed = content.trim();
+  const tokens = await prisma.gmailTokens.findUnique({
+    where: { userId: auth.userId },
+    select: { email: true },
+  });
 
-  // Detect if it's a URL
+  if (!tokens) {
+    return NextResponse.json({ error: "Gmail not connected" }, { status: 400 });
+  }
+
+  const trimmed = content.trim();
   const isUrl = /^https?:\/\/\S+$/i.test(trimmed);
 
   const subject = isUrl
@@ -26,19 +34,34 @@ export async function POST(req: NextRequest) {
       ? trimmed.slice(0, 100) + "..."
       : trimmed;
 
-  const object = await prisma.emailObject.create({
-    data: {
-      gmailId: `manual-${crypto.randomUUID()}`,
-      userId: auth.userId,
+  try {
+    const gmail = await getGmailClient(auth.userId);
+    const gmailMessageId = await sendToGmail(
+      gmail,
+      tokens.email,
       subject,
-      senderName: "You",
-      senderEmail: auth.email,
-      bodyText: trimmed,
-      receivedAt: new Date(),
-      gmailUrl: isUrl ? trimmed : "",
-      status: "INBOX",
-    },
-  });
+      trimmed,
+      "march_inbox"
+    );
 
-  return NextResponse.json({ success: true, id: object.id });
+    const object = await prisma.emailObject.create({
+      data: {
+        gmailId: gmailMessageId,
+        userId: auth.userId,
+        subject,
+        senderName: "You",
+        senderEmail: tokens.email,
+        bodyText: trimmed,
+        receivedAt: new Date(),
+        gmailUrl: isUrl ? trimmed : `https://mail.google.com/mail/u/0/#inbox/${gmailMessageId}`,
+        status: "INBOX",
+        metadata: { label: "march_inbox" },
+      },
+    });
+
+    return NextResponse.json({ success: true, id: object.id });
+  } catch (error) {
+    console.error("Failed to create object:", error);
+    return NextResponse.json({ error: "Failed to create object" }, { status: 500 });
+  }
 }

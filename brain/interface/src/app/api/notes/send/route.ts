@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/session";
-import { getGmailClient } from "@/lib/gmail";
+import { getGmailClient, sendToGmail } from "@/lib/gmail";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
   }
 
-  // Get the user's email from GmailTokens
   const tokens = await prisma.gmailTokens.findUnique({
     where: { userId: auth.userId },
     select: { email: true },
@@ -26,9 +25,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Gmail not connected" }, { status: 400 });
   }
 
-  const gmail = await getGmailClient(auth.userId);
-
-  // Build the date for the subject
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -38,27 +34,30 @@ export async function POST(req: NextRequest) {
 
   const subject = `Note — ${today}`;
 
-  // Build RFC 2822 email message
-  const rawMessage = [
-    `From: ${tokens.email}`,
-    `To: ${tokens.email}`,
-    `Subject: ${subject}`,
-    `Content-Type: text/plain; charset=utf-8`,
-    "",
-    content,
-  ].join("\r\n");
-
-  // Base64url encode
-  const encoded = Buffer.from(rawMessage)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-
   try {
-    await gmail.users.messages.send({
-      userId: "me",
-      requestBody: { raw: encoded },
+    const gmail = await getGmailClient(auth.userId);
+    const gmailMessageId = await sendToGmail(
+      gmail,
+      tokens.email,
+      subject,
+      content.trim(),
+      "march_today"
+    );
+
+    // Store locally
+    await prisma.emailObject.create({
+      data: {
+        gmailId: gmailMessageId,
+        userId: auth.userId,
+        subject,
+        senderName: "You",
+        senderEmail: tokens.email,
+        bodyText: content.trim(),
+        receivedAt: new Date(),
+        gmailUrl: `https://mail.google.com/mail/u/0/#inbox/${gmailMessageId}`,
+        status: "INBOX",
+        metadata: { label: "march_today" },
+      },
     });
 
     return NextResponse.json({ success: true, subject });
