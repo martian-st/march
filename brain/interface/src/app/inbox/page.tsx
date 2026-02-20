@@ -3,6 +3,7 @@ import { getAuthenticatedUser } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { ObjectList } from "@/components/object-list";
+import { CommandBar } from "@/components/command-bar";
 
 export default async function InboxPage() {
   const auth = await getAuthenticatedUser();

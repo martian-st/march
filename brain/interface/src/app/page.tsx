@@ -2,6 +2,7 @@ import { getAuthenticatedUser } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { NoteEditor } from "@/components/note-editor";
+import { CommandBar } from "@/components/command-bar";
 
 export default async function TodayPage() {
   const auth = await getAuthenticatedUser();
