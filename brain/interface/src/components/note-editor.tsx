@@ -8,14 +8,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
 import Typography from "@tiptap/extension-typography";
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // --- Slash Command Extension ---
 
@@ -154,7 +147,7 @@ function SlashMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-md py-1 w-56 max-h-64 overflow-y-auto"
+      className="fixed z-50 bg-white rounded-lg shadow-lg py-1 w-56 max-h-64 overflow-y-auto"
       style={{ top: coords.top, left: coords.left }}
     >
       {filtered.map((item, i) => (
@@ -302,20 +295,19 @@ export function NoteEditor() {
 
   return (
     <div className="relative">
-      {slashOpen && (
-        <div className="relative">
-          <SlashMenu
-            editor={editor}
-            query={slashQuery}
-            onClose={() => {
-              setSlashOpen(false);
-              setSlashQuery("");
-            }}
-          />
-        </div>
-      )}
-
       <EditorContent editor={editor} />
+
+      {slashOpen && (
+        <SlashMenu
+          editor={editor}
+          query={slashQuery}
+          coords={slashCoords}
+          onClose={() => {
+            setSlashOpen(false);
+            setSlashQuery("");
+          }}
+        />
+      )}
 
       {hasContent && (
         <div className="fixed bottom-8 right-8">

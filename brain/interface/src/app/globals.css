@@ -112,22 +112,21 @@ body {
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid #222;
+  border: none;
   border-radius: 4px;
   cursor: pointer;
   position: relative;
   display: block;
-  background: transparent;
-  transition: all 0.15s ease;
+  background: #e5e7eb;
+  transition: background 0.15s ease;
 }
 
 .prose-editor ul[data-type="taskList"] li > label input[type="checkbox"]:hover {
-  border-color: #000;
+  background: #d1d5db;
 }
 
 .prose-editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
   background: #111;
-  border-color: #111;
 }
 
 .prose-editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
