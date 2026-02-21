@@ -25,3 +25,157 @@ body {
   background: #111111;
   color: #ffffff;
 }
+
+/* Tiptap Editor */
+.prose-editor {
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: #111;
+}
+
+.prose-editor p {
+  margin: 0.25em 0;
+}
+
+.prose-editor h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.75em 0 0.25em;
+}
+
+.prose-editor h2 {
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin: 0.75em 0 0.25em;
+}
+
+.prose-editor h3 {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0.5em 0 0.25em;
+}
+
+.prose-editor ul,
+.prose-editor ol {
+  padding-left: 1.25em;
+  margin: 0.25em 0;
+}
+
+.prose-editor ul {
+  list-style-type: disc;
+}
+
+.prose-editor ol {
+  list-style-type: decimal;
+}
+
+.prose-editor li {
+  margin: 0.125em 0;
+}
+
+.prose-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.prose-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.prose-editor ul[data-type="taskList"] li > label {
+  margin-top: 0.2em;
+}
+
+.prose-editor ul[data-type="taskList"] li > label input[type="checkbox"] {
+  appearance: none;
+  width: 1em;
+  height: 1em;
+  border: 1.5px solid #d1d5db;
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+}
+
+.prose-editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+  background: #111;
+  border-color: #111;
+}
+
+.prose-editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  width: 4px;
+  height: 7px;
+  border: solid white;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.prose-editor ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.prose-editor blockquote {
+  border-left: 2px solid #e5e7eb;
+  padding-left: 0.75em;
+  color: #6b7280;
+  font-style: italic;
+  margin: 0.5em 0;
+}
+
+.prose-editor pre {
+  background: #f9fafb;
+  border-radius: 0.375rem;
+  padding: 0.75em 1em;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.prose-editor code {
+  background: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.125em 0.25em;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.prose-editor pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.prose-editor hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1em 0;
+}
+
+.prose-editor mark {
+  background: #fef08a;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.prose-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #d1d5db;
+  pointer-events: none;
+  height: 0;
+}
+
+.prose-editor .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #d1d5db;
+  pointer-events: none;
+  height: 0;
+}

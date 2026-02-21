@@ -1,397 +1,271 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, KeyboardEvent } from "react";
+import { useEditor, EditorContent, Editor, Extension } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import Underline from "@tiptap/extension-underline";
+import Highlight from "@tiptap/extension-highlight";
+import Typography from "@tiptap/extension-typography";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 
-interface Block {
-  id: string;
-  type: "text" | "h1" | "h2" | "h3" | "todo" | "bullet" | "numbered" | "divider" | "quote";
-  content: string;
-  checked?: boolean;
+// --- Slash Command Extension ---
+
+interface SlashItem {
+  title: string;
+  description: string;
+  command: (editor: Editor) => void;
 }
 
-function newId() {
-  return Math.random().toString(36).slice(2, 9);
-}
+const SLASH_ITEMS: SlashItem[] = [
+  {
+    title: "Text",
+    description: "Plain text block",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().run(),
+  },
+  {
+    title: "Heading 1",
+    description: "Large heading",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().setHeading({ level: 1 }).run(),
+  },
+  {
+    title: "Heading 2",
+    description: "Medium heading",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().setHeading({ level: 2 }).run(),
+  },
+  {
+    title: "Heading 3",
+    description: "Small heading",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().setHeading({ level: 3 }).run(),
+  },
+  {
+    title: "To-do list",
+    description: "Track tasks with a checklist",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().toggleTaskList().run(),
+  },
+  {
+    title: "Bullet list",
+    description: "Unordered list",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().toggleBulletList().run(),
+  },
+  {
+    title: "Numbered list",
+    description: "Ordered list",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().toggleOrderedList().run(),
+  },
+  {
+    title: "Quote",
+    description: "Block quote",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().toggleBlockquote().run(),
+  },
+  {
+    title: "Code",
+    description: "Code block",
+    command: (editor) =>
+      editor.chain().focus().clearNodes().toggleCodeBlock().run(),
+  },
+  {
+    title: "Divider",
+    description: "Horizontal rule",
+    command: (editor) =>
+      editor.chain().focus().setHorizontalRule().run(),
+  },
+];
 
-function newBlock(type: Block["type"] = "text", content = ""): Block {
-  return { id: newId(), type, content, checked: type === "todo" ? false : undefined };
-}
-
-// Detect markdown shortcut at start of line
-function detectShortcut(text: string): { type: Block["type"]; remaining: string } | null {
-  const patterns: [RegExp, Block["type"]][] = [
-    [/^# $/, "h1"],
-    [/^## $/, "h2"],
-    [/^### $/, "h3"],
-    [/^\[\] $/, "todo"],
-    [/^- \[\] $/, "todo"],
-    [/^- $/, "bullet"],
-    [/^\* $/, "bullet"],
-    [/^1\. $/, "numbered"],
-    [/^> $/, "quote"],
-    [/^---$/, "divider"],
-  ];
-
-  for (const [pattern, type] of patterns) {
-    if (pattern.test(text)) {
-      return { type, remaining: "" };
-    }
-  }
-  return null;
-}
-
-function BlockLine({
-  block,
-  autoFocus,
-  onUpdate,
-  onKeyDown,
-  onToggleCheck,
-  registerRef,
+function SlashMenu({
+  editor,
+  query,
+  onClose,
 }: {
-  block: Block;
-  autoFocus: boolean;
-  onUpdate: (id: string, content: string) => void;
-  onKeyDown: (e: KeyboardEvent<HTMLDivElement>, id: string) => void;
-  onToggleCheck: (id: string) => void;
-  registerRef: (id: string, el: HTMLDivElement | null) => void;
+  editor: Editor;
+  query: string;
+  onClose: () => void;
 }) {
-  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
-    onUpdate(block.id, e.currentTarget.textContent || "");
-  };
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const ref = useCallback(
-    (el: HTMLDivElement | null) => {
-      registerRef(block.id, el);
-      if (el && autoFocus) {
-        requestAnimationFrame(() => {
-          el.focus();
-          // Place cursor at end
-          const range = document.createRange();
-          const sel = window.getSelection();
-          if (el.childNodes.length > 0) {
-            range.setStartAfter(el.lastChild!);
-          } else {
-            range.setStart(el, 0);
-          }
-          range.collapse(true);
-          sel?.removeAllRanges();
-          sel?.addRange(range);
-        });
-      }
-    },
-    [autoFocus, block.id, registerRef]
+  const filtered = SLASH_ITEMS.filter(
+    (item) =>
+      item.title.toLowerCase().includes(query.toLowerCase()) ||
+      item.description.toLowerCase().includes(query.toLowerCase())
   );
 
-  if (block.type === "divider") {
-    return <hr className="my-4 border-gray-100" />;
-  }
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query]);
 
-  const typeStyles: Record<string, string> = {
-    text: "text-sm",
-    h1: "text-2xl font-semibold",
-    h2: "text-xl font-medium",
-    h3: "text-base font-medium",
-    todo: "text-sm",
-    bullet: "text-sm",
-    numbered: "text-sm",
-    quote: "text-sm italic text-gray-500 border-l-2 border-gray-200 pl-3",
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i + 1) % filtered.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((i) => (i - 1 + filtered.length) % filtered.length);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (filtered[selectedIndex]) {
+          selectItem(filtered[selectedIndex]);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [selectedIndex, filtered, onClose]);
+
+  const selectItem = (item: SlashItem) => {
+    // Delete the slash and query text
+    const { from } = editor.state.selection;
+    const textBefore = editor.state.doc.textBetween(
+      Math.max(0, from - query.length - 1),
+      from
+    );
+    const slashPos = textBefore.lastIndexOf("/");
+    if (slashPos !== -1) {
+      const deleteFrom = from - query.length - 1;
+      editor
+        .chain()
+        .focus()
+        .deleteRange({ from: deleteFrom, to: from })
+        .run();
+    }
+
+    item.command(editor);
+    onClose();
   };
 
-  const placeholder: Record<string, string> = {
-    text: "Type something, or use # [] - > ---",
-    h1: "Heading 1",
-    h2: "Heading 2",
-    h3: "Heading 3",
-    todo: "To-do",
-    bullet: "List item",
-    numbered: "List item",
-    quote: "Quote",
-  };
+  if (filtered.length === 0) return null;
 
   return (
-    <div className="flex items-start gap-2 group">
-      {block.type === "todo" && (
+    <div
+      ref={menuRef}
+      className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-md py-1 w-56 max-h-64 overflow-y-auto"
+      style={{ bottom: "100%", left: 0, marginBottom: "4px" }}
+    >
+      {filtered.map((item, i) => (
         <button
-          onClick={() => onToggleCheck(block.id)}
-          className="mt-[3px] flex-shrink-0 w-4 h-4 rounded border border-gray-300 flex items-center justify-center hover:border-gray-400 transition-colors"
+          key={item.title}
+          onClick={() => selectItem(item)}
+          className={`w-full text-left px-3 py-2 flex flex-col ${
+            i === selectedIndex ? "bg-gray-50" : "hover:bg-gray-50"
+          }`}
         >
-          {block.checked && (
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M2 5L4 7L8 3" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
+          <span className="text-sm text-gray-900">{item.title}</span>
+          <span className="text-xs text-gray-400">{item.description}</span>
         </button>
-      )}
-
-      {block.type === "bullet" && (
-        <span className="mt-[7px] flex-shrink-0 w-1.5 h-1.5 rounded-full bg-gray-400" />
-      )}
-
-      {block.type === "numbered" && (
-        <span className="mt-[2px] flex-shrink-0 text-sm text-gray-400 w-4 text-right">
-          {/* Number will be calculated by parent if needed */}
-        </span>
-      )}
-
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={handleInput}
-        onKeyDown={(e) => onKeyDown(e, block.id)}
-        data-placeholder={placeholder[block.type]}
-        className={`
-          flex-1 outline-none leading-relaxed text-gray-900
-          ${typeStyles[block.type]}
-          ${block.checked ? "line-through text-gray-400" : ""}
-          empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300
-        `}
-      >
-        {block.content}
-      </div>
+      ))}
     </div>
   );
 }
 
+// --- Keyboard Shortcuts Extension ---
+const SaveShortcut = Extension.create({
+  name: "saveShortcut",
+
+  addKeyboardShortcuts() {
+    return {
+      "Mod-Enter": () => {
+        const event = new CustomEvent("editor-save");
+        document.dispatchEvent(event);
+        return true;
+      },
+    };
+  },
+});
+
+// --- Main Editor ---
+
 export function NoteEditor() {
-  const [blocks, setBlocks] = useState<Block[]>([newBlock()]);
-  const [focusId, setFocusId] = useState<string | null>(blocks[0].id);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
-  const refs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const editorRef = useRef<Editor | null>(null);
 
-  const registerRef = useCallback((id: string, el: HTMLDivElement | null) => {
-    if (el) {
-      refs.current.set(id, el);
-    } else {
-      refs.current.delete(id);
-    }
-  }, []);
-
-  const focusBlock = useCallback((id: string, atEnd = true) => {
-    setFocusId(id);
-    requestAnimationFrame(() => {
-      const el = refs.current.get(id);
-      if (!el) return;
-      el.focus();
-      if (atEnd) {
-        const range = document.createRange();
-        const sel = window.getSelection();
-        if (el.childNodes.length > 0) {
-          range.setStartAfter(el.lastChild!);
-        } else {
-          range.setStart(el, 0);
-        }
-        range.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-      }
-    });
-  }, []);
-
-  const handleUpdate = useCallback((id: string, content: string) => {
-    setBlocks((prev) => {
-      const idx = prev.findIndex((b) => b.id === id);
-      if (idx === -1) return prev;
-      const block = prev[idx];
-
-      // Only detect shortcuts on text blocks
-      if (block.type === "text") {
-        const shortcut = detectShortcut(content);
-        if (shortcut) {
-          const updated = [...prev];
-          if (shortcut.type === "divider") {
-            updated[idx] = { ...block, type: "divider", content: "" };
-            // Add a new text block after divider
-            const nb = newBlock();
-            updated.splice(idx + 1, 0, nb);
-            requestAnimationFrame(() => focusBlock(nb.id));
-          } else {
-            updated[idx] = {
-              ...block,
-              type: shortcut.type,
-              content: shortcut.remaining,
-              checked: shortcut.type === "todo" ? false : undefined,
-            };
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      Placeholder.configure({
+        placeholder: ({ node }) => {
+          if (node.type.name === "heading") {
+            return `Heading ${node.attrs.level}`;
           }
-          return updated;
-        }
-      }
+          return "Write something, or type / for commands...";
+        },
+      }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Underline,
+      Highlight,
+      Typography,
+      SaveShortcut,
+    ],
+    editorProps: {
+      attributes: {
+        class: "prose-editor outline-none min-h-[60vh]",
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const { from } = editor.state.selection;
+      const textBefore = editor.state.doc.textBetween(
+        Math.max(0, from - 20),
+        from
+      );
 
-      const updated = [...prev];
-      updated[idx] = { ...block, content };
-      return updated;
-    });
-  }, [focusBlock]);
-
-  const handleToggleCheck = useCallback((id: string) => {
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, checked: !b.checked } : b))
-    );
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLDivElement>, id: string) => {
-      const idx = blocks.findIndex((b) => b.id === id);
-      if (idx === -1) return;
-      const block = blocks[idx];
-
-      // Enter — split or create new block
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-
-        const sel = window.getSelection();
-        const el = refs.current.get(id);
-        if (!el || !sel) return;
-
-        // Get cursor position
-        const range = sel.getRangeAt(0);
-        const preRange = document.createRange();
-        preRange.setStart(el, 0);
-        preRange.setEnd(range.startContainer, range.startOffset);
-        const before = preRange.toString();
-        const after = (el.textContent || "").slice(before.length);
-
-        // If block is empty and is a list/todo, convert back to text
-        if (!block.content.trim() && block.type !== "text") {
-          setBlocks((prev) => {
-            const updated = [...prev];
-            updated[idx] = { ...block, type: "text", content: "", checked: undefined };
-            return updated;
-          });
-          return;
-        }
-
-        // Create new block, carry over type for lists
-        const carryTypes: Block["type"][] = ["todo", "bullet", "numbered"];
-        const newType = carryTypes.includes(block.type) ? block.type : "text";
-        const nb = newBlock(newType, after);
-
-        setBlocks((prev) => {
-          const updated = [...prev];
-          updated[idx] = { ...block, content: before };
-          updated.splice(idx + 1, 0, nb);
-          return updated;
-        });
-
-        // Update the current block's DOM to show only "before"
-        if (el) el.textContent = before;
-
-        requestAnimationFrame(() => focusBlock(nb.id, false));
-      }
-
-      // Backspace at start — merge with previous or convert to text
-      if (e.key === "Backspace") {
-        const sel = window.getSelection();
-        const el = refs.current.get(id);
-        if (!sel || !el) return;
-
-        const range = sel.getRangeAt(0);
-        const atStart = range.startOffset === 0 && range.collapsed;
-
-        if (atStart) {
-          e.preventDefault();
-
-          // If block has a special type, convert to text first
-          if (block.type !== "text") {
-            setBlocks((prev) => {
-              const updated = [...prev];
-              updated[idx] = { ...block, type: "text", checked: undefined };
-              return updated;
-            });
-            return;
-          }
-
-          // Merge with previous block
-          if (idx > 0) {
-            const prevBlock = blocks[idx - 1];
-            if (prevBlock.type === "divider") {
-              // Remove the divider
-              setBlocks((prev) => prev.filter((_, i) => i !== idx - 1));
-              return;
-            }
-            const mergedContent = prevBlock.content + block.content;
-            const cursorPos = prevBlock.content.length;
-
-            setBlocks((prev) => {
-              const updated = [...prev];
-              updated[idx - 1] = { ...prevBlock, content: mergedContent };
-              return updated.filter((_, i) => i !== idx);
-            });
-
-            // Focus previous block at merge point
-            requestAnimationFrame(() => {
-              const prevEl = refs.current.get(prevBlock.id);
-              if (!prevEl) return;
-              prevEl.textContent = mergedContent;
-              prevEl.focus();
-              const r = document.createRange();
-              const s = window.getSelection();
-              // Set cursor at the merge point
-              const textNode = prevEl.firstChild;
-              if (textNode) {
-                r.setStart(textNode, cursorPos);
-                r.collapse(true);
-                s?.removeAllRanges();
-                s?.addRange(r);
-              }
-            });
-          }
-        }
-      }
-
-      // Arrow up at start — focus previous block
-      if (e.key === "ArrowUp") {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount > 0) {
-          const range = sel.getRangeAt(0);
-          if (range.startOffset === 0 && range.collapsed && idx > 0) {
-            e.preventDefault();
-            focusBlock(blocks[idx - 1].id);
-          }
-        }
-      }
-
-      // Arrow down at end — focus next block
-      if (e.key === "ArrowDown") {
-        const sel = window.getSelection();
-        const el = refs.current.get(id);
-        if (sel && el && sel.rangeCount > 0) {
-          const range = sel.getRangeAt(0);
-          const atEnd = range.startOffset === (el.textContent || "").length && range.collapsed;
-          if (atEnd && idx < blocks.length - 1) {
-            e.preventDefault();
-            focusBlock(blocks[idx + 1].id, false);
-          }
-        }
+      // Detect "/" at start of empty block or after space
+      const slashMatch = textBefore.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
+      if (slashMatch) {
+        setSlashOpen(true);
+        setSlashQuery(slashMatch[1]);
+      } else {
+        setSlashOpen(false);
+        setSlashQuery("");
       }
     },
-    [blocks, focusBlock]
-  );
+    immediatelyRender: false,
+  });
 
-  // Serialize blocks to text for sending
-  const serialize = useCallback(() => {
-    return blocks
-      .map((b) => {
-        switch (b.type) {
-          case "h1": return `# ${b.content}`;
-          case "h2": return `## ${b.content}`;
-          case "h3": return `### ${b.content}`;
-          case "todo": return `- [${b.checked ? "x" : " "}] ${b.content}`;
-          case "bullet": return `- ${b.content}`;
-          case "numbered": return `1. ${b.content}`;
-          case "quote": return `> ${b.content}`;
-          case "divider": return "---";
-          default: return b.content;
-        }
-      })
-      .join("\n");
-  }, [blocks]);
+  editorRef.current = editor;
 
-  const hasContent = blocks.some((b) => b.content.trim().length > 0);
+  // Auto-focus
+  useEffect(() => {
+    if (editor) {
+      setTimeout(() => editor.commands.focus(), 100);
+    }
+  }, [editor]);
+
+  const getMarkdown = useCallback((): string => {
+    if (!editor) return "";
+    // Convert editor HTML to markdown-ish text
+    const json = editor.getJSON();
+    return jsonToMarkdown(json);
+  }, [editor]);
 
   const handleSave = useCallback(async () => {
-    if (!hasContent || state === "saving") return;
-    const content = serialize();
+    if (!editor || state === "saving") return;
+    const content = getMarkdown().trim();
+    if (!content) return;
 
     setState("saving");
     try {
@@ -403,7 +277,7 @@ export function NoteEditor() {
 
       if (res.ok) {
         setState("saved");
-        setBlocks([newBlock()]);
+        editor.commands.clearContent();
         setTimeout(() => setState("idle"), 2000);
       } else {
         setState("idle");
@@ -411,57 +285,35 @@ export function NoteEditor() {
     } catch {
       setState("idle");
     }
-  }, [hasContent, serialize, state]);
+  }, [editor, getMarkdown, state]);
 
-  // Cmd+Enter to save
+  // Listen for save shortcut
   useEffect(() => {
-    const handleKey = (e: globalThis.KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
+    const handler = () => handleSave();
+    document.addEventListener("editor-save", handler);
+    return () => document.removeEventListener("editor-save", handler);
   }, [handleSave]);
 
-  // Number the numbered list items
-  let numberedCounter = 0;
+  const hasContent = editor ? !editor.isEmpty : false;
+
+  if (!editor) return null;
 
   return (
-    <div className="min-h-[60vh]">
-      <div className="space-y-1">
-        {blocks.map((block, i) => {
-          if (block.type === "numbered") {
-            // Count consecutive numbered items
-            if (i === 0 || blocks[i - 1].type !== "numbered") {
-              numberedCounter = 1;
-            } else {
-              numberedCounter++;
-            }
-          }
+    <div className="relative">
+      {slashOpen && (
+        <div className="relative">
+          <SlashMenu
+            editor={editor}
+            query={slashQuery}
+            onClose={() => {
+              setSlashOpen(false);
+              setSlashQuery("");
+            }}
+          />
+        </div>
+      )}
 
-          return (
-            <div key={block.id} className="relative">
-              {block.type === "numbered" && (
-                <span className="absolute left-0 top-[2px] text-sm text-gray-400">
-                  {numberedCounter}.
-                </span>
-              )}
-              <div className={block.type === "numbered" ? "pl-6" : ""}>
-                <BlockLine
-                  block={block}
-                  autoFocus={block.id === focusId}
-                  onUpdate={handleUpdate}
-                  onKeyDown={handleKeyDown}
-                  onToggleCheck={handleToggleCheck}
-                  registerRef={registerRef}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <EditorContent editor={editor} />
 
       {hasContent && (
         <div className="fixed bottom-8 right-8">
@@ -470,11 +322,111 @@ export function NoteEditor() {
             disabled={state === "saving"}
             className="text-xs text-gray-400 hover:text-gray-900 transition-colors disabled:cursor-not-allowed"
           >
-            {state === "saving" ? "sending..." : state === "saved" ? "sent" : "send to self"}
+            {state === "saving"
+              ? "sending..."
+              : state === "saved"
+                ? "sent"
+                : "send to self"}
           </button>
           <span className="text-xs text-gray-300 ml-3">⌘↵</span>
         </div>
       )}
     </div>
   );
+}
+
+// --- JSON to Markdown serializer ---
+
+function jsonToMarkdown(doc: Record<string, unknown>): string {
+  if (!doc.content) return "";
+  return (doc.content as Record<string, unknown>[])
+    .map((node) => nodeToMarkdown(node))
+    .join("\n");
+}
+
+function nodeToMarkdown(node: Record<string, unknown>): string {
+  const type = node.type as string;
+  const attrs = (node.attrs || {}) as Record<string, unknown>;
+  const content = node.content as Record<string, unknown>[] | undefined;
+
+  switch (type) {
+    case "paragraph":
+      return inlineToMarkdown(content);
+
+    case "heading": {
+      const level = (attrs.level as number) || 1;
+      const hashes = "#".repeat(level);
+      return `${hashes} ${inlineToMarkdown(content)}`;
+    }
+
+    case "bulletList":
+      return (content || [])
+        .map((item) => {
+          const inner = (item.content as Record<string, unknown>[]) || [];
+          return inner
+            .map((p, i) => (i === 0 ? `- ${inlineToMarkdown(p.content as Record<string, unknown>[])}` : `  ${inlineToMarkdown(p.content as Record<string, unknown>[])}`))
+            .join("\n");
+        })
+        .join("\n");
+
+    case "orderedList":
+      return (content || [])
+        .map((item, idx) => {
+          const inner = (item.content as Record<string, unknown>[]) || [];
+          return inner
+            .map((p, i) => (i === 0 ? `${idx + 1}. ${inlineToMarkdown(p.content as Record<string, unknown>[])}` : `   ${inlineToMarkdown(p.content as Record<string, unknown>[])}`))
+            .join("\n");
+        })
+        .join("\n");
+
+    case "taskList":
+      return (content || [])
+        .map((item) => {
+          const checked = (item.attrs as Record<string, unknown>)?.checked ? "x" : " ";
+          const inner = (item.content as Record<string, unknown>[]) || [];
+          return `- [${checked}] ${inner.map((p) => inlineToMarkdown(p.content as Record<string, unknown>[])).join("\n")}`;
+        })
+        .join("\n");
+
+    case "blockquote":
+      return (content || [])
+        .map((p) => `> ${inlineToMarkdown(p.content as Record<string, unknown>[])}`)
+        .join("\n");
+
+    case "codeBlock": {
+      const lang = (attrs.language as string) || "";
+      const code = (content || [])
+        .map((p) => (p as Record<string, unknown>).text || "")
+        .join("");
+      return `\`\`\`${lang}\n${code}\n\`\`\``;
+    }
+
+    case "horizontalRule":
+      return "---";
+
+    default:
+      return inlineToMarkdown(content);
+  }
+}
+
+function inlineToMarkdown(content: Record<string, unknown>[] | undefined): string {
+  if (!content) return "";
+  return content
+    .map((node) => {
+      let text = (node.text as string) || "";
+      const marks = (node.marks as Record<string, unknown>[]) || [];
+
+      for (const mark of marks) {
+        const markType = mark.type as string;
+        if (markType === "bold") text = `**${text}**`;
+        else if (markType === "italic") text = `*${text}*`;
+        else if (markType === "strike") text = `~~${text}~~`;
+        else if (markType === "code") text = `\`${text}\``;
+        else if (markType === "underline") text = `__${text}__`;
+        else if (markType === "highlight") text = `==${text}==`;
+      }
+
+      return text;
+    })
+    .join("");
 }
