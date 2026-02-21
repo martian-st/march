@@ -92,10 +92,12 @@ function SlashMenu({
   editor,
   query,
   onClose,
+  coords,
 }: {
   editor: Editor;
   query: string;
   onClose: () => void;
+  coords: { top: number; left: number };
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -109,6 +111,20 @@ function SlashMenu({
   useEffect(() => {
     setSelectedIndex(0);
   }, [query]);
+
+  const selectItem = useCallback((item: SlashItem) => {
+    // Delete the slash and query text
+    const { from } = editor.state.selection;
+    const deleteFrom = from - query.length - 1;
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: deleteFrom, to: from })
+      .run();
+
+    item.command(editor);
+    onClose();
+  }, [editor, query, onClose]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -131,36 +147,15 @@ function SlashMenu({
 
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [selectedIndex, filtered, onClose]);
-
-  const selectItem = (item: SlashItem) => {
-    // Delete the slash and query text
-    const { from } = editor.state.selection;
-    const textBefore = editor.state.doc.textBetween(
-      Math.max(0, from - query.length - 1),
-      from
-    );
-    const slashPos = textBefore.lastIndexOf("/");
-    if (slashPos !== -1) {
-      const deleteFrom = from - query.length - 1;
-      editor
-        .chain()
-        .focus()
-        .deleteRange({ from: deleteFrom, to: from })
-        .run();
-    }
-
-    item.command(editor);
-    onClose();
-  };
+  }, [selectedIndex, filtered, onClose, selectItem]);
 
   if (filtered.length === 0) return null;
 
   return (
     <div
       ref={menuRef}
-      className="absolute z-50 bg-white border border-gray-200 rounded-lg shadow-md py-1 w-56 max-h-64 overflow-y-auto"
-      style={{ bottom: "100%", left: 0, marginBottom: "4px" }}
+      className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-md py-1 w-56 max-h-64 overflow-y-auto"
+      style={{ top: coords.top, left: coords.left }}
     >
       {filtered.map((item, i) => (
         <button
@@ -199,6 +194,7 @@ export function NoteEditor() {
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
+  const [slashCoords, setSlashCoords] = useState({ top: 0, left: 0 });
   const editorRef = useRef<Editor | null>(null);
 
   const editor = useEditor({
@@ -236,6 +232,12 @@ export function NoteEditor() {
       // Detect "/" at start of empty block or after space
       const slashMatch = textBefore.match(/(?:^|\s)\/([a-zA-Z0-9]*)$/);
       if (slashMatch) {
+        // Get cursor position in the viewport
+        const coords = editor.view.coordsAtPos(from);
+        setSlashCoords({
+          top: coords.bottom + 4,
+          left: coords.left,
+        });
         setSlashOpen(true);
         setSlashQuery(slashMatch[1]);
       } else {
