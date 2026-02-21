@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { SyncButton } from "./sync-button";
 
 const NAV_ITEMS = [
   { label: "today", href: "/" },
@@ -50,8 +49,6 @@ export function Nav() {
         })}
 
         <div className="h-2" />
-
-        <SyncButton />
 
         <button
           onClick={handleLogout}

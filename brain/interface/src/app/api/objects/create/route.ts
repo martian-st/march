@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Gmail not connected" }, { status: 400 });
   }
 
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const trimmed = content.trim();
+  const isUrl = /^https?:\/\/\S+$/i.test(trimmed);
 
-  const subject = `Note — ${today}`;
+  const subject = isUrl
+    ? trimmed
+    : trimmed.length > 100
+      ? trimmed.slice(0, 100) + "..."
+      : trimmed;
 
   try {
     const gmail = await getGmailClient(auth.userId);
@@ -40,29 +40,28 @@ export async function POST(req: NextRequest) {
       gmail,
       tokens.email,
       subject,
-      content.trim(),
-      "march_today"
+      trimmed,
+      "march_inbox"
     );
 
-    // Store locally
-    await prisma.emailObject.create({
+    const object = await prisma.emailObject.create({
       data: {
         gmailId: gmailMessageId,
         userId: auth.userId,
         subject,
         senderName: "You",
         senderEmail: tokens.email,
-        bodyText: content.trim(),
+        bodyText: trimmed,
         receivedAt: new Date(),
-        gmailUrl: `https://mail.google.com/mail/u/0/#inbox/${gmailMessageId}`,
+        gmailUrl: isUrl ? trimmed : `https://mail.google.com/mail/u/0/#inbox/${gmailMessageId}`,
         status: "INBOX",
-        metadata: { label: "march_today" },
+        metadata: { label: "march_inbox" },
       },
     });
 
-    return NextResponse.json({ success: true, subject });
+    return NextResponse.json({ success: true, id: object.id });
   } catch (error) {
-    console.error("Failed to send note:", error);
-    return NextResponse.json({ error: "Failed to send note" }, { status: 500 });
+    console.error("Failed to create object:", error);
+    return NextResponse.json({ error: "Failed to create object" }, { status: 500 });
   }
 }

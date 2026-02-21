@@ -8,10 +8,21 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL!;
+  const needsSsl = connectionString.includes("proxy.rlwy.net") || connectionString.includes("railway.internal");
+
   const pool = globalForPrisma.pool ?? new Pool({
-    connectionString: process.env.DATABASE_URL!,
+    connectionString,
     max: 5,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    ...(needsSsl && { ssl: { rejectUnauthorized: false } }),
   });
+
+  pool.on("error", (err) => {
+    console.error("Unexpected pool error:", err.message);
+  });
+
   globalForPrisma.pool = pool;
 
   const adapter = new PrismaPg(pool);
